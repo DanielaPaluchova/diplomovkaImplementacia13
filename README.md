@@ -1,4 +1,4 @@
-# Diplomová práca - Inovatívny systém projektového manažmentu s AI optimalizáciou
+# Diplomová práca - Vývoj systému tvorby a dynamickej korekcie trvania IT projektu
 
 ## Prehľad projektu
 
@@ -372,6 +372,92 @@ Táto aplikácia predstavuje **praktickú implementáciu** inovatívneho systém
 - **20-25% redukcia** projektových rizík
 - **Automatizácia 60-80%** rutinných plánovacích úloh
 - **Real-time adaptácia** na zmeny v požiadavkách
+
+---
+
+## Matematické algoritmy (Nové stránky)
+
+### 17. 🧮 **PERT Algorithm Optimization (PertAlgorithmPage.vue)**
+
+**Účel**: Čisto matematické algoritmy pre optimalizáciu PERT analýzy bez AI komponentov.
+
+**Čo robí**:
+
+- Implementácia klasických CPM algoritmov (O(V + E))
+- Resource leveling algoritmy (O(n²))
+- Time-cost trade-off optimalizácia (O(n log n))
+- Genetické algoritmy pre komplexné problémy (O(g × p × n))
+- Interaktívna vizualizácia kritickej cesty
+- Matematické vzorce a ich aplikácia
+
+**Súvislosť s diplomovou prácou**:
+
+- **Jadro matematického základu** - pevné, dokumentovateľné algoritmy
+- Implementácia PERT variance calculation: σ² = ((tp - to) / 6)²
+- Critical path optimization: minimize Σ(te) subject to precedence constraints
+- Resource leveling: minimize max(Rt) ∀t ∈ [0, T]
+- Porovnanie efektívnosti rôznych algoritmických prístupov
+
+### 18. 👥 **RACI Resource Optimization (RaciResourcePage.vue)**
+
+**Účel**: Matematické algoritmy pre optimalizáciu ľudských zdrojov založené na RACI modeli.
+
+**Čo robí**:
+
+- Resource allocation optimization: minimize Σ(wi × |Ui - Utarget|)
+- Skill matching function: S(t,r) = Σ(sk × mk) / Σ(sk)
+- RACI constraint validation: ∀t: Σ(At,r) = 1 ∧ Σ(Rt,r) ≥ 1
+- Workload balance metric: B = 1 - (σU / μU)
+- Interaktívna RACI matica s optimalizačnými indikátormi
+- Analýza využitia zdrojov a skill distribution
+
+**Súvislosť s diplomovou prácou**:
+
+- **Matematický základ pre RACI** - algoritmy pre optimálne priradenie rolí
+- Objektívne funkcie pre minimalizáciu času projektu vs. vyrovnanie zaťaženia
+- Constraint satisfaction pre RACI pravidlá
+- Multi-kritériálna optimalizácia (skill match, workload, cost)
+
+### 19. ⚙️ **Heuristic Rules Engine (HeuristicRulesPage.vue)**
+
+**Účel**: Jednoduché, dokumentovateľné pravidlá a heuristiky pre prerozdeľovanie úloh.
+
+**Čo robí**:
+
+- **Load Balancing Algorithm** (O(n log n)): Prerozdeľovanie na základe threshold
+- **Skill Matching Algorithm** (O(n³)): Hungarian algorithm pre bipartite matching
+- **Priority Scheduling** (O(n²)): Prerozdeľovanie podľa priority a deadline
+- **Greedy Reassignment** (O(n)): Rýchle lokálne optimalizácie
+- Konfigurovateľné pravidlá s parametrami
+- Real-time monitoring a logging akcií
+
+**Súvislosť s diplomovou prácou**:
+
+- **Praktické heuristiky** - jednoduché pravidlá pre každodenné použitie
+- Algoritmy s garantovanou komplexnosťou
+- Validácia efektívnosti rôznych heuristických prístupov
+- Kombinácia s matematickými algoritmami pre hybridné riešenia
+
+### 20. 🔗 **PERT + RACI Integration (PertRaciOptimizationPage.vue)**
+
+**Účel**: Inovatívna kombinácia PERT analýzy a RACI modelu do jedného integrovaného optimalizačného systému.
+
+**Čo robí**:
+
+- **Integrovaná objektívna funkcia**: α × F_PERT(T, D) + β × F_RACI(R, S) + γ × F_RISK(T, R)
+- **Multi-objektívna optimalizácia**: Genetické algoritmy, Monte Carlo simulácie
+- **Interaktívna sieťová vizualizácia**: PERT diagram s RACI indikátormi
+- **Real-time constraint satisfaction**: RACI pravidlá + resource capacity
+- **Risk-aware optimization**: Integrácia rizikových faktorov do optimalizácie
+- **Performance comparison**: Before/After metriky s AI odporúčaniami
+
+**Súvislosť s diplomovou prácou**:
+
+- **JADRO INOVATÍVNEHO PRÍSTUPU** - hlavný príspevok diplomovej práce
+- Demonštrácia kombinácie tradičných metodík (PERT + RACI) s modernými algoritmami
+- Matematický model pre multi-kritériálnu optimalizáciu projektov
+- Validácia hypotézy o efektívnosti integrovaného prístupu
+- Porovnanie s tradičnými separátnymi metódami
 
 ---
 

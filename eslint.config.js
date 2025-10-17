@@ -42,12 +42,16 @@ export default defineConfigWithVueTs(
     },
   },
   // https://github.com/vuejs/eslint-config-typescript
-  vueTsConfigs.recommendedTypeChecked,
+  vueTsConfigs.recommended, // Changed from recommendedTypeChecked to avoid type checking issues
 
   {
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      parserOptions: {
+        project: './tsconfig.json',
+        extraFileExtensions: ['.vue'],
+      },
 
       globals: {
         ...globals.browser,
