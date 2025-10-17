@@ -20,10 +20,6 @@ const routes: RouteRecordRaw[] = [
       { path: 'analytics', component: () => import('pages/AnalyticsPage.vue') },
       { path: 'comparisons', component: () => import('pages/ComparisonsPage.vue') },
       { path: 'reports', component: () => import('pages/ReportsPage.vue') },
-      { path: 'ai-assistant', component: () => import('pages/AiAssistantPage.vue') },
-      { path: 'smart-planning', component: () => import('pages/SmartPlanningPage.vue') },
-      { path: 'risk-prediction', component: () => import('pages/RiskPredictionPage.vue') },
-      { path: 'auto-optimization', component: () => import('pages/AutoOptimizationPage.vue') },
       {
         path: 'pert-raci-optimization',
         component: () => import('pages/PertRaciOptimizationPage.vue'),

@@ -181,40 +181,6 @@
               />
             </q-item-section>
           </q-item>
-
-          <!-- AI Tools -->
-          <q-item-label header class="text-weight-bold text-primary text-uppercase">
-            AI Tools
-          </q-item-label>
-
-          <q-item
-            v-for="item in aiNavigation"
-            :key="item.title"
-            clickable
-            v-ripple
-            :to="item.route"
-            class="navigation-item q-mb-xs"
-            active-class="bg-primary text-white"
-          >
-            <q-item-section avatar>
-              <q-icon :name="item.icon" size="24px" />
-            </q-item-section>
-
-            <q-item-section>
-              <q-item-label class="text-weight-medium">{{ item.title }}</q-item-label>
-              <q-item-label caption v-if="item.caption">{{ item.caption }}</q-item-label>
-            </q-item-section>
-
-            <q-item-section side v-if="item.badge">
-              <q-badge
-                :color="
-                  item.badge === 'New' ? 'green' : item.badge === 'Beta' ? 'orange' : 'primary'
-                "
-                :label="item.badge"
-                rounded
-              />
-            </q-item-section>
-          </q-item>
         </q-list>
       </q-scroll-area>
     </q-drawer>
@@ -331,34 +297,6 @@ const researchNavigation: NavigationItemProps[] = [
     caption: 'Research reports',
     icon: 'assessment',
     route: '/reports',
-  },
-];
-
-const aiNavigation: NavigationItemProps[] = [
-  {
-    title: 'AI Assistant',
-    caption: 'Chat with AI',
-    icon: 'smart_toy',
-    route: '/ai-assistant',
-    badge: 'Beta',
-  },
-  {
-    title: 'Smart Planning',
-    caption: 'AI-powered planning',
-    icon: 'psychology',
-    route: '/smart-planning',
-  },
-  {
-    title: 'Risk Prediction',
-    caption: 'Predictive analytics',
-    icon: 'warning',
-    route: '/risk-prediction',
-  },
-  {
-    title: 'Auto Optimization',
-    caption: 'Automatic optimization',
-    icon: 'auto_fix_high',
-    route: '/auto-optimization',
   },
 ];
 
