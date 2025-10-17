@@ -16,29 +16,9 @@
           <q-icon name="trending_up" size="24px" />
         </q-avatar>
 
-        <q-toolbar-title class="text-h6 text-weight-bold"> ProjectFlow AI </q-toolbar-title>
+        <q-toolbar-title class="text-h6 text-weight-bold"> AdaptivePERT-RACI </q-toolbar-title>
 
         <q-space />
-
-        <!-- Search -->
-        <q-input
-          v-model="searchQuery"
-          placeholder="Search projects, tasks..."
-          dense
-          standout="bg-white text-primary"
-          class="q-mr-md"
-          style="width: 300px"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
-
-        <!-- Notifications -->
-        <q-btn flat round icon="notifications" class="q-mr-sm">
-          <q-badge color="red" floating>3</q-badge>
-          <q-tooltip>Notifications</q-tooltip>
-        </q-btn>
 
         <!-- User Menu -->
         <q-btn flat round>
@@ -201,8 +181,6 @@ interface NavigationItemProps {
   route?: string;
   badge?: string | number;
 }
-
-const searchQuery = ref('');
 
 const mainNavigation: NavigationItemProps[] = [
   {

@@ -11,24 +11,6 @@
             Monitor team member workload across all projects and sprints
           </p>
         </div>
-        <div class="col-auto">
-          <q-btn-dropdown color="primary" icon="download" label="Export Report" unelevated>
-            <q-list>
-              <q-item clickable v-close-popup @click="exportReport('pdf')">
-                <q-item-section avatar>
-                  <q-icon name="picture_as_pdf" />
-                </q-item-section>
-                <q-item-section>Export as PDF</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="exportReport('csv')">
-                <q-item-section avatar>
-                  <q-icon name="table_chart" />
-                </q-item-section>
-                <q-item-section>Export as CSV</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
-        </div>
       </div>
     </div>
 
@@ -68,55 +50,6 @@
           </q-card>
         </div>
       </div>
-
-      <!-- Filters -->
-      <q-card class="q-mb-lg">
-        <q-card-section>
-          <div class="row q-gutter-md items-center">
-            <div class="col-12 col-md-3">
-              <q-input v-model="searchQuery" placeholder="Search members..." outlined dense>
-                <template v-slot:prepend>
-                  <q-icon name="search" />
-                </template>
-              </q-input>
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="roleFilter"
-                :options="roleOptions"
-                label="Filter by Role"
-                outlined
-                dense
-                clearable
-              />
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="workloadFilter"
-                :options="workloadOptions"
-                label="Filter by Workload"
-                outlined
-                dense
-                clearable
-              />
-            </div>
-            <div class="col-12 col-md-3">
-              <q-select
-                v-model="projectFilter"
-                :options="projectOptions"
-                option-label="name"
-                option-value="id"
-                label="Filter by Project"
-                outlined
-                dense
-                clearable
-                emit-value
-                map-options
-              />
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
 
       <!-- Cross-Project Sprint Overview -->
       <q-card class="q-mb-lg">
@@ -159,27 +92,27 @@
 
                   <div class="row q-gutter-sm q-mb-md">
                     <div class="col">
-                      <div class="text-caption text-grey-7">Capacity</div>
+                      <div class="text-caption text-grey-7">Total Tasks</div>
                       <div class="text-h6 text-primary text-weight-bold">
-                        {{ sprint.capacity }} SP
+                        {{ sprint.totalTasks }}
                       </div>
                     </div>
                     <div class="col">
-                      <div class="text-caption text-grey-7">Completed</div>
+                      <div class="text-caption text-grey-7">Completed Tasks</div>
                       <div class="text-h6 text-green text-weight-bold">
-                        {{ sprint.completed }} SP
+                        {{ sprint.completedTasks }}
                       </div>
                     </div>
                     <div class="col">
-                      <div class="text-caption text-grey-7">Progress</div>
-                      <div class="text-h6 text-blue text-weight-bold">
-                        {{ Math.round((sprint.completed / sprint.capacity) * 100) }}%
+                      <div class="text-caption text-grey-7">Remaining Tasks</div>
+                      <div class="text-h6 text-orange text-weight-bold">
+                        {{ sprint.remainingTasks }}
                       </div>
                     </div>
                   </div>
 
                   <q-linear-progress
-                    :value="sprint.completed / sprint.capacity"
+                    :value="sprint.totalTasks > 0 ? sprint.completedTasks / sprint.totalTasks : 0"
                     color="green"
                     size="8px"
                     class="q-mb-md rounded-borders"
@@ -227,6 +160,55 @@
                 <q-icon name="event_busy" size="48px" class="q-mb-sm" />
                 <div class="text-body1">No active sprints at the moment</div>
               </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <!-- Filters -->
+      <q-card class="q-mb-lg">
+        <q-card-section>
+          <div class="row q-gutter-md items-center">
+            <div class="col-12 col-md-3">
+              <q-input v-model="searchQuery" placeholder="Search members..." outlined dense>
+                <template v-slot:prepend>
+                  <q-icon name="search" />
+                </template>
+              </q-input>
+            </div>
+            <div class="col-12 col-md-3">
+              <q-select
+                v-model="roleFilter"
+                :options="roleOptions"
+                label="Filter by Role"
+                outlined
+                dense
+                clearable
+              />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-select
+                v-model="workloadFilter"
+                :options="workloadOptions"
+                label="Filter by Workload"
+                outlined
+                dense
+                clearable
+              />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-select
+                v-model="projectFilter"
+                :options="projectOptions"
+                option-label="name"
+                option-value="id"
+                label="Filter by Project"
+                outlined
+                dense
+                clearable
+                emit-value
+                map-options
+              />
             </div>
           </div>
         </q-card-section>
@@ -486,12 +468,10 @@
 import { ref, computed } from 'vue';
 import { format } from 'date-fns';
 import { useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
 import { useTeamStore } from 'src/stores/team-store';
 import { useProjectStore } from 'src/stores/project-store';
 
 const router = useRouter();
-const $q = useQuasar();
 const teamStore = useTeamStore();
 const projectStore = useProjectStore();
 
@@ -570,7 +550,7 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
 
         // Mock: calculate story points for this member in active sprint
         const storyPoints = activeSprint
-          ? Math.floor(activeSprint.capacity / project.teamMemberIds.length)
+          ? Math.floor(activeSprint.totalTasks / project.teamMemberIds.length)
           : 0;
 
         if (storyPoints > 0) {
@@ -701,8 +681,9 @@ interface SprintOverview {
   sprintName: string;
   startDate: Date;
   endDate: Date;
-  capacity: number;
-  completed: number;
+  totalTasks: number;
+  completedTasks: number;
+  remainingTasks: number;
   teamMembers: {
     id: number;
     name: string;
@@ -724,7 +705,7 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
           if (!member) return null;
 
           // Mock story points calculation
-          const storyPoints = Math.floor(activeSprint.capacity / project.teamMemberIds.length);
+          const storyPoints = Math.floor(activeSprint.totalTasks / project.teamMemberIds.length);
 
           return {
             id: member.id,
@@ -742,8 +723,9 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
         sprintName: activeSprint.name,
         startDate: activeSprint.startDate,
         endDate: activeSprint.endDate,
-        capacity: activeSprint.capacity,
-        completed: activeSprint.completed,
+        totalTasks: activeSprint.totalTasks || 0,
+        completedTasks: activeSprint.completedTasks || 0,
+        remainingTasks: (activeSprint.totalTasks || 0) - (activeSprint.completedTasks || 0),
         teamMembers,
       });
     }
@@ -804,15 +786,6 @@ function contactMember(member: MemberWorkload) {
 function navigateToProject(projectId: number) {
   showDetailsDialog.value = false;
   router.push(`/projects/${projectId}`);
-}
-
-function exportReport(format: string) {
-  $q.notify({
-    message: `Exporting report as ${format.toUpperCase()}...`,
-    color: 'positive',
-    icon: 'download',
-    position: 'top',
-  });
 }
 </script>
 

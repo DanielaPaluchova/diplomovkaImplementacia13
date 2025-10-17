@@ -362,5 +362,21 @@ export const useMockDataStore = defineStore('mockData', {
       this.projects[4]!.team = [this.teamMembers[1]!, this.teamMembers[2]!];
       this.projects[5]!.team = [this.teamMembers[4]!, this.teamMembers[5]!];
     },
+
+    addTeamMember(member: Omit<TeamMember, 'id' | 'avatar' | 'status' | 'activeProjects'>) {
+      const newMember: TeamMember = {
+        id: this.teamMembers.length + 1,
+        name: member.name,
+        role: member.role,
+        avatar: `https://cdn.quasar.dev/img/avatar${(this.teamMembers.length % 6) + 1}.jpg`,
+        status: 'online',
+        activeProjects: 0,
+        workload: member.workload,
+        skills: member.skills,
+        email: member.email,
+      };
+      this.teamMembers.push(newMember);
+      return newMember;
+    },
   },
 });

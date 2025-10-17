@@ -5,69 +5,147 @@
       <div class="row items-center justify-between">
         <div>
           <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Sprint Planning</h4>
-          <p class="text-grey-7 q-ma-none q-mt-sm">
-            Plan and organize your sprint with AI-powered insights
-          </p>
+          <p class="text-grey-7 q-ma-none q-mt-sm">Plan and organize your sprint</p>
         </div>
         <div class="row q-gutter-md">
-          <q-btn
-            color="secondary"
-            icon="psychology"
-            label="AI Suggestions"
-            @click="getAISuggestions"
-          />
           <q-btn color="primary" icon="rocket_launch" label="Start Sprint" @click="startSprint" />
         </div>
       </div>
     </div>
 
     <div class="q-pa-lg">
+      <!-- Project Selection & Sprint Configuration -->
+      <div class="row q-col-gutter-lg q-mb-lg">
+        <div class="col-12">
+          <q-card>
+            <q-card-section>
+              <div class="text-h6 text-weight-bold q-mb-md">Sprint Configuration</div>
+              <div class="row q-col-gutter-md">
+                <div class="col-12 col-md-6">
+                  <q-select
+                    v-model="selectedProjectId"
+                    :options="projectOptions"
+                    label="Select Project"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    :rules="[(val) => !!val || 'Please select a project']"
+                  >
+                    <template #prepend>
+                      <q-icon name="folder" />
+                    </template>
+                  </q-select>
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="sprintName"
+                    label="Sprint Name"
+                    outlined
+                    dense
+                    :rules="[(val) => !!val || 'Sprint name is required']"
+                  >
+                    <template #prepend>
+                      <q-icon name="label" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12">
+                  <q-input
+                    v-model="sprintGoal"
+                    label="Sprint Goal (optional)"
+                    outlined
+                    dense
+                    type="textarea"
+                    rows="2"
+                  >
+                    <template #prepend>
+                      <q-icon name="flag" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="startDate"
+                    label="Start Date"
+                    outlined
+                    dense
+                    type="date"
+                    :rules="[(val) => !!val || 'Start date is required']"
+                  >
+                    <template #prepend>
+                      <q-icon name="event" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="endDate"
+                    label="End Date"
+                    outlined
+                    dense
+                    type="date"
+                    :rules="[(val) => !!val || 'End date is required']"
+                  >
+                    <template #prepend>
+                      <q-icon name="event" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
       <!-- Sprint Info & Controls -->
       <div class="row q-gutter-lg q-mb-lg">
         <!-- Sprint Details -->
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-6">
           <q-card>
             <q-card-section>
-              <div class="text-h6 text-weight-bold">Sprint 12</div>
-              <div class="text-grey-7">December 15 - December 29, 2024</div>
+              <div class="text-h6 text-weight-bold">{{ sprintName || 'Sprint' }}</div>
+              <div class="text-grey-7">
+                {{
+                  startDate && endDate
+                    ? `${formatDateForDisplay(startDate)} - ${formatDateForDisplay(endDate)}`
+                    : 'Set dates above'
+                }}
+              </div>
             </q-card-section>
             <q-separator />
             <q-card-section>
               <div class="row q-gutter-md">
                 <div class="col">
-                  <div class="text-caption text-grey-7">Capacity</div>
-                  <div class="text-h6 text-primary">{{ sprintCapacity }} SP</div>
+                  <div class="text-caption text-grey-7">Total Tasks</div>
+                  <div class="text-h6 text-primary">{{ totalTasks }}</div>
                 </div>
                 <div class="col">
-                  <div class="text-caption text-grey-7">Planned</div>
-                  <div
-                    class="text-h6"
-                    :class="plannedPoints > sprintCapacity ? 'text-red' : 'text-green'"
-                  >
-                    {{ plannedPoints }} SP
-                  </div>
+                  <div class="text-caption text-grey-7">Completed Tasks</div>
+                  <div class="text-h6 text-green">{{ completedTasks }}</div>
                 </div>
                 <div class="col">
-                  <div class="text-caption text-grey-7">Team</div>
-                  <div class="text-h6 text-orange">{{ teamMembers.length }} devs</div>
+                  <div class="text-caption text-grey-7">Remaining Tasks</div>
+                  <div class="text-h6 text-orange">{{ remainingTasks }}</div>
                 </div>
               </div>
 
               <q-linear-progress
-                :value="plannedPoints / sprintCapacity"
-                :color="plannedPoints > sprintCapacity ? 'red' : 'primary'"
+                :value="completedTasks / totalTasks"
+                color="green"
                 class="q-mt-md"
                 style="height: 8px"
               />
               <div class="text-caption text-center q-mt-xs">
-                {{ Math.round((plannedPoints / sprintCapacity) * 100) }}% of capacity
+                {{ totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0 }}%
+                completed
               </div>
             </q-card-section>
           </q-card>
         </div>
 
         <!-- Team Allocation -->
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-6">
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold">Team Allocation</div>
@@ -97,38 +175,12 @@
             </q-card-section>
           </q-card>
         </div>
-
-        <!-- AI Insights -->
-        <div class="col-12 col-md-4">
-          <q-card>
-            <q-card-section>
-              <div class="row items-center">
-                <q-icon name="smart_toy" color="primary" size="24px" class="q-mr-sm" />
-                <div class="text-h6 text-weight-bold">AI Insights</div>
-              </div>
-            </q-card-section>
-            <q-separator />
-            <q-card-section>
-              <div class="column q-gutter-sm">
-                <div class="ai-insight" v-for="insight in currentInsights" :key="insight.id">
-                  <q-icon
-                    :name="insight.icon"
-                    :color="insight.type === 'warning' ? 'orange' : 'primary'"
-                    size="16px"
-                    class="q-mr-xs"
-                  />
-                  <span class="text-body2">{{ insight.message }}</span>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
       </div>
 
       <!-- Sprint Board -->
       <div class="row q-gutter-lg">
         <!-- Backlog -->
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-6">
           <q-card class="full-height">
             <q-card-section class="bg-grey-3">
               <div class="row items-center">
@@ -139,32 +191,44 @@
             </q-card-section>
             <q-separator />
             <q-card-section class="q-pa-sm">
-               <div class="column q-gutter-sm">
-                 <q-card 
-                   v-for="task in backlogTasks"
-                   :key="task.id"
-                   class="task-card cursor-pointer"
-                   draggable
-                   @dragstart="onDragStart(task)"
-                   @dragend="onDragEnd"
-                 >
-                   <q-card-section class="q-pa-sm">
-                     <div class="text-subtitle2 text-weight-medium q-mb-xs">{{ task.title }}</div>
-                     <div class="text-body2 text-grey-7 q-mb-sm" style="font-size: 12px">{{ task.description }}</div>
-                     <div class="row items-center justify-between">
-                       <q-chip :color="task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'orange' : 'green'" 
-                               text-color="white" size="sm" :label="task.priority" />
-                       <div class="text-caption">{{ task.storyPoints }} SP</div>
-                     </div>
-                   </q-card-section>
-                 </q-card>
-               </div>
+              <div class="column q-gutter-sm">
+                <q-card
+                  v-for="task in backlogTasks"
+                  :key="task.id"
+                  class="task-card cursor-pointer"
+                  draggable
+                  @dragstart="onDragStart(task)"
+                  @dragend="onDragEnd"
+                >
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-subtitle2 text-weight-medium q-mb-xs">{{ task.title }}</div>
+                    <div class="text-body2 text-grey-7 q-mb-sm" style="font-size: 12px">
+                      {{ task.description }}
+                    </div>
+                    <div class="row items-center justify-between">
+                      <q-chip
+                        :color="
+                          task.priority.toLowerCase() === 'high'
+                            ? 'red'
+                            : task.priority.toLowerCase() === 'medium'
+                              ? 'orange'
+                              : 'green'
+                        "
+                        text-color="white"
+                        size="sm"
+                        :label="task.priority"
+                      />
+                      <div class="text-caption">{{ task.storyPoints }} SP</div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
             </q-card-section>
           </q-card>
         </div>
 
         <!-- Sprint Backlog -->
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-6">
           <q-card
             class="full-height sprint-backlog"
             :class="{ 'drag-over': isDragOver }"
@@ -181,105 +245,55 @@
             </q-card-section>
             <q-separator />
             <q-card-section class="q-pa-sm">
-               <div class="column q-gutter-sm">
-                 <q-card 
-                   v-for="task in sprintTasks"
-                   :key="task.id"
-                   class="task-card cursor-pointer bg-primary-1"
-                 >
-                   <q-card-section class="q-pa-sm">
-                     <div class="row items-start q-mb-sm">
-                       <div class="col">
-                         <div class="text-subtitle2 text-weight-medium q-mb-xs">{{ task.title }}</div>
-                       </div>
-                       <div class="col-auto">
-                         <q-btn flat round dense icon="close" size="sm" color="grey-6" @click="removeFromSprint(task.id)" />
-                       </div>
-                     </div>
-                     <div class="text-body2 text-grey-7 q-mb-sm" style="font-size: 12px">{{ task.description }}</div>
-                     <div class="row items-center justify-between">
-                       <q-chip :color="task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'orange' : 'green'" 
-                               text-color="white" size="sm" :label="task.priority" />
-                       <div class="text-caption">{{ task.storyPoints }} SP</div>
-                     </div>
-                   </q-card-section>
-                 </q-card>
-               </div>
+              <div class="column q-gutter-sm">
+                <q-card
+                  v-for="task in sprintTasks"
+                  :key="task.id"
+                  class="task-card cursor-pointer bg-primary-1"
+                >
+                  <q-card-section class="q-pa-sm">
+                    <div class="row items-start q-mb-sm">
+                      <div class="col">
+                        <div class="text-subtitle2 text-weight-medium q-mb-xs">
+                          {{ task.title }}
+                        </div>
+                      </div>
+                      <div class="col-auto">
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="close"
+                          size="sm"
+                          color="grey-6"
+                          @click="removeFromSprint(task.id)"
+                        />
+                      </div>
+                    </div>
+                    <div class="text-body2 text-grey-7 q-mb-sm" style="font-size: 12px">
+                      {{ task.description }}
+                    </div>
+                    <div class="row items-center justify-between">
+                      <q-chip
+                        :color="
+                          task.priority.toLowerCase() === 'high'
+                            ? 'red'
+                            : task.priority.toLowerCase() === 'medium'
+                              ? 'orange'
+                              : 'green'
+                        "
+                        text-color="white"
+                        size="sm"
+                        :label="task.priority"
+                      />
+                      <div class="text-caption">{{ task.storyPoints }} SP</div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
               <div v-if="sprintTasks.length === 0" class="text-center text-grey-5 q-pa-lg">
                 <q-icon name="timeline" size="48px" class="q-mb-md" />
                 <div>Drag tasks here to add to sprint</div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <!-- Sprint Analysis -->
-        <div class="col-12 col-lg-4">
-          <q-card class="full-height">
-            <q-card-section class="bg-green-1">
-              <div class="text-h6 text-weight-bold text-green-8">Sprint Analysis</div>
-            </q-card-section>
-            <q-separator />
-            <q-card-section>
-              <!-- Velocity Chart -->
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Velocity Prediction</div>
-              <div class="velocity-chart q-mb-lg">
-                <div class="row items-end q-gutter-xs" style="height: 80px">
-                  <div
-                    v-for="(velocity, index) in velocityHistory"
-                    :key="index"
-                    class="velocity-bar bg-primary"
-                    :style="{
-                      height: `${(velocity / Math.max(...velocityHistory)) * 80}px`,
-                      width: '20px',
-                    }"
-                  />
-                  <div
-                    class="velocity-bar bg-green"
-                    :style="{
-                      height: `${(predictedVelocity / Math.max(...velocityHistory)) * 80}px`,
-                      width: '20px',
-                      opacity: 0.7,
-                    }"
-                  />
-                </div>
-                <div class="text-caption text-center q-mt-xs">
-                  Predicted: {{ predictedVelocity }} SP
-                </div>
-              </div>
-
-              <!-- Risk Assessment -->
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Risk Assessment</div>
-              <div class="column q-gutter-sm">
-                <div v-for="risk in riskAssessment" :key="risk.type" class="row items-center">
-                  <q-icon
-                    :name="
-                      risk.level === 'high'
-                        ? 'error'
-                        : risk.level === 'medium'
-                          ? 'warning'
-                          : 'check_circle'
-                    "
-                    :color="
-                      risk.level === 'high' ? 'red' : risk.level === 'medium' ? 'orange' : 'green'
-                    "
-                    size="16px"
-                    class="q-mr-sm"
-                  />
-                  <div class="col">
-                    <div class="text-body2">{{ risk.type }}</div>
-                  </div>
-                  <div class="col-auto">
-                    <q-chip
-                      :color="
-                        risk.level === 'high' ? 'red' : risk.level === 'medium' ? 'orange' : 'green'
-                      "
-                      text-color="white"
-                      size="sm"
-                      :label="risk.level"
-                    />
-                  </div>
-                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -290,19 +304,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-
-interface Task {
-  id: number;
-  title: string;
-  description: string;
-  storyPoints: number;
-  priority: 'high' | 'medium' | 'low';
-  type: 'feature' | 'bug' | 'task';
-  assignee?: string;
-  labels: string[];
-  complexity: number;
-}
+import { ref, computed, watch } from 'vue';
+import { useQuasar } from 'quasar';
+import { useProjectStore, type Task } from 'src/stores/project-store';
 
 interface TeamMember {
   id: number;
@@ -312,13 +316,77 @@ interface TeamMember {
   workload: number;
 }
 
+const $q = useQuasar();
+const projectStore = useProjectStore();
+
 // Reactive data
 const isDragOver = ref(false);
 const draggedTask = ref<Task | null>(null);
 
-const sprintCapacity = 45;
-const predictedVelocity = 38;
-const velocityHistory = [32, 35, 40, 38, 42];
+// Sprint configuration
+const selectedProjectId = ref<number | null>(projectStore.projects[0]?.id || null);
+const sprintName = ref('Sprint 1');
+const sprintGoal = ref('');
+const startDate = ref('');
+const endDate = ref('');
+
+// Computed project options
+const projectOptions = computed(() => {
+  return projectStore.projects.map((p) => ({
+    label: p.name,
+    value: p.id,
+  }));
+});
+
+// Watch for project changes and update sprint info
+watch(
+  selectedProjectId,
+  (newProjectId) => {
+    if (newProjectId) {
+      const project = projectStore.getProject(newProjectId);
+      if (project) {
+        const activeSprint = project.sprints.find((s) => s.status === 'active');
+        if (activeSprint) {
+          sprintName.value = activeSprint.name;
+          sprintGoal.value = activeSprint.goal;
+          startDate.value = formatDateForInput(activeSprint.startDate);
+          endDate.value = formatDateForInput(activeSprint.endDate);
+        } else {
+          // Set defaults for new sprint
+          const nextSprintNumber = project.sprints.length + 1;
+          sprintName.value = `Sprint ${nextSprintNumber}`;
+          sprintGoal.value = '';
+          startDate.value = formatDateForInput(new Date());
+          const defaultEndDate = new Date();
+          defaultEndDate.setDate(defaultEndDate.getDate() + 14);
+          endDate.value = formatDateForInput(defaultEndDate);
+        }
+      }
+    }
+  },
+  { immediate: true },
+);
+
+// Helper to format date for input
+function formatDateForInput(date: Date): string {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper to format date for display
+function formatDateForDisplay(dateString: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  };
+  return date.toLocaleDateString('en-US', options);
+}
 
 // Mock data
 const teamMembers: TeamMember[] = [
@@ -352,126 +420,42 @@ const teamMembers: TeamMember[] = [
   },
 ];
 
-const backlogTasks = ref<Task[]>([
-  {
-    id: 1,
-    title: 'User Authentication System',
-    description: 'Implement JWT-based authentication with refresh tokens',
-    storyPoints: 8,
-    priority: 'high',
-    type: 'feature',
-    assignee: 'John Smith',
-    labels: ['backend', 'security'],
-    complexity: 8,
-  },
-  {
-    id: 2,
-    title: 'Dashboard Analytics Widget',
-    description: 'Create interactive charts for project metrics',
-    storyPoints: 5,
-    priority: 'medium',
-    type: 'feature',
-    labels: ['frontend', 'charts'],
-    complexity: 6,
-  },
-  {
-    id: 3,
-    title: 'Fix Mobile Responsive Issues',
-    description: 'Resolve layout problems on mobile devices',
-    storyPoints: 3,
-    priority: 'high',
-    type: 'bug',
-    labels: ['frontend', 'mobile'],
-    complexity: 4,
-  },
-  {
-    id: 4,
-    title: 'API Rate Limiting',
-    description: 'Implement rate limiting for API endpoints',
-    storyPoints: 5,
-    priority: 'medium',
-    type: 'feature',
-    labels: ['backend', 'security'],
-    complexity: 5,
-  },
-  {
-    id: 5,
-    title: 'User Profile Management',
-    description: 'Allow users to update their profile information',
-    storyPoints: 8,
-    priority: 'low',
-    type: 'feature',
-    labels: ['frontend', 'backend'],
-    complexity: 7,
-  },
-  {
-    id: 6,
-    title: 'Database Migration Scripts',
-    description: 'Create scripts for production database migration',
-    storyPoints: 3,
-    priority: 'medium',
-    type: 'task',
-    labels: ['database', 'devops'],
-    complexity: 5,
-  },
-]);
+// Get tasks from the selected project
+const backlogTasks = computed(() => {
+  if (!selectedProjectId.value) return [];
+  const project = projectStore.getProject(selectedProjectId.value);
+  if (!project) return [];
 
-const sprintTasks = ref<Task[]>([
-  {
-    id: 101,
-    title: 'Sprint Planning UI',
-    description: 'Create drag and drop interface for sprint planning',
-    storyPoints: 13,
-    priority: 'high',
-    type: 'feature',
-    assignee: 'Sarah Johnson',
-    labels: ['frontend', 'planning'],
-    complexity: 9,
-  },
-  {
-    id: 102,
-    title: 'PERT Algorithm Implementation',
-    description: 'Implement PERT analysis for project scheduling',
-    storyPoints: 21,
-    priority: 'high',
-    type: 'feature',
-    assignee: 'Mike Wilson',
-    labels: ['backend', 'algorithm'],
-    complexity: 10,
-  },
-]);
+  // Get tasks that are not in any sprint (backlog)
+  return project.tasks.filter((task) => task.sprintId === null);
+});
 
-const currentInsights = ref([
-  {
-    id: 1,
-    message: 'Sprint capacity is optimal for current team velocity',
-    type: 'info',
-    icon: 'check_circle',
-  },
-  {
-    id: 2,
-    message: 'Consider breaking down large stories for better estimation',
-    type: 'warning',
-    icon: 'warning',
-  },
-  {
-    id: 3,
-    message: 'Mike Wilson has high workload, consider redistribution',
-    type: 'warning',
-    icon: 'person',
-  },
-]);
+const sprintTasks = computed(() => {
+  if (!selectedProjectId.value) return [];
+  const project = projectStore.getProject(selectedProjectId.value);
+  if (!project) return [];
 
-const riskAssessment = [
-  { type: 'Scope Creep', level: 'low' },
-  { type: 'Technical Complexity', level: 'medium' },
-  { type: 'Team Capacity', level: 'high' },
-  { type: 'Dependencies', level: 'low' },
-];
+  // Get the active sprint
+  const activeSprint = project.sprints.find((s) => s.status === 'active');
+  if (!activeSprint) return [];
+
+  // Get tasks that are in the active sprint
+  return project.tasks.filter((task) => task.sprintId === activeSprint.id);
+});
 
 // Computed
-const plannedPoints = computed(() => {
-  return sprintTasks.value.reduce((sum, task) => sum + task.storyPoints, 0);
+const totalTasks = computed(() => {
+  return sprintTasks.value.length;
+});
+
+const completedTasks = computed(() => {
+  // For now, we'll simulate some completed tasks
+  // In a real app, tasks would have a status property
+  return Math.floor(sprintTasks.value.length * 0.6);
+});
+
+const remainingTasks = computed(() => {
+  return totalTasks.value - completedTasks.value;
 });
 
 // Methods
@@ -497,37 +481,152 @@ function onDrop(event: DragEvent) {
   event.preventDefault();
   isDragOver.value = false;
 
-  if (draggedTask.value) {
-    // Move task from backlog to sprint
-    const taskIndex = backlogTasks.value.findIndex((t) => t.id === draggedTask.value!.id);
-    if (taskIndex !== -1) {
-      const task = backlogTasks.value.splice(taskIndex, 1)[0];
-      if (task) {
-        sprintTasks.value.push(task);
-      }
+  if (draggedTask.value && selectedProjectId.value) {
+    const project = projectStore.getProject(selectedProjectId.value);
+    if (!project) return;
+
+    const activeSprint = project.sprints.find((s) => s.status === 'active');
+    if (!activeSprint) {
+      $q.notify({
+        message: 'No active sprint. Please start a sprint first.',
+        color: 'warning',
+        icon: 'warning',
+        position: 'top',
+      });
+      return;
     }
+
+    // Find the task in the project and update its sprintId
+    const task = project.tasks.find((t) => t.id === draggedTask.value!.id);
+    if (task && task.sprintId === null) {
+      task.sprintId = activeSprint.id;
+
+      $q.notify({
+        message: `Added "${task.title}" to sprint`,
+        color: 'positive',
+        icon: 'check',
+        position: 'top',
+        timeout: 1000,
+      });
+    }
+
     draggedTask.value = null;
   }
 }
 
 function removeFromSprint(taskId: number) {
-  const taskIndex = sprintTasks.value.findIndex((t) => t.id === taskId);
-  if (taskIndex !== -1) {
-    const task = sprintTasks.value.splice(taskIndex, 1)[0];
-    if (task) {
-      backlogTasks.value.push(task);
-    }
+  if (!selectedProjectId.value) return;
+
+  const project = projectStore.getProject(selectedProjectId.value);
+  if (!project) return;
+
+  // Find the task and remove it from sprint
+  const task = project.tasks.find((t) => t.id === taskId);
+  if (task) {
+    task.sprintId = null;
+
+    $q.notify({
+      message: `Removed "${task.title}" from sprint`,
+      color: 'info',
+      icon: 'remove_circle',
+      position: 'top',
+      timeout: 1000,
+    });
   }
 }
 
-function getAISuggestions() {
-  // TODO: Implement AI suggestions
-  console.log('Getting AI suggestions...');
-}
-
 function startSprint() {
-  // TODO: Implement sprint start
-  console.log('Starting sprint...');
+  if (!selectedProjectId.value) {
+    $q.notify({
+      message: 'Please select a project first',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  if (sprintTasks.value.length === 0) {
+    $q.notify({
+      message: 'Please add tasks to the sprint before starting',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  if (!startDate.value || !endDate.value) {
+    $q.notify({
+      message: 'Please set start and end dates for the sprint',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  if (!sprintName.value.trim()) {
+    $q.notify({
+      message: 'Please provide a sprint name',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Check if there's an active sprint to update or create new one
+  const project = projectStore.getProject(selectedProjectId.value);
+  if (project) {
+    const activeSprint = project.sprints.find((s) => s.status === 'active');
+
+    if (activeSprint) {
+      // Update existing sprint
+      projectStore.updateSprint(selectedProjectId.value, activeSprint.id, {
+        name: sprintName.value,
+        goal: sprintGoal.value,
+        startDate: new Date(startDate.value),
+        endDate: new Date(endDate.value),
+        totalTasks: sprintTasks.value.length,
+        taskIds: sprintTasks.value.map((t) => t.id),
+      });
+
+      $q.notify({
+        message: `Sprint "${sprintName.value}" updated with ${sprintTasks.value.length} tasks!`,
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top',
+      });
+    } else {
+      // Create new sprint
+      projectStore.addSprint(selectedProjectId.value, {
+        name: sprintName.value,
+        goal: sprintGoal.value,
+        startDate: new Date(startDate.value),
+        endDate: new Date(endDate.value),
+        status: 'active',
+        totalTasks: sprintTasks.value.length,
+        completedTasks: 0,
+        taskIds: sprintTasks.value.map((t) => t.id),
+      });
+
+      $q.notify({
+        message: `Sprint "${sprintName.value}" started with ${sprintTasks.value.length} tasks!`,
+        color: 'positive',
+        icon: 'rocket_launch',
+        position: 'top',
+      });
+    }
+  }
+
+  console.log('Sprint details:', {
+    project: selectedProjectId.value,
+    name: sprintName.value,
+    goal: sprintGoal.value,
+    dates: { start: startDate.value, end: endDate.value },
+    tasks: sprintTasks.value,
+  });
 }
 </script>
 
@@ -552,28 +651,5 @@ function startSprint() {
   border-color: var(--q-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
-}
-
-.ai-insight {
-  display: flex;
-  align-items: flex-start;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 6px;
-}
-
-.velocity-chart {
-  display: flex;
-  justify-content: center;
-}
-
-.velocity-bar {
-  border-radius: 2px;
-  margin: 0 1px;
-  transition: all 0.3s ease;
-}
-
-.velocity-bar:hover {
-  opacity: 0.8;
 }
 </style>

@@ -9,12 +9,6 @@
         </div>
         <div class="row q-gutter-md">
           <q-btn
-            color="secondary"
-            icon="group_add"
-            label="Invite Member"
-            @click="showInviteDialog = true"
-          />
-          <q-btn
             color="primary"
             icon="person_add"
             label="Add Member"
@@ -29,7 +23,7 @@
       <div class="row q-gutter-md q-mb-lg">
         <div class="col-12 col-md-3">
           <q-card class="stat-card bg-primary-1">
-            <q-card-section class="q-pb-none">
+            <q-card-section>
               <div class="row items-center no-wrap">
                 <div class="col">
                   <div class="text-h4 text-weight-bold text-primary">{{ teamMembers.length }}</div>
@@ -40,33 +34,11 @@
                 </div>
               </div>
             </q-card-section>
-            <q-card-section class="q-pt-none">
-              <div class="row items-center">
-                <q-icon name="trending_up" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">+2</span>
-                <span class="text-caption text-grey-7 q-ml-xs">this month</span>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-        <div class="col-12 col-md-3">
-          <q-card class="stat-card bg-green-1">
-            <q-card-section class="q-pb-none">
-              <div class="row items-center no-wrap">
-                <div class="col">
-                  <div class="text-h4 text-weight-bold text-green">{{ onlineMembers.length }}</div>
-                  <div class="text-caption text-grey-7">Online Now</div>
-                </div>
-                <div class="col-auto">
-                  <q-icon name="circle" size="32px" class="text-green" />
-                </div>
-              </div>
-            </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-md-3">
           <q-card class="stat-card bg-orange-1">
-            <q-card-section class="q-pb-none">
+            <q-card-section>
               <div class="row items-center no-wrap">
                 <div class="col">
                   <div class="text-h4 text-weight-bold text-orange">{{ averageWorkload }}%</div>
@@ -77,18 +49,11 @@
                 </div>
               </div>
             </q-card-section>
-            <q-card-section class="q-pt-none">
-              <div class="row items-center">
-                <q-icon name="trending_down" class="text-red" size="16px" />
-                <span class="text-caption q-ml-xs text-red">-5%</span>
-                <span class="text-caption text-grey-7 q-ml-xs">vs last week</span>
-              </div>
-            </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-md-3">
           <q-card class="stat-card bg-blue-1">
-            <q-card-section class="q-pb-none">
+            <q-card-section>
               <div class="row items-center no-wrap">
                 <div class="col">
                   <div class="text-h4 text-weight-bold text-blue">{{ totalActiveProjects }}</div>
@@ -109,9 +74,9 @@
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">Team Workload Distribution</div>
-              <div class="workload-chart">
-                <div class="row q-gutter-sm">
-                  <div v-for="member in teamMembers" :key="member.id" class="col">
+              <div class="row q-gutter-sm">
+                <div v-for="member in teamMembers" :key="member.id" class="col">
+                  <div class="workload-chart-item">
                     <div class="workload-bar-container">
                       <div
                         class="workload-bar"
@@ -173,16 +138,7 @@
               </q-avatar>
 
               <div class="text-h6 text-weight-bold">{{ member.name }}</div>
-              <div class="text-body2 text-grey-7 q-mb-sm">{{ member.role }}</div>
-
-              <q-chip
-                :color="getStatusColor(member.status)"
-                text-color="white"
-                size="sm"
-                :icon="getStatusIcon(member.status)"
-                :label="member.status"
-                class="q-mb-md"
-              />
+              <div class="text-body2 text-grey-7 q-mb-md">{{ member.role }}</div>
 
               <div class="row q-gutter-sm q-mb-md">
                 <div class="col">
@@ -233,14 +189,8 @@
             </q-card-section>
 
             <q-card-actions align="center">
-              <q-btn flat color="primary" icon="chat" @click="chatWithMember(member)">
-                <q-tooltip>Send message</q-tooltip>
-              </q-btn>
               <q-btn flat color="secondary" icon="person" @click="viewMemberProfile(member)">
                 <q-tooltip>View profile</q-tooltip>
-              </q-btn>
-              <q-btn flat color="orange" icon="assignment" @click="assignTaskToMember(member)">
-                <q-tooltip>Assign task</q-tooltip>
               </q-btn>
             </q-card-actions>
           </q-card>
@@ -249,101 +199,80 @@
     </div>
 
     <!-- Add Member Dialog -->
-    <q-dialog v-model="showAddMemberDialog" persistent>
+    <q-dialog v-model="showAddMemberDialog">
       <q-card style="min-width: 400px">
         <q-card-section>
           <div class="text-h6">Add Team Member</div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-input
-            v-model="newMember.name"
-            label="Full Name"
+          <div class="text-center q-mb-md">
+            <q-avatar size="80px" class="q-mb-sm">
+              <img :src="newMember.avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
+            </q-avatar>
+            <div>
+              <q-btn
+                size="sm"
+                color="primary"
+                icon="photo_camera"
+                label="Upload Photo"
+                @click="triggerNewAvatarUpload"
+              />
+              <input
+                ref="newAvatarInput"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="handleNewAvatarUpload"
+              />
+            </div>
+          </div>
+
+          <q-input v-model="newMember.name" label="Full Name" filled class="q-mb-md" />
+
+          <q-input v-model="newMember.email" label="Email" type="email" filled class="q-mb-md" />
+
+          <q-select
+            v-model="newMember.role"
+            :options="availableRoles"
+            label="Role"
             filled
             class="q-mb-md"
-            :rules="[(val) => !!val || 'Name is required']"
           />
 
           <q-input
-            v-model="newMember.email"
-            label="Email"
-            type="email"
+            v-if="newMember.role === 'Other'"
+            v-model="newMember.customRole"
+            label="Specify Role"
             filled
             class="q-mb-md"
-            :rules="[(val) => !!val || 'Email is required']"
           />
-
-          <q-input v-model="newMember.role" label="Role" filled class="q-mb-md" />
 
           <q-select
             v-model="newMember.skills"
-            :options="availableSkills"
+            :options="skillOptions"
             label="Skills"
             multiple
             use-chips
+            use-input
+            @filter="filterSkills"
+            @new-value="createSkill"
             filled
             class="q-mb-md"
-          />
-
-          <q-slider
-            v-model="newMember.workload"
-            :min="0"
-            :max="100"
-            :step="5"
-            label
-            label-always
-            color="primary"
-          />
-          <div class="text-caption text-grey-7 q-mt-xs">
-            Initial workload: {{ newMember.workload }}%
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="cancelAddMember" />
-          <q-btn
-            color="primary"
-            label="Add Member"
-            @click="addMember"
-            :disable="!newMember.name || !newMember.email"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- Invite Member Dialog -->
-    <q-dialog v-model="showInviteDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Invite Team Member</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-input
-            v-model="inviteEmail"
-            label="Email Address"
-            type="email"
-            filled
-            class="q-mb-md"
-          />
-
-          <q-input
-            v-model="inviteMessage"
-            label="Personal Message (Optional)"
-            type="textarea"
-            filled
-            rows="3"
+            hint="Type and press Enter to add custom skills"
           />
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
           <q-btn
-            color="primary"
-            label="Send Invitation"
-            @click="sendInvitation"
-            :disable="!inviteEmail"
+            flat
+            label="Cancel"
+            @click="
+              showAddMemberDialog = false;
+              cancelAddMember();
+            "
           />
+          <q-btn color="primary" label="Add Member" @click="addMember" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -361,16 +290,6 @@
 
         <q-card-section>
           <div class="row q-gutter-md q-mb-md">
-            <div class="col">
-              <div class="text-caption text-grey-7">Status</div>
-              <q-chip
-                :color="getStatusColor(selectedMember.status)"
-                text-color="white"
-                size="sm"
-                :icon="getStatusIcon(selectedMember.status)"
-                :label="selectedMember.status"
-              />
-            </div>
             <div class="col">
               <div class="text-caption text-grey-7">Workload</div>
               <div class="text-h6" :class="getWorkloadTextClass(selectedMember.workload)">
@@ -409,6 +328,97 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Edit Member Dialog -->
+    <q-dialog v-model="showEditMemberDialog">
+      <q-card style="min-width: 400px">
+        <q-card-section>
+          <div class="text-h6">Edit Team Member</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <div class="text-center q-mb-md">
+            <q-avatar size="80px" class="q-mb-sm">
+              <img :src="editMember.avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
+            </q-avatar>
+            <div>
+              <q-btn
+                size="sm"
+                color="primary"
+                icon="photo_camera"
+                label="Upload Photo"
+                @click="triggerEditAvatarUpload"
+              />
+              <input
+                ref="editAvatarInput"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="handleEditAvatarUpload"
+              />
+            </div>
+          </div>
+
+          <q-input v-model="editMember.name" label="Full Name" filled class="q-mb-md" />
+
+          <q-input v-model="editMember.email" label="Email" type="email" filled class="q-mb-md" />
+
+          <q-select
+            v-model="editMember.role"
+            :options="availableRoles"
+            label="Role"
+            filled
+            class="q-mb-md"
+          />
+
+          <q-input
+            v-if="editMember.role === 'Other'"
+            v-model="editMember.customRole"
+            label="Specify Role"
+            filled
+            class="q-mb-md"
+          />
+
+          <q-select
+            v-model="editMember.skills"
+            :options="skillOptions"
+            label="Skills"
+            multiple
+            use-chips
+            use-input
+            @filter="filterSkills"
+            @new-value="createSkill"
+            filled
+            class="q-mb-md"
+            hint="Type and press Enter to add custom skills"
+          />
+
+          <div class="q-mb-sm">
+            <div class="text-caption text-grey-7">Workload: {{ editMember.workload }}%</div>
+            <q-slider
+              v-model="editMember.workload"
+              :min="0"
+              :max="100"
+              :step="5"
+              label
+              color="primary"
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn
+            flat
+            label="Cancel"
+            @click="
+              showEditMemberDialog = false;
+              cancelEditMember();
+            "
+          />
+          <q-btn color="primary" label="Save Changes" @click="saveEditMember" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -422,19 +432,58 @@ const $q = useQuasar();
 
 // Reactive data
 const showAddMemberDialog = ref(false);
-const showInviteDialog = ref(false);
 const showMemberProfile = ref(false);
+const showEditMemberDialog = ref(false);
 const selectedMember = ref<TeamMember | null>(null);
-const inviteEmail = ref('');
-const inviteMessage = ref('');
 
 const newMember = reactive({
   name: '',
   email: '',
   role: '',
+  customRole: '',
   skills: [] as string[],
-  workload: 50,
+  workload: 0,
+  avatar: '',
 });
+
+const editMember = reactive({
+  id: 0,
+  name: '',
+  email: '',
+  role: '',
+  customRole: '',
+  skills: [] as string[],
+  workload: 0,
+  avatar: '',
+});
+
+const newAvatarInput = ref<HTMLInputElement | null>(null);
+const editAvatarInput = ref<HTMLInputElement | null>(null);
+
+const availableRoles = [
+  'Senior Frontend Developer',
+  'Frontend Developer',
+  'Junior Frontend Developer',
+  'Senior Backend Developer',
+  'Backend Developer',
+  'Junior Backend Developer',
+  'Full Stack Developer',
+  'Senior Full Stack Developer',
+  'DevOps Engineer',
+  'Senior DevOps Engineer',
+  'UI/UX Designer',
+  'Senior UI/UX Designer',
+  'Project Manager',
+  'Product Manager',
+  'Scrum Master',
+  'QA Engineer',
+  'Senior QA Engineer',
+  'Data Engineer',
+  'Machine Learning Engineer',
+  'Technical Lead',
+  'Software Architect',
+  'Other',
+];
 
 const availableSkills = [
   'Vue.js',
@@ -478,10 +527,10 @@ const availableSkills = [
   'Agile',
 ];
 
+const skillOptions = ref([...availableSkills]);
+
 // Computed
 const teamMembers = computed(() => mockDataStore.teamMembers);
-
-const onlineMembers = computed(() => teamMembers.value.filter((m) => m.status === 'online'));
 
 const averageWorkload = computed(() => {
   if (teamMembers.value.length === 0) return 0;
@@ -522,66 +571,51 @@ function getWorkloadTextClass(workload: number): string {
   return 'text-green';
 }
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'online':
-      return 'green';
-    case 'busy':
-      return 'orange';
-    case 'away':
-      return 'yellow';
-    case 'offline':
-      return 'grey';
-    default:
-      return 'grey';
-  }
-}
-
-function getStatusIcon(status: string): string {
-  switch (status) {
-    case 'online':
-      return 'circle';
-    case 'busy':
-      return 'do_not_disturb';
-    case 'away':
-      return 'schedule';
-    case 'offline':
-      return 'circle';
-    default:
-      return 'circle';
-  }
-}
-
-function chatWithMember(member: TeamMember) {
-  // Simulate chat functionality
-  console.log('Chat with:', member.name);
-  $q.notify({
-    message: `Opening chat with ${member.name}`,
-    color: 'info',
-    icon: 'chat',
-    position: 'top',
-  });
-}
-
 function viewMemberProfile(member: TeamMember) {
   selectedMember.value = member;
   showMemberProfile.value = true;
 }
 
-function assignTaskToMember(member: TeamMember) {
-  // Simulate task assignment
-  console.log('Assign task to:', member.name);
-  $q.notify({
-    message: `Task assignment dialog for ${member.name} - Feature coming soon!`,
-    color: 'info',
-    icon: 'assignment',
-    position: 'top',
-  });
-}
-
 function addMember() {
-  // Simulate add member functionality
-  console.log('Adding member:', newMember);
+  // Validate required fields
+  if (!newMember.name || !newMember.email || !newMember.role) {
+    $q.notify({
+      message: 'Please fill in all required fields',
+      color: 'negative',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Use custom role if "Other" was selected
+  const finalRole = newMember.role === 'Other' ? newMember.customRole : newMember.role;
+
+  if (newMember.role === 'Other' && !newMember.customRole) {
+    $q.notify({
+      message: 'Please specify the role',
+      color: 'negative',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Add member to store
+  const addedMember = mockDataStore.addTeamMember({
+    name: newMember.name,
+    email: newMember.email,
+    role: finalRole,
+    skills: newMember.skills,
+    workload: newMember.workload,
+  });
+
+  // Update avatar if custom one was uploaded
+  if (newMember.avatar) {
+    addedMember.avatar = newMember.avatar;
+  }
+
+  console.log('Added member:', addedMember);
 
   $q.notify({
     message: `Team member "${newMember.name}" added successfully!`,
@@ -599,39 +633,156 @@ function cancelAddMember() {
     name: '',
     email: '',
     role: '',
+    customRole: '',
     skills: [],
-    workload: 50,
+    workload: 0,
+    avatar: '',
   });
 }
 
-function sendInvitation() {
-  // Simulate invitation functionality
-  console.log('Sending invitation to:', inviteEmail.value);
+function triggerNewAvatarUpload() {
+  newAvatarInput.value?.click();
+}
 
-  $q.notify({
-    message: `Invitation sent to ${inviteEmail.value}!`,
-    color: 'positive',
-    icon: 'mail',
-    position: 'top',
+function handleNewAvatarUpload(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      newMember.avatar = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function filterSkills(val: string, update: (fn: () => void) => void) {
+  if (val === '') {
+    update(() => {
+      skillOptions.value = [...availableSkills];
+    });
+    return;
+  }
+
+  update(() => {
+    const needle = val.toLowerCase();
+    skillOptions.value = availableSkills.filter((v) => v.toLowerCase().indexOf(needle) > -1);
   });
+}
 
-  showInviteDialog.value = false;
-  inviteEmail.value = '';
-  inviteMessage.value = '';
+function createSkill(
+  val: string,
+  done: (item?: string, mode?: 'add' | 'add-unique' | 'toggle') => void,
+) {
+  if (val.length > 0) {
+    if (!availableSkills.includes(val)) {
+      availableSkills.push(val);
+    }
+    done(val, 'add-unique');
+  }
 }
 
 function editMemberProfile() {
-  // Simulate edit profile functionality
-  console.log('Edit profile for:', selectedMember.value?.name);
+  if (!selectedMember.value) return;
+
+  // Copy selected member data to edit form
+  Object.assign(editMember, {
+    id: selectedMember.value.id,
+    name: selectedMember.value.name,
+    email: selectedMember.value.email,
+    role: selectedMember.value.role,
+    customRole: '',
+    skills: [...selectedMember.value.skills],
+    workload: selectedMember.value.workload,
+    avatar: selectedMember.value.avatar,
+  });
+
+  // Check if role is custom (not in availableRoles)
+  if (!availableRoles.includes(selectedMember.value.role)) {
+    editMember.role = 'Other';
+    editMember.customRole = selectedMember.value.role;
+  }
+
+  showMemberProfile.value = false;
+  showEditMemberDialog.value = true;
+}
+
+function cancelEditMember() {
+  Object.assign(editMember, {
+    id: 0,
+    name: '',
+    email: '',
+    role: '',
+    customRole: '',
+    skills: [],
+    workload: 0,
+    avatar: '',
+  });
+}
+
+function triggerEditAvatarUpload() {
+  editAvatarInput.value?.click();
+}
+
+function handleEditAvatarUpload(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      editMember.avatar = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function saveEditMember() {
+  // Validate required fields
+  if (!editMember.name || !editMember.email || !editMember.role) {
+    $q.notify({
+      message: 'Please fill in all required fields',
+      color: 'negative',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Use custom role if "Other" was selected
+  const finalRole = editMember.role === 'Other' ? editMember.customRole : editMember.role;
+
+  if (editMember.role === 'Other' && !editMember.customRole) {
+    $q.notify({
+      message: 'Please specify the role',
+      color: 'negative',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Find and update the member in the store
+  const memberIndex = mockDataStore.teamMembers.findIndex((m) => m.id === editMember.id);
+  if (memberIndex !== -1) {
+    mockDataStore.teamMembers[memberIndex]!.name = editMember.name;
+    mockDataStore.teamMembers[memberIndex]!.email = editMember.email;
+    mockDataStore.teamMembers[memberIndex]!.role = finalRole;
+    mockDataStore.teamMembers[memberIndex]!.skills = [...editMember.skills];
+    mockDataStore.teamMembers[memberIndex]!.workload = editMember.workload;
+    if (editMember.avatar) {
+      mockDataStore.teamMembers[memberIndex]!.avatar = editMember.avatar;
+    }
+  }
 
   $q.notify({
-    message: `Profile editing for ${selectedMember.value?.name} - Feature coming soon!`,
-    color: 'info',
-    icon: 'edit',
+    message: `Team member "${editMember.name}" updated successfully!`,
+    color: 'positive',
+    icon: 'check_circle',
     position: 'top',
   });
 
-  showMemberProfile.value = false;
+  showEditMemberDialog.value = false;
+  cancelEditMember();
 }
 
 onMounted(() => {
@@ -661,16 +812,19 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-.workload-chart {
-  height: 200px;
-  position: relative;
+.workload-chart-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 250px;
 }
 
 .workload-bar-container {
   height: 150px;
+  width: 100%;
   position: relative;
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: center;
 }
 
