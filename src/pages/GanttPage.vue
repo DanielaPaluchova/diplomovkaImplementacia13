@@ -2,7 +2,7 @@
   <q-page class="bg-grey-1">
     <!-- Header -->
     <div class="bg-white q-pa-lg shadow-1">
-      <div class="row items-center justify-between">
+      <div class="row items-center justify-between q-mb-md">
         <div>
           <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Gantt Chart</h4>
           <p class="text-grey-7 q-ma-none q-mt-sm">Visual timeline and project scheduling</p>
@@ -20,12 +20,27 @@
           />
           <q-btn color="secondary" icon="zoom_in" label="Zoom In" @click="zoomIn" />
           <q-btn color="secondary" icon="zoom_out" label="Zoom Out" @click="zoomOut" />
-          <q-btn color="primary" icon="add" label="Add Task" @click="showAddTaskDialog = true" />
         </div>
       </div>
+
+      <!-- Project Selection -->
+      <q-select
+        v-model="selectedProjectId"
+        :options="projectOptions"
+        label="Select Project"
+        filled
+        emit-value
+        map-options
+        class="q-mt-md"
+        style="max-width: 400px"
+      >
+        <template v-slot:prepend>
+          <q-icon name="folder" />
+        </template>
+      </q-select>
     </div>
 
-    <div class="q-pa-lg">
+    <div v-if="selectedProject" class="q-pa-lg">
       <!-- Project Info -->
       <div class="row q-gutter-lg q-mb-lg">
         <div class="col-12 col-md-3">
@@ -33,7 +48,9 @@
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
                 <div class="col">
-                  <div class="text-h4 text-weight-bold text-primary">{{ ganttTasks.length }}</div>
+                  <div class="text-h4 text-weight-bold text-primary">
+                    {{ selectedProject.tasks.length }}
+                  </div>
                   <div class="text-caption text-grey-7">Total Tasks</div>
                 </div>
                 <div class="col-auto">
@@ -285,6 +302,11 @@
       </div>
     </div>
 
+    <div v-else class="q-pa-xl text-center text-grey-5">
+      <q-icon name="folder_open" size="64px" class="q-mb-md" />
+      <div class="text-h6">Select a project to view Gantt chart</div>
+    </div>
+
     <!-- Add Task Dialog -->
     <q-dialog v-model="showAddTaskDialog" persistent>
       <q-card style="min-width: 500px">
@@ -361,6 +383,25 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { useMockDataStore } from 'stores/mock-data';
 import { format, addDays, differenceInDays } from 'date-fns';
+import { useProjectStore } from 'src/stores/project-store';
+
+const mockDataStore = useMockDataStore();
+const projectStore = useProjectStore();
+
+// Project Selection
+const selectedProjectId = ref<number | null>(null);
+
+const projectOptions = computed(() => {
+  return projectStore.projects.map((project) => ({
+    label: project.name,
+    value: project.id,
+  }));
+});
+
+const selectedProject = computed(() => {
+  if (!selectedProjectId.value) return null;
+  return projectStore.projects.find((p) => p.id === selectedProjectId.value);
+});
 
 interface GanttTask {
   id: number;
@@ -373,8 +414,6 @@ interface GanttTask {
   type: 'task' | 'milestone' | 'summary';
   dependencies: number[];
 }
-
-const mockDataStore = useMockDataStore();
 
 // Reactive data
 const showAddTaskDialog = ref(false);

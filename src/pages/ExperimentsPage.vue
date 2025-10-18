@@ -455,10 +455,11 @@ const newExperiment = reactive({
 });
 
 const methodologyOptions = [
-  'A/B Testing',
+  'PERT+RACI vs Traditional',
+  'Load Balancing Comparison',
+  'Risk-based Adaptation',
   'Controlled Experiment',
   'Before/After Study',
-  'Comparative Study',
 ];
 
 // Computed

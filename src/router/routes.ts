@@ -24,6 +24,10 @@ const routes: RouteRecordRaw[] = [
         path: 'pert-raci-optimization',
         component: () => import('pages/PertRaciOptimizationPage.vue'),
       },
+      {
+        path: 'requirement-changes',
+        component: () => import('pages/RequirementChangePage.vue'),
+      },
     ],
   },
 

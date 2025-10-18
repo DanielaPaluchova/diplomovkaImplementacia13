@@ -212,15 +212,8 @@ const mainNavigation: NavigationItemProps[] = [
 
 const projectNavigation: NavigationItemProps[] = [
   {
-    title: 'Sprint Planning',
-    caption: 'Plan your sprints',
-    icon: 'timeline',
-    route: '/sprint-planning',
-    badge: 'New',
-  },
-  {
     title: 'PERT Analysis',
-    caption: 'Critical path analysis',
+    caption: 'Critical path & time estimates',
     icon: 'account_tree',
     route: '/pert-analysis',
   },
@@ -231,48 +224,49 @@ const projectNavigation: NavigationItemProps[] = [
     route: '/raci-matrix',
   },
   {
+    title: 'Gantt Chart',
+    caption: 'Timeline visualization',
+    icon: 'view_timeline',
+    route: '/gantt',
+  },
+  {
     title: 'PERT + RACI Integration',
-    caption: 'Combined optimization',
+    caption: 'Combined project analysis',
     icon: 'auto_awesome',
     route: '/pert-raci-optimization',
     badge: 'New',
   },
   {
-    title: 'Kanban Board',
-    caption: 'Visual task management',
-    icon: 'view_column',
-    route: '/kanban',
-  },
-  {
-    title: 'Gantt Chart',
-    caption: 'Timeline visualization',
-    icon: 'view_timeline',
-    route: '/gantt',
+    title: 'Requirement Changes',
+    caption: 'Auto-adaptation simulator',
+    icon: 'sync_alt',
+    route: '/requirement-changes',
+    badge: 'New',
   },
 ];
 
 const researchNavigation: NavigationItemProps[] = [
   {
     title: 'Experiments',
-    caption: 'A/B testing',
+    caption: 'PERT+RACI experiments',
     icon: 'science',
     route: '/experiments',
   },
   {
     title: 'Analytics',
-    caption: 'Performance metrics',
+    caption: 'Performance & metrics',
     icon: 'analytics',
     route: '/analytics',
   },
   {
     title: 'Comparisons',
-    caption: 'Method comparisons',
+    caption: 'Methodology comparison',
     icon: 'compare',
     route: '/comparisons',
   },
   {
     title: 'Reports',
-    caption: 'Research reports',
+    caption: 'Export & documentation',
     icon: 'assessment',
     route: '/reports',
   },
