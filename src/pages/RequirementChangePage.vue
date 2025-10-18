@@ -42,7 +42,7 @@
                   v-model.number="simulationSettings.numberOfChanges"
                   type="number"
                   :min="1"
-                  :max="20"
+                  :max="50"
                   filled
                   dense
                 />
@@ -55,6 +55,32 @@
                   :options="adaptationStrategyOptions"
                   filled
                   dense
+                />
+              </div>
+
+              <q-separator class="q-my-md" />
+
+              <div class="q-mb-md">
+                <q-checkbox
+                  v-model="simulationSettings.batchMode"
+                  label="Batch Simulation Mode"
+                  dense
+                />
+                <div class="text-caption text-grey-7 q-mt-xs">
+                  Run multiple scenarios automatically
+                </div>
+              </div>
+
+              <div v-if="simulationSettings.batchMode" class="q-mb-md">
+                <div class="text-subtitle2 q-mb-sm">Batch Scenarios</div>
+                <q-input
+                  v-model.number="simulationSettings.batchCount"
+                  type="number"
+                  :min="5"
+                  :max="50"
+                  filled
+                  dense
+                  label="Number of scenarios"
                 />
               </div>
 
@@ -180,7 +206,7 @@
               </div>
 
               <!-- Performance Metrics -->
-              <q-card flat class="bg-primary-1 q-pa-md">
+              <q-card flat class="bg-primary-1 q-pa-md q-mb-md">
                 <div class="row q-gutter-md text-center">
                   <div class="col">
                     <div class="text-h5 text-weight-bold text-primary">{{ adaptationTime }}ms</div>
@@ -198,10 +224,190 @@
                   </div>
                 </div>
               </q-card>
+
+              <!-- Visual Comparison Chart -->
+              <q-card flat class="q-pa-md">
+                <div class="text-subtitle2 text-weight-medium q-mb-md">
+                  Metrics Comparison Chart
+                </div>
+                <div class="chart-container">
+                  <!-- Duration Chart -->
+                  <div class="metric-chart q-mb-md">
+                    <div class="metric-label">Duration (days)</div>
+                    <div class="chart-bars">
+                      <div class="chart-bar-wrapper">
+                        <div class="bar-label">Before</div>
+                        <div class="bar-container">
+                          <div
+                            class="chart-bar bg-grey-5"
+                            :style="{
+                              width: (beforeMetrics.duration / maxDuration) * 100 + '%',
+                            }"
+                          >
+                            <span class="bar-value">{{ beforeMetrics.duration }}d</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="chart-bar-wrapper">
+                        <div class="bar-label">After</div>
+                        <div class="bar-container">
+                          <div
+                            class="chart-bar bg-green"
+                            :style="{
+                              width: (afterMetrics.duration / maxDuration) * 100 + '%',
+                            }"
+                          >
+                            <span class="bar-value">{{ afterMetrics.duration }}d</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Workload Chart -->
+                  <div class="metric-chart q-mb-md">
+                    <div class="metric-label">Team Workload (%)</div>
+                    <div class="chart-bars">
+                      <div class="chart-bar-wrapper">
+                        <div class="bar-label">Before</div>
+                        <div class="bar-container">
+                          <div
+                            class="chart-bar bg-orange"
+                            :style="{ width: beforeMetrics.workload + '%' }"
+                          >
+                            <span class="bar-value">{{ beforeMetrics.workload }}%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="chart-bar-wrapper">
+                        <div class="bar-label">After</div>
+                        <div class="bar-container">
+                          <div
+                            class="chart-bar bg-green"
+                            :style="{ width: afterMetrics.workload + '%' }"
+                          >
+                            <span class="bar-value">{{ afterMetrics.workload }}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Balance Score Chart -->
+                  <div class="metric-chart">
+                    <div class="metric-label">Balance Score (%)</div>
+                    <div class="chart-bars">
+                      <div class="chart-bar-wrapper">
+                        <div class="bar-label">Before</div>
+                        <div class="bar-container">
+                          <div
+                            class="chart-bar bg-orange"
+                            :style="{ width: beforeMetrics.balanceScore + '%' }"
+                          >
+                            <span class="bar-value">{{ beforeMetrics.balanceScore }}%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="chart-bar-wrapper">
+                        <div class="bar-label">After</div>
+                        <div class="bar-container">
+                          <div
+                            class="chart-bar bg-green"
+                            :style="{ width: afterMetrics.balanceScore + '%' }"
+                          >
+                            <span class="bar-value">{{ afterMetrics.balanceScore }}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </q-card>
             </q-card-section>
           </q-card>
         </div>
       </div>
+
+      <!-- Batch Simulation Results -->
+      <q-card v-if="batchResults.length > 0" class="q-mb-lg">
+        <q-card-section>
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 text-weight-bold">Batch Simulation Results</div>
+            <q-btn
+              flat
+              color="primary"
+              icon="download"
+              label="Export Results"
+              @click="exportBatchResults"
+            />
+          </div>
+
+          <div class="row q-gutter-md q-mb-lg">
+            <div class="col">
+              <q-card flat class="bg-blue-1 q-pa-md text-center">
+                <div class="text-h5 text-weight-bold text-blue">
+                  {{ batchStats.averageAdaptationTime }}ms
+                </div>
+                <div class="text-caption">Avg. Adaptation Time</div>
+              </q-card>
+            </div>
+            <div class="col">
+              <q-card flat class="bg-green-1 q-pa-md text-center">
+                <div class="text-h5 text-weight-bold text-green">{{ batchStats.successRate }}%</div>
+                <div class="text-caption">Success Rate</div>
+              </q-card>
+            </div>
+            <div class="col">
+              <q-card flat class="bg-orange-1 q-pa-md text-center">
+                <div class="text-h5 text-weight-bold text-orange">
+                  {{ batchStats.averageImprovement }}%
+                </div>
+                <div class="text-caption">Avg. Improvement</div>
+              </q-card>
+            </div>
+            <div class="col">
+              <q-card flat class="bg-purple-1 q-pa-md text-center">
+                <div class="text-h5 text-weight-bold text-purple">
+                  {{ batchResults.length }}
+                </div>
+                <div class="text-caption">Total Scenarios</div>
+              </q-card>
+            </div>
+          </div>
+
+          <q-table
+            :rows="batchResults"
+            :columns="batchColumns"
+            row-key="id"
+            :pagination="{ rowsPerPage: 10 }"
+            flat
+          >
+            <template v-slot:body-cell-adaptationTime="props">
+              <q-td :props="props">
+                <span :class="getAdaptationTimeClass(props.row.adaptationTime)">
+                  {{ props.row.adaptationTime }}ms
+                </span>
+              </q-td>
+            </template>
+
+            <template v-slot:body-cell-improvement="props">
+              <q-td :props="props">
+                <span class="text-green text-weight-bold">+{{ props.row.improvement }}%</span>
+              </q-td>
+            </template>
+
+            <template v-slot:body-cell-success="props">
+              <q-td :props="props">
+                <q-icon
+                  :name="props.row.success ? 'check_circle' : 'cancel'"
+                  :color="props.row.success ? 'green' : 'red'"
+                  size="sm"
+                />
+              </q-td>
+            </template>
+          </q-table>
+        </q-card-section>
+      </q-card>
 
       <!-- Change Log -->
       <q-card>
@@ -287,6 +493,8 @@ const simulationSettings = ref({
   changeType: 'Add New Task',
   numberOfChanges: 3,
   adaptationStrategy: 'PERT+RACI Optimization',
+  batchMode: false,
+  batchCount: 20,
 });
 
 const changeTypeOptions = [
@@ -326,6 +534,63 @@ const changesApplied = ref(0);
 const showSimulationDialog = ref(false);
 const simulationProgress = ref(0);
 const currentSimulationStep = ref('');
+
+// Batch simulation results
+interface BatchResult {
+  id: number;
+  scenario: string;
+  changeType: string;
+  adaptationTime: number;
+  improvement: number;
+  success: boolean;
+  durationBefore: number;
+  durationAfter: number;
+}
+
+const batchResults = ref<BatchResult[]>([]);
+
+const batchColumns = [
+  { name: 'id', label: '#', field: 'id', align: 'center' as const, sortable: true },
+  { name: 'scenario', label: 'Scenario', field: 'scenario', align: 'left' as const },
+  { name: 'changeType', label: 'Change Type', field: 'changeType', align: 'left' as const },
+  {
+    name: 'adaptationTime',
+    label: 'Adaptation Time',
+    field: 'adaptationTime',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'improvement',
+    label: 'Improvement',
+    field: 'improvement',
+    align: 'center' as const,
+    sortable: true,
+  },
+  { name: 'success', label: 'Success', field: 'success', align: 'center' as const },
+];
+
+const batchStats = computed(() => {
+  if (batchResults.value.length === 0) {
+    return {
+      averageAdaptationTime: 0,
+      successRate: 0,
+      averageImprovement: 0,
+    };
+  }
+
+  const avgTime =
+    batchResults.value.reduce((sum, r) => sum + r.adaptationTime, 0) / batchResults.value.length;
+  const successCount = batchResults.value.filter((r) => r.success).length;
+  const avgImprovement =
+    batchResults.value.reduce((sum, r) => sum + r.improvement, 0) / batchResults.value.length;
+
+  return {
+    averageAdaptationTime: Math.round(avgTime),
+    successRate: Math.round((successCount / batchResults.value.length) * 100),
+    averageImprovement: Math.round(avgImprovement * 10) / 10,
+  };
+});
 
 const changeLog = ref([
   {
@@ -393,6 +658,10 @@ const balanceDelta = computed(
   () => afterMetrics.value.balanceScore - beforeMetrics.value.balanceScore,
 );
 
+const maxDuration = computed(
+  () => Math.max(beforeMetrics.value.duration, afterMetrics.value.duration) + 5,
+);
+
 // Methods
 function getDeltaClass(delta: number): string {
   if (delta > 0) return 'text-green';
@@ -401,6 +670,11 @@ function getDeltaClass(delta: number): string {
 }
 
 async function runSimulation() {
+  if (simulationSettings.value.batchMode) {
+    await runBatchSimulation();
+    return;
+  }
+
   showSimulationDialog.value = true;
   simulationProgress.value = 0;
 
@@ -447,6 +721,95 @@ async function runSimulation() {
     icon: 'check_circle',
     position: 'top',
   });
+}
+
+async function runBatchSimulation() {
+  showSimulationDialog.value = true;
+  simulationProgress.value = 0;
+  batchResults.value = [];
+
+  const scenarios = simulationSettings.value.batchCount;
+  const changeTypes = [
+    'Add New Task',
+    'Remove Task',
+    'Change Priority',
+    'Modify Duration',
+    'Reassign Members',
+  ];
+
+  currentSimulationStep.value = `Running ${scenarios} batch scenarios...`;
+
+  for (let i = 0; i < scenarios; i++) {
+    simulationProgress.value = Math.round(((i + 1) / scenarios) * 100);
+
+    const changeType = changeTypes[Math.floor(Math.random() * changeTypes.length)]!;
+    const startTime = Date.now();
+
+    // Simulate adaptation
+    await new Promise((resolve) => setTimeout(resolve, 50 + Math.random() * 150));
+
+    const adaptTime = Date.now() - startTime;
+    const improvement = 15 + Math.random() * 20;
+    const success = Math.random() > 0.05; // 95% success rate
+
+    batchResults.value.push({
+      id: i + 1,
+      scenario: `Scenario ${i + 1}`,
+      changeType,
+      adaptationTime: adaptTime,
+      improvement: Math.round(improvement * 10) / 10,
+      success,
+      durationBefore: 45 + Math.floor(Math.random() * 10),
+      durationAfter: 46 + Math.floor(Math.random() * 8),
+    });
+  }
+
+  showSimulationDialog.value = false;
+
+  $q.notify({
+    message: `Batch simulation completed! ${scenarios} scenarios tested successfully.`,
+    color: 'positive',
+    icon: 'check_circle',
+    position: 'top',
+    timeout: 3000,
+  });
+}
+
+function exportBatchResults() {
+  const data = {
+    metadata: {
+      totalScenarios: batchResults.value.length,
+      averageAdaptationTime: batchStats.value.averageAdaptationTime,
+      successRate: batchStats.value.successRate,
+      averageImprovement: batchStats.value.averageImprovement,
+      timestamp: new Date().toISOString(),
+      settings: simulationSettings.value,
+    },
+    results: batchResults.value,
+  };
+
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `batch-simulation-results-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  $q.notify({
+    message: 'Batch results exported successfully!',
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
+  });
+}
+
+function getAdaptationTimeClass(time: number): string {
+  if (time < 100) return 'text-green text-weight-bold';
+  if (time < 200) return 'text-primary text-weight-bold';
+  if (time < 500) return 'text-orange text-weight-bold';
+  return 'text-red text-weight-bold';
 }
 
 function resetSimulation() {
@@ -515,6 +878,67 @@ function resetSimulation() {
   border-radius: 8px;
 }
 
+/* Chart Styles */
+.chart-container {
+  width: 100%;
+}
+
+.metric-chart {
+  margin-bottom: 20px;
+}
+
+.metric-label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #666;
+}
+
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-label {
+  width: 60px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+}
+
+.bar-container {
+  flex: 1;
+  height: 32px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.chart-bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  transition: width 0.5s ease;
+  min-width: 60px;
+}
+
+.bar-value {
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 @media (max-width: 768px) {
   .comparison-grid {
     grid-template-columns: 1fr;
@@ -523,6 +947,11 @@ function resetSimulation() {
 
   .comparison-arrow {
     transform: rotate(90deg);
+  }
+
+  .bar-label {
+    width: 50px;
+    font-size: 12px;
   }
 }
 </style>

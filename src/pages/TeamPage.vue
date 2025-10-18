@@ -7,7 +7,7 @@
           <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Team</h4>
           <p class="text-grey-7 q-ma-none q-mt-sm">Manage your team members and their roles</p>
         </div>
-        <div class="row q-gutter-md">
+        <div class="row q-gutter-md" v-if="authStore.isManager">
           <q-btn
             color="primary"
             icon="person_add"
@@ -286,6 +286,21 @@
           </q-avatar>
           <div class="text-h5 text-weight-bold">{{ selectedMember.name }}</div>
           <div class="text-body1 text-grey-7">{{ selectedMember.role }}</div>
+          <!-- System Role Badge -->
+          <q-chip
+            v-if="selectedMember.systemRole"
+            :color="getSystemRoleColor(selectedMember.systemRole)"
+            text-color="white"
+            size="sm"
+            class="q-mt-xs"
+          >
+            <q-icon
+              :name="getSystemRoleIcon(selectedMember.systemRole)"
+              size="xs"
+              class="q-mr-xs"
+            />
+            {{ getSystemRoleLabel(selectedMember.systemRole) }}
+          </q-chip>
         </q-card-section>
 
         <q-card-section>
@@ -366,9 +381,10 @@
           <q-select
             v-model="editMember.role"
             :options="availableRoles"
-            label="Role"
+            label="Team Role"
             filled
             class="q-mb-md"
+            hint="Team role describes their position (e.g. Frontend Developer)"
           />
 
           <q-input
@@ -378,6 +394,21 @@
             filled
             class="q-mb-md"
           />
+
+          <!-- System Role (Permissions) - Only for Manager/Admin -->
+          <q-select
+            v-if="authStore.isManager"
+            v-model="editMember.systemRole"
+            :options="systemRoleOptions"
+            label="System Role (Permissions)"
+            filled
+            class="q-mb-md"
+            hint="System role controls access permissions"
+          >
+            <template v-slot:prepend>
+              <q-icon name="security" />
+            </template>
+          </q-select>
 
           <q-select
             v-model="editMember.skills"
@@ -425,9 +456,11 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue';
 import { useMockDataStore, type TeamMember } from 'stores/mock-data';
+import { useAuthStore } from 'stores/auth-store';
 import { useQuasar } from 'quasar';
 
 const mockDataStore = useMockDataStore();
+const authStore = useAuthStore();
 const $q = useQuasar();
 
 // Reactive data
@@ -452,6 +485,7 @@ const editMember = reactive({
   email: '',
   role: '',
   customRole: '',
+  systemRole: 'developer',
   skills: [] as string[],
   workload: 0,
   avatar: '',
@@ -483,6 +517,33 @@ const availableRoles = [
   'Technical Lead',
   'Software Architect',
   'Other',
+];
+
+const systemRoleOptions = [
+  {
+    label: 'Viewer',
+    value: 'viewer',
+    description: 'Read-only access to projects',
+    icon: 'visibility',
+  },
+  {
+    label: 'Developer',
+    value: 'developer',
+    description: 'Can work on tasks and projects',
+    icon: 'code',
+  },
+  {
+    label: 'Project Manager',
+    value: 'manager',
+    description: 'Can manage projects and team members',
+    icon: 'manage_accounts',
+  },
+  {
+    label: 'Admin',
+    value: 'admin',
+    description: 'Full system access',
+    icon: 'admin_panel_settings',
+  },
 ];
 
 const availableSkills = [
@@ -692,6 +753,7 @@ function editMemberProfile() {
     email: selectedMember.value.email,
     role: selectedMember.value.role,
     customRole: '',
+    systemRole: selectedMember.value.systemRole || 'developer',
     skills: [...selectedMember.value.skills],
     workload: selectedMember.value.workload,
     avatar: selectedMember.value.avatar,
@@ -767,6 +829,11 @@ function saveEditMember() {
     mockDataStore.teamMembers[memberIndex]!.name = editMember.name;
     mockDataStore.teamMembers[memberIndex]!.email = editMember.email;
     mockDataStore.teamMembers[memberIndex]!.role = finalRole;
+    mockDataStore.teamMembers[memberIndex]!.systemRole = editMember.systemRole as
+      | 'admin'
+      | 'manager'
+      | 'developer'
+      | 'viewer';
     mockDataStore.teamMembers[memberIndex]!.skills = [...editMember.skills];
     mockDataStore.teamMembers[memberIndex]!.workload = editMember.workload;
     if (editMember.avatar) {
@@ -783,6 +850,52 @@ function saveEditMember() {
 
   showEditMemberDialog.value = false;
   cancelEditMember();
+}
+
+// Helper functions for system role display
+function getSystemRoleColor(role: string): string {
+  switch (role) {
+    case 'admin':
+      return 'red';
+    case 'manager':
+      return 'blue';
+    case 'developer':
+      return 'green';
+    case 'viewer':
+      return 'grey';
+    default:
+      return 'grey';
+  }
+}
+
+function getSystemRoleIcon(role: string): string {
+  switch (role) {
+    case 'admin':
+      return 'admin_panel_settings';
+    case 'manager':
+      return 'manage_accounts';
+    case 'developer':
+      return 'code';
+    case 'viewer':
+      return 'visibility';
+    default:
+      return 'person';
+  }
+}
+
+function getSystemRoleLabel(role: string): string {
+  switch (role) {
+    case 'admin':
+      return 'Admin';
+    case 'manager':
+      return 'Project Manager';
+    case 'developer':
+      return 'Developer';
+    case 'viewer':
+      return 'Viewer';
+    default:
+      return role;
+  }
 }
 
 onMounted(() => {

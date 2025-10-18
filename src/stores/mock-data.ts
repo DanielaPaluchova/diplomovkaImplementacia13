@@ -3,7 +3,8 @@ import { defineStore } from 'pinia';
 export interface TeamMember {
   id: number;
   name: string;
-  role: string;
+  role: string; // Team role (e.g. "Frontend Developer")
+  systemRole?: 'admin' | 'manager' | 'developer' | 'viewer'; // Permission role
   avatar: string;
   status: 'online' | 'busy' | 'away' | 'offline';
   activeProjects: number;
@@ -122,6 +123,7 @@ export const useMockDataStore = defineStore('mockData', {
         id: 6,
         name: 'Lisa Rodriguez',
         role: 'Project Manager',
+        systemRole: 'manager' as const,
         avatar: 'https://cdn.quasar.dev/img/avatar6.jpg',
         status: 'busy' as const,
         activeProjects: 5,

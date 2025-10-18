@@ -16,6 +16,7 @@
             label="View Results"
             @click="showResultsDialog = true"
           />
+          <q-btn flat color="grey-8" icon="download" label="Export Data" @click="exportAllData" />
           <q-btn
             color="primary"
             icon="science"
@@ -271,6 +272,9 @@
             </q-card-section>
 
             <q-card-actions align="right">
+              <q-btn flat icon="download" @click="exportExperiment(experiment)">
+                <q-tooltip>Export</q-tooltip>
+              </q-btn>
               <q-btn
                 flat
                 color="secondary"
@@ -563,11 +567,117 @@ function cancelNewExperiment() {
     name: '',
     description: '',
     hypothesis: '',
-    methodology: 'A/B Testing',
+    methodology: 'PERT+RACI vs Traditional',
     participants: 50,
     startDate: '',
     endDate: '',
   });
+}
+
+function exportExperiment(experiment: Experiment) {
+  const data = {
+    experiment: {
+      id: experiment.id,
+      name: experiment.name,
+      description: experiment.description,
+      hypothesis: experiment.hypothesis,
+      status: experiment.status,
+      methodology: experiment.methodology,
+      startDate: experiment.startDate,
+      endDate: experiment.endDate,
+      participants: experiment.participants,
+      results: experiment.results,
+    },
+    exportedAt: new Date().toISOString(),
+  };
+
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `experiment-${experiment.id}-${experiment.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  console.log('Exported experiment:', experiment.name);
+}
+
+function exportAllData() {
+  const completedExp = completedExperiments.value;
+  const data = {
+    summary: {
+      totalExperiments: experiments.value.length,
+      completedExperiments: completedExp.length,
+      runningExperiments: runningExperiments.value.length,
+      successRate: successRate.value,
+      averageImprovement:
+        completedExp.length > 0
+          ? Math.round(
+              (completedExp.reduce((sum, e) => sum + (e.results?.improvement || 0), 0) /
+                completedExp.length) *
+                10,
+            ) / 10
+          : 0,
+      exportedAt: new Date().toISOString(),
+    },
+    experiments: experiments.value,
+    methodologyStats: methodologyStats.value,
+  };
+
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pert-raci-experiments-all-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  // Also export CSV for easier analysis
+  exportCSV();
+}
+
+function exportCSV() {
+  const csvRows = [
+    [
+      'ID',
+      'Name',
+      'Methodology',
+      'Status',
+      'Duration (days)',
+      'Participants',
+      'Improvement (%)',
+      'Confidence (%)',
+    ],
+  ];
+
+  experiments.value.forEach((exp) => {
+    const duration = Math.round(
+      (exp.endDate.getTime() - exp.startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    csvRows.push([
+      exp.id.toString(),
+      exp.name,
+      exp.methodology,
+      exp.status,
+      duration.toString(),
+      exp.participants.toString(),
+      exp.results?.improvement?.toString() || 'N/A',
+      exp.results?.confidence?.toString() || 'N/A',
+    ]);
+  });
+
+  const csvContent = csvRows.map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+  const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(csvBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pert-raci-experiments-${Date.now()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  console.log('Exported all experiments data (JSON + CSV)');
 }
 
 onMounted(() => {

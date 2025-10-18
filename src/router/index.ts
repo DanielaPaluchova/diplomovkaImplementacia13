@@ -6,6 +6,7 @@ import {
   createWebHistory,
 } from 'vue-router';
 import routes from './routes';
+import { useAuthStore } from 'src/stores/auth-store';
 
 /*
  * If not building with SSR mode, you can
@@ -31,6 +32,44 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> vueRouterMode
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
+  });
+
+  // Navigation guard for authentication
+  Router.beforeEach((to, from, next) => {
+    const authStore = useAuthStore();
+
+    // Initialize auth state from localStorage on first load
+    if (!authStore.user) {
+      authStore.initializeAuth();
+    }
+
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth !== false);
+    const hideForAuth = to.matched.some((record) => record.meta.hideForAuth === true);
+    const requiresManager = to.matched.some((record) => record.meta.requiresManager === true);
+
+    // If route requires auth and user is not authenticated
+    if (requiresAuth && !authStore.isAuthenticated) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath },
+      });
+    }
+    // If user is authenticated and tries to access login/register
+    else if (hideForAuth && authStore.isAuthenticated) {
+      next('/');
+    }
+    // If route requires manager role and user is not manager/admin
+    else if (requiresManager && !authStore.isManager) {
+      // Redirect to home with access denied message
+      next({
+        path: '/',
+        query: { accessDenied: 'true' },
+      });
+    }
+    // Otherwise, allow navigation
+    else {
+      next();
+    }
   });
 
   return Router;

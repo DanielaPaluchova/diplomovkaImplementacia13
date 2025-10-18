@@ -233,10 +233,29 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { format, formatDistanceToNow } from 'date-fns';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
+import { useQuasar } from 'quasar';
 
 const router = useRouter();
+const route = useRoute();
+const $q = useQuasar();
+
+// Check for access denied message
+onMounted(() => {
+  if (route.query.accessDenied === 'true') {
+    $q.notify({
+      message: 'Access Denied: You need Manager or Admin privileges to access that page.',
+      color: 'negative',
+      icon: 'block',
+      position: 'top',
+      timeout: 4000,
+    });
+    // Clear the query parameter
+    router.replace({ query: {} });
+  }
+});
 
 // Mock data
 const kpiCards = [

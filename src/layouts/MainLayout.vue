@@ -23,29 +23,70 @@
         <!-- User Menu -->
         <q-btn flat round>
           <q-avatar size="32px">
-            <img src="https://cdn.quasar.dev/img/avatar.png" />
+            <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" />
+            <div v-else class="bg-white text-primary text-weight-bold">
+              {{ authStore.userInitials }}
+            </div>
           </q-avatar>
-          <q-tooltip>Profile</q-tooltip>
+          <q-tooltip>{{ authStore.userName }}</q-tooltip>
           <q-menu>
-            <q-list style="min-width: 200px">
-              <q-item clickable v-close-popup>
+            <q-list style="min-width: 250px">
+              <!-- User Info -->
+              <q-item>
+                <q-item-section avatar>
+                  <q-avatar>
+                    <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" />
+                    <div v-else class="bg-primary text-white">
+                      {{ authStore.userInitials }}
+                    </div>
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-weight-bold">{{ authStore.userName }}</q-item-label>
+                  <q-item-label caption>{{ authStore.user?.email }}</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-separator />
+
+              <!-- Profile -->
+              <q-item clickable v-close-popup :to="'/profile'">
                 <q-item-section avatar>
                   <q-icon name="person" />
                 </q-item-section>
                 <q-item-section>Profile</q-item-section>
               </q-item>
-              <q-item clickable v-close-popup>
+
+              <!-- Role Badge -->
+              <q-item>
                 <q-item-section avatar>
-                  <q-icon name="settings" />
+                  <q-icon name="badge" />
                 </q-item-section>
-                <q-item-section>Settings</q-item-section>
+                <q-item-section>
+                  <q-chip
+                    size="sm"
+                    :color="
+                      authStore.user?.role === 'admin'
+                        ? 'red'
+                        : authStore.user?.role === 'manager'
+                          ? 'blue'
+                          : 'green'
+                    "
+                    text-color="white"
+                  >
+                    {{ authStore.user?.role?.toUpperCase() }}
+                  </q-chip>
+                </q-item-section>
               </q-item>
+
               <q-separator />
-              <q-item clickable v-close-popup>
+
+              <!-- Logout -->
+              <q-item clickable v-close-popup @click="handleLogout">
                 <q-item-section avatar>
-                  <q-icon name="logout" />
+                  <q-icon name="logout" color="red" />
                 </q-item-section>
-                <q-item-section>Logout</q-item-section>
+                <q-item-section class="text-red">Logout</q-item-section>
               </q-item>
             </q-list>
           </q-menu>
@@ -92,75 +133,79 @@
 
           <q-separator class="q-my-md" />
 
-          <!-- Project Management -->
-          <q-item-label header class="text-weight-bold text-primary text-uppercase">
-            Project Management
-          </q-item-label>
+          <!-- Project Management (Manager/Admin only) -->
+          <template v-if="authStore.isManager">
+            <q-item-label header class="text-weight-bold text-primary text-uppercase">
+              Project Management
+            </q-item-label>
 
-          <q-item
-            v-for="item in projectNavigation"
-            :key="item.title"
-            clickable
-            v-ripple
-            :to="item.route"
-            class="navigation-item q-mb-xs"
-            active-class="bg-primary text-white"
-          >
-            <q-item-section avatar>
-              <q-icon :name="item.icon" size="24px" />
-            </q-item-section>
+            <q-item
+              v-for="item in projectNavigation"
+              :key="item.title"
+              clickable
+              v-ripple
+              :to="item.route"
+              class="navigation-item q-mb-xs"
+              active-class="bg-primary text-white"
+            >
+              <q-item-section avatar>
+                <q-icon :name="item.icon" size="24px" />
+              </q-item-section>
 
-            <q-item-section>
-              <q-item-label class="text-weight-medium">{{ item.title }}</q-item-label>
-              <q-item-label caption v-if="item.caption">{{ item.caption }}</q-item-label>
-            </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">{{ item.title }}</q-item-label>
+                <q-item-label caption v-if="item.caption">{{ item.caption }}</q-item-label>
+              </q-item-section>
 
-            <q-item-section side v-if="item.badge">
-              <q-badge
-                :color="
-                  item.badge === 'New' ? 'green' : item.badge === 'Beta' ? 'orange' : 'primary'
-                "
-                :label="item.badge"
-                rounded
-              />
-            </q-item-section>
-          </q-item>
+              <q-item-section side v-if="item.badge">
+                <q-badge
+                  :color="
+                    item.badge === 'New' ? 'green' : item.badge === 'Beta' ? 'orange' : 'primary'
+                  "
+                  :label="item.badge"
+                  rounded
+                />
+              </q-item-section>
+            </q-item>
 
-          <q-separator class="q-my-md" />
+            <q-separator class="q-my-md" />
+          </template>
 
-          <!-- Research & Analytics -->
-          <q-item-label header class="text-weight-bold text-primary text-uppercase">
-            Research & Analytics
-          </q-item-label>
+          <!-- Research & Analytics (Manager/Admin only) -->
+          <template v-if="authStore.isManager">
+            <q-item-label header class="text-weight-bold text-primary text-uppercase">
+              Research & Analytics
+            </q-item-label>
 
-          <q-item
-            v-for="item in researchNavigation"
-            :key="item.title"
-            clickable
-            v-ripple
-            :to="item.route"
-            class="navigation-item q-mb-xs"
-            active-class="bg-primary text-white"
-          >
-            <q-item-section avatar>
-              <q-icon :name="item.icon" size="24px" />
-            </q-item-section>
+            <q-item
+              v-for="item in researchNavigation"
+              :key="item.title"
+              clickable
+              v-ripple
+              :to="item.route"
+              class="navigation-item q-mb-xs"
+              active-class="bg-primary text-white"
+            >
+              <q-item-section avatar>
+                <q-icon :name="item.icon" size="24px" />
+              </q-item-section>
 
-            <q-item-section>
-              <q-item-label class="text-weight-medium">{{ item.title }}</q-item-label>
-              <q-item-label caption v-if="item.caption">{{ item.caption }}</q-item-label>
-            </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">{{ item.title }}</q-item-label>
+                <q-item-label caption v-if="item.caption">{{ item.caption }}</q-item-label>
+              </q-item-section>
 
-            <q-item-section side v-if="item.badge">
-              <q-badge
-                :color="
-                  item.badge === 'New' ? 'green' : item.badge === 'Beta' ? 'orange' : 'primary'
-                "
-                :label="item.badge"
-                rounded
-              />
-            </q-item-section>
-          </q-item>
+              <q-item-section side v-if="item.badge">
+                <q-badge
+                  :color="
+                    item.badge === 'New' ? 'green' : item.badge === 'Beta' ? 'orange' : 'primary'
+                  "
+                  :label="item.badge"
+                  rounded
+                />
+              </q-item-section>
+            </q-item>
+          </template>
         </q-list>
       </q-scroll-area>
     </q-drawer>
@@ -173,6 +218,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
+import { useAuthStore } from 'src/stores/auth-store';
+
+const router = useRouter();
+const $q = useQuasar();
+const authStore = useAuthStore();
 
 interface NavigationItemProps {
   title: string;
@@ -180,6 +232,24 @@ interface NavigationItemProps {
   icon: string;
   route?: string;
   badge?: string | number;
+}
+
+function handleLogout() {
+  $q.dialog({
+    title: 'Confirm Logout',
+    message: 'Are you sure you want to sign out?',
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    await authStore.logout();
+    $q.notify({
+      message: 'Signed out successfully',
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+    router.push('/login');
+  });
 }
 
 const mainNavigation: NavigationItemProps[] = [
