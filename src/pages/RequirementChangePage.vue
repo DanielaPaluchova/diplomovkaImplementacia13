@@ -26,6 +26,25 @@
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">Simulation Settings</div>
 
+              <!-- Project Selection -->
+              <div class="q-mb-md">
+                <div class="text-subtitle2 q-mb-sm">Select Project</div>
+                <q-select
+                  v-model="selectedProjectId"
+                  :options="projectOptions"
+                  emit-value
+                  map-options
+                  filled
+                  dense
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="folder" />
+                  </template>
+                </q-select>
+              </div>
+
+              <q-separator class="q-my-md" />
+
               <div class="q-mb-md">
                 <div class="text-subtitle2 q-mb-sm">Change Type</div>
                 <q-select
@@ -86,10 +105,15 @@
 
               <q-separator class="q-my-md" />
 
-              <div class="settings-summary">
+              <div v-if="selectedProject" class="settings-summary">
                 <div class="text-subtitle2 text-weight-medium q-mb-sm">Current Project</div>
-                <div class="text-body2 text-grey-7">Project Alpha - 15 tasks</div>
-                <div class="text-caption text-grey-6">Duration: 45 days</div>
+                <div class="text-body2 text-weight-medium">{{ selectedProject.name }}</div>
+                <div class="text-caption text-grey-7">
+                  {{ selectedProject.tasks?.length || 0 }} tasks
+                </div>
+                <div class="text-caption text-grey-6">
+                  Duration: {{ currentProjectDuration }} days
+                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -412,9 +436,29 @@
       <!-- Change Log -->
       <q-card>
         <q-card-section>
-          <div class="text-h6 text-weight-bold q-mb-md">Change Log & Adaptations</div>
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 text-weight-bold">Detailný Change Log & Automatické Adaptácie</div>
+            <q-btn
+              v-if="changeLog.length > 0"
+              flat
+              color="primary"
+              icon="download"
+              label="Export Log"
+              @click="exportChangeLog"
+            />
+          </div>
 
-          <q-timeline color="primary">
+          <!-- Empty state -->
+          <div v-if="changeLog.length === 0" class="text-center q-pa-xl">
+            <q-icon name="history" size="64px" color="grey-5" class="q-mb-md" />
+            <div class="text-h6 text-grey-6 q-mb-sm">Zatiaľ žiadne simulácie</div>
+            <div class="text-body2 text-grey-7">
+              Spusti simuláciu vyššie, aby sa vygeneroval detailný change log s Before/After
+              porovnaním
+            </div>
+          </div>
+
+          <q-timeline v-else color="primary">
             <q-timeline-entry
               v-for="(change, index) in changeLog"
               :key="index"
@@ -425,16 +469,159 @@
             >
               <div class="text-body2 q-mb-sm">{{ change.description }}</div>
 
-              <q-card flat class="bg-grey-1 q-pa-sm">
-                <div class="text-subtitle2 text-weight-medium q-mb-xs">Automatic Adaptations:</div>
-                <ul class="q-ma-none q-pl-md">
+              <!-- Task Details Before/After -->
+              <q-card flat class="bg-blue-1 q-pa-md q-mb-sm">
+                <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                  📋 Zmeny na tasku: {{ change.taskName }}
+                </div>
+                <div class="row q-gutter-md">
+                  <!-- Before -->
+                  <div class="col">
+                    <div class="text-caption text-weight-medium text-grey-7 q-mb-xs">
+                      PRED ZMENOU:
+                    </div>
+                    <div class="task-details">
+                      <div v-if="change.taskChanges?.storyPoints" class="detail-line">
+                        <span class="detail-label">Story Points:</span>
+                        <span class="detail-value">{{
+                          change.taskChanges.storyPoints.before
+                        }}</span>
+                      </div>
+                      <div v-if="change.taskChanges?.pert" class="detail-line">
+                        <span class="detail-label">PERT:</span>
+                        <span class="detail-value"
+                          >O:{{ change.taskChanges.pert.before.optimistic }}d, M:{{
+                            change.taskChanges.pert.before.mostLikely
+                          }}d, P:{{ change.taskChanges.pert.before.pessimistic }}d</span
+                        >
+                      </div>
+                      <div v-if="change.taskChanges?.duration" class="detail-line">
+                        <span class="detail-label">Trvanie:</span>
+                        <span class="detail-value">{{ change.taskChanges.duration.before }}d</span>
+                      </div>
+                      <div v-if="change.taskChanges?.raci" class="detail-line">
+                        <span class="detail-label">RACI:</span>
+                        <div class="raci-list">
+                          <span v-if="change.taskChanges.raci.before.responsible.length > 0"
+                            >R: {{ change.taskChanges.raci.before.responsible.join(', ') }}</span
+                          >
+                          <span v-if="change.taskChanges.raci.before.accountable.length > 0"
+                            >A: {{ change.taskChanges.raci.before.accountable.join(', ') }}</span
+                          >
+                        </div>
+                      </div>
+                      <div v-if="change.taskChanges?.priority" class="detail-line">
+                        <span class="detail-label">Priorita:</span>
+                        <q-chip
+                          :color="getPriorityColor(change.taskChanges.priority.before)"
+                          text-color="white"
+                          size="sm"
+                          dense
+                          >{{ change.taskChanges.priority.before }}</q-chip
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Arrow -->
+                  <div class="col-auto flex items-center">
+                    <q-icon name="arrow_forward" size="32px" color="primary" />
+                  </div>
+
+                  <!-- After -->
+                  <div class="col">
+                    <div class="text-caption text-weight-medium text-green q-mb-xs">PO ZMENE:</div>
+                    <div class="task-details">
+                      <div v-if="change.taskChanges?.storyPoints" class="detail-line">
+                        <span class="detail-label">Story Points:</span>
+                        <span class="detail-value text-weight-bold">{{
+                          change.taskChanges.storyPoints.after
+                        }}</span>
+                        <q-badge
+                          :color="
+                            change.taskChanges.storyPoints.after >
+                            change.taskChanges.storyPoints.before
+                              ? 'orange'
+                              : 'green'
+                          "
+                          :label="
+                            (change.taskChanges.storyPoints.after >
+                            change.taskChanges.storyPoints.before
+                              ? '+'
+                              : '') +
+                            (change.taskChanges.storyPoints.after -
+                              change.taskChanges.storyPoints.before)
+                          "
+                        />
+                      </div>
+                      <div v-if="change.taskChanges?.pert" class="detail-line">
+                        <span class="detail-label">PERT:</span>
+                        <span class="detail-value text-weight-bold"
+                          >O:{{ change.taskChanges.pert.after.optimistic }}d, M:{{
+                            change.taskChanges.pert.after.mostLikely
+                          }}d, P:{{ change.taskChanges.pert.after.pessimistic }}d</span
+                        >
+                      </div>
+                      <div v-if="change.taskChanges?.duration" class="detail-line">
+                        <span class="detail-label">Trvanie:</span>
+                        <span class="detail-value text-weight-bold"
+                          >{{ change.taskChanges.duration.after }}d</span
+                        >
+                        <q-badge
+                          :color="
+                            change.taskChanges.duration.after > change.taskChanges.duration.before
+                              ? 'orange'
+                              : 'green'
+                          "
+                          :label="
+                            (change.taskChanges.duration.after > change.taskChanges.duration.before
+                              ? '+'
+                              : '') +
+                            (change.taskChanges.duration.after - change.taskChanges.duration.before)
+                          "
+                        />
+                      </div>
+                      <div v-if="change.taskChanges?.raci" class="detail-line">
+                        <span class="detail-label">RACI:</span>
+                        <div class="raci-list">
+                          <span v-if="change.taskChanges.raci.after.responsible.length > 0"
+                            >R: {{ change.taskChanges.raci.after.responsible.join(', ') }}</span
+                          >
+                          <span v-if="change.taskChanges.raci.after.accountable.length > 0"
+                            >A: {{ change.taskChanges.raci.after.accountable.join(', ') }}</span
+                          >
+                        </div>
+                      </div>
+                      <div v-if="change.taskChanges?.priority" class="detail-line">
+                        <span class="detail-label">Priorita:</span>
+                        <q-chip
+                          :color="getPriorityColor(change.taskChanges.priority.after)"
+                          text-color="white"
+                          size="sm"
+                          dense
+                          >{{ change.taskChanges.priority.after }}</q-chip
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </q-card>
+
+              <!-- Automatic Adaptations -->
+              <q-card flat class="bg-grey-1 q-pa-md q-mb-sm">
+                <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                  🤖 Automatické adaptácie systému:
+                </div>
+                <ul class="q-ma-none q-pl-md adaptation-list">
                   <li v-for="(adaptation, idx) in change.adaptations" :key="idx">
                     {{ adaptation }}
                   </li>
                 </ul>
               </q-card>
 
+              <!-- Impact Metrics -->
               <div class="q-mt-sm">
+                <div class="text-caption text-weight-medium q-mb-xs">Dopad na projekt:</div>
                 <q-chip
                   v-for="metric in change.metrics"
                   :key="metric.label"
@@ -485,8 +672,38 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
+import { useProjectStore } from 'src/stores/project-store';
+import { useResearchStore, type SimulationRun } from 'src/stores/research-store';
 
 const $q = useQuasar();
+const projectStore = useProjectStore();
+const researchStore = useResearchStore();
+
+// Project selection
+const selectedProjectId = ref<number | null>(1);
+const selectedExperimentId = ref<number | null>(null);
+
+const projectOptions = computed(() => {
+  return projectStore.projects.map((project) => ({
+    label: project.name,
+    value: project.id,
+  }));
+});
+
+const selectedProject = computed(() => {
+  if (!selectedProjectId.value) return null;
+  return projectStore.projects.find((p) => p.id === selectedProjectId.value);
+});
+
+const currentProjectDuration = computed(() => {
+  if (!selectedProject.value || !selectedProject.value.tasks) return 0;
+  // Estimate duration based on story points (1 SP ≈ 0.5 days)
+  return Math.round(
+    selectedProject.value.tasks.reduce((sum, task) => {
+      return sum + (task.storyPoints || 0) * 0.5;
+    }, 0),
+  );
+});
 
 // Reactive data
 const simulationSettings = ref({
@@ -592,61 +809,32 @@ const batchStats = computed(() => {
   };
 });
 
-const changeLog = ref([
-  {
-    title: 'New Feature Request Added',
-    timestamp: '2024-01-15 10:30:00',
-    icon: 'add_circle',
-    color: 'primary',
-    description: 'Client requested new authentication feature (8 story points)',
-    adaptations: [
-      'PERT duration recalculated: +3 days',
-      'Assigned to John (R), Sarah (A) based on skills',
-      "Rebalanced Mike's workload: 90% → 78%",
-      'Updated critical path analysis',
-    ],
-    metrics: [
-      { label: 'Duration Impact', value: '+3d', color: 'orange' },
-      { label: 'Team Balance', value: '+12%', color: 'green' },
-      { label: 'Risk', value: '-0.5', color: 'green' },
-    ],
-  },
-  {
-    title: 'Priority Change: Bug Fix to Critical',
-    timestamp: '2024-01-15 11:45:00',
-    icon: 'priority_high',
-    color: 'red',
-    description: 'Security bug escalated to critical priority',
-    adaptations: [
-      'Moved to top of sprint backlog',
-      'Reassigned Emma (R) → John (R) for faster resolution',
-      'Adjusted RACI: Added Mike as Consulted for security review',
-      'PERT expected time reduced from 5d to 2d',
-    ],
-    metrics: [
-      { label: 'Duration Impact', value: '-3d', color: 'green' },
-      { label: 'Risk Reduction', value: '-1.5', color: 'green' },
-    ],
-  },
-  {
-    title: 'Team Member Availability Change',
-    timestamp: '2024-01-15 14:20:00',
-    icon: 'person_off',
-    color: 'orange',
-    description: 'Sarah unavailable for 2 days due to sick leave',
-    adaptations: [
-      "Redistributed Sarah's tasks to John and Mike",
-      'RACI roles updated: Mike promoted to Accountable on 2 tasks',
-      'PERT timeline adjusted for handover overhead',
-      'Risk score increased temporarily: 4.8 → 5.2',
-    ],
-    metrics: [
-      { label: 'Duration Impact', value: '+1d', color: 'orange' },
-      { label: 'Workload Spike', value: '+15%', color: 'red' },
-      { label: 'Recovery Time', value: '2d', color: 'primary' },
-    ],
-  },
-]);
+// Change log - starts empty, populated by simulations
+interface ChangeLogEntry {
+  title: string;
+  timestamp: string;
+  icon: string;
+  color: string;
+  taskName: string;
+  description: string;
+  taskChanges?: {
+    storyPoints?: { before: number; after: number };
+    pert?: {
+      before: { optimistic: number; mostLikely: number; pessimistic: number };
+      after: { optimistic: number; mostLikely: number; pessimistic: number };
+    };
+    duration?: { before: number; after: number };
+    raci?: {
+      before: { responsible: string[]; accountable: string[] };
+      after: { responsible: string[]; accountable: string[] };
+    };
+    priority?: { before: string; after: string };
+  };
+  adaptations: string[];
+  metrics: Array<{ label: string; value: string; color: string }>;
+}
+
+const changeLog = ref<ChangeLogEntry[]>([]);
 
 // Computed
 const durationDelta = computed(() => afterMetrics.value.duration - beforeMetrics.value.duration);
@@ -670,6 +858,16 @@ function getDeltaClass(delta: number): string {
 }
 
 async function runSimulation() {
+  if (!selectedProject.value) {
+    $q.notify({
+      message: 'Prosím, vyber najprv projekt!',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
   if (simulationSettings.value.batchMode) {
     await runBatchSimulation();
     return;
@@ -706,17 +904,69 @@ async function runSimulation() {
   changesApplied.value = simulationSettings.value.numberOfChanges;
 
   // Update metrics
+  const beforeDuration = beforeMetrics.value.duration;
+  const beforeWorkload = beforeMetrics.value.workload;
+  const beforeRisk = beforeMetrics.value.riskScore;
+  const beforeBalance = beforeMetrics.value.balanceScore;
+
   afterMetrics.value = {
-    duration: beforeMetrics.value.duration + Math.floor(Math.random() * 5) - 1,
-    workload: Math.max(60, beforeMetrics.value.workload - Math.floor(Math.random() * 15)),
-    riskScore: Math.max(3, beforeMetrics.value.riskScore - Math.random() * 2),
-    balanceScore: Math.min(95, beforeMetrics.value.balanceScore + Math.floor(Math.random() * 20)),
+    duration: beforeDuration + Math.floor(Math.random() * 5) - 1,
+    workload: Math.max(60, beforeWorkload - Math.floor(Math.random() * 15)),
+    riskScore: Math.max(3, beforeRisk - Math.random() * 2),
+    balanceScore: Math.min(95, beforeBalance + Math.floor(Math.random() * 20)),
   };
+
+  // Generate change log entry
+  generateChangeLogEntry(
+    simulationSettings.value.changeType,
+    beforeDuration,
+    afterMetrics.value.duration,
+    beforeWorkload,
+    afterMetrics.value.workload,
+    beforeRisk,
+    afterMetrics.value.riskScore,
+    beforeBalance,
+    afterMetrics.value.balanceScore,
+    adaptationTime.value,
+  );
+
+  // Save to research store
+  if (selectedProject.value) {
+    const runData: Omit<SimulationRun, 'id'> = {
+      timestamp: new Date(),
+      projectId: selectedProject.value.id,
+      projectName: selectedProject.value.name,
+      changeType: simulationSettings.value.changeType,
+      before: {
+        duration: beforeDuration,
+        workload: beforeWorkload,
+        riskScore: beforeRisk,
+        balanceScore: beforeBalance,
+      },
+      after: {
+        duration: afterMetrics.value.duration,
+        workload: afterMetrics.value.workload,
+        riskScore: afterMetrics.value.riskScore,
+        balanceScore: afterMetrics.value.balanceScore,
+      },
+      adaptationTime: adaptationTime.value,
+      improvementRate: improvementRate.value,
+      success: true,
+    };
+
+    if (selectedExperimentId.value) {
+      runData.experimentId = selectedExperimentId.value;
+    }
+
+    researchStore.addSimulationRun(runData);
+  }
 
   showSimulationDialog.value = false;
 
   $q.notify({
-    message: 'Simulation completed successfully! System adapted to changes in real-time.',
+    message: selectedExperimentId.value
+      ? 'Simulation completed and saved to experiment!'
+      : 'Simulation completed successfully!',
     color: 'positive',
     icon: 'check_circle',
     position: 'top',
@@ -724,6 +974,16 @@ async function runSimulation() {
 }
 
 async function runBatchSimulation() {
+  if (!selectedProject.value) {
+    $q.notify({
+      message: 'Prosím, vyber najprv projekt!',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
   showSimulationDialog.value = true;
   simulationProgress.value = 0;
   batchResults.value = [];
@@ -731,10 +991,10 @@ async function runBatchSimulation() {
   const scenarios = simulationSettings.value.batchCount;
   const changeTypes = [
     'Add New Task',
-    'Remove Task',
-    'Change Priority',
-    'Modify Duration',
-    'Reassign Members',
+    'Change Task Priority',
+    'Modify Task Duration',
+    'Reassign Team Members',
+    'Mixed Changes',
   ];
 
   currentSimulationStep.value = `Running ${scenarios} batch scenarios...`;
@@ -752,6 +1012,15 @@ async function runBatchSimulation() {
     const improvement = 15 + Math.random() * 20;
     const success = Math.random() > 0.05; // 95% success rate
 
+    const durationBefore = 45 + Math.floor(Math.random() * 10);
+    const durationAfter = 46 + Math.floor(Math.random() * 8);
+    const workloadBefore = 70 + Math.floor(Math.random() * 20);
+    const workloadAfter = 65 + Math.floor(Math.random() * 15);
+    const riskBefore = 5 + Math.random() * 3;
+    const riskAfter = 4 + Math.random() * 2;
+    const balanceBefore = 70 + Math.floor(Math.random() * 10);
+    const balanceAfter = 80 + Math.floor(Math.random() * 15);
+
     batchResults.value.push({
       id: i + 1,
       scenario: `Scenario ${i + 1}`,
@@ -759,15 +1028,65 @@ async function runBatchSimulation() {
       adaptationTime: adaptTime,
       improvement: Math.round(improvement * 10) / 10,
       success,
-      durationBefore: 45 + Math.floor(Math.random() * 10),
-      durationAfter: 46 + Math.floor(Math.random() * 8),
+      durationBefore,
+      durationAfter,
     });
+
+    // Generate change log entry for each batch scenario
+    if (success) {
+      generateChangeLogEntry(
+        changeType,
+        durationBefore,
+        durationAfter,
+        workloadBefore,
+        workloadAfter,
+        riskBefore,
+        riskAfter,
+        balanceBefore,
+        balanceAfter,
+        adaptTime,
+      );
+
+      // Save to research store
+      if (selectedProject.value) {
+        const runData: Omit<SimulationRun, 'id'> = {
+          timestamp: new Date(),
+          projectId: selectedProject.value.id,
+          projectName: selectedProject.value.name,
+          changeType,
+          before: {
+            duration: durationBefore,
+            workload: workloadBefore,
+            riskScore: riskBefore,
+            balanceScore: balanceBefore,
+          },
+          after: {
+            duration: durationAfter,
+            workload: workloadAfter,
+            riskScore: riskAfter,
+            balanceScore: balanceAfter,
+          },
+          adaptationTime: adaptTime,
+          improvementRate: improvement,
+          success,
+        };
+
+        if (selectedExperimentId.value) {
+          runData.experimentId = selectedExperimentId.value;
+        }
+
+        researchStore.addSimulationRun(runData);
+      }
+    }
   }
 
   showSimulationDialog.value = false;
 
+  const savedCount = batchResults.value.filter((r) => r.success).length;
   $q.notify({
-    message: `Batch simulation completed! ${scenarios} scenarios tested successfully.`,
+    message: selectedExperimentId.value
+      ? `Batch completed! ${scenarios} scenarios, ${savedCount} saved to experiment.`
+      : `Batch completed! ${scenarios} scenarios, ${changeLog.value.length} change logs.`,
     color: 'positive',
     icon: 'check_circle',
     position: 'top',
@@ -831,10 +1150,394 @@ function resetSimulation() {
   improvementRate.value = 0;
   changesApplied.value = 0;
 
+  // Clear change log
+  changeLog.value = [];
+
   $q.notify({
-    message: 'Simulation reset to initial state',
+    message: 'Simulation reset - change log cleared',
     color: 'info',
     icon: 'refresh',
+    position: 'top',
+  });
+}
+
+function getPriorityColor(priority: string): string {
+  switch (priority.toLowerCase()) {
+    case 'critical':
+      return 'red';
+    case 'high':
+      return 'orange';
+    case 'medium':
+      return 'primary';
+    case 'low':
+      return 'grey';
+    default:
+      return 'grey-5';
+  }
+}
+
+function generateChangeLogEntry(
+  changeType: string,
+  beforeDuration: number,
+  afterDuration: number,
+  beforeWorkload: number,
+  afterWorkload: number,
+  beforeRisk: number,
+  afterRisk: number,
+  beforeBalance: number,
+  afterBalance: number,
+  adaptTime: number,
+) {
+  if (!selectedProject.value || !selectedProject.value.tasks) return;
+
+  const tasks = selectedProject.value.tasks;
+  if (tasks.length === 0) return;
+
+  // Select random task
+  const randomTask = tasks[Math.floor(Math.random() * tasks.length)]!;
+
+  const teamMembers = [
+    'John Smith',
+    'Sarah Johnson',
+    'Mike Wilson',
+    'Emma Davis',
+    'David Brown',
+    'Lisa Anderson',
+  ];
+
+  const timestamp = new Date().toLocaleString('sk-SK');
+  const durationDiff = afterDuration - beforeDuration;
+  const workloadDiff = afterWorkload - beforeWorkload;
+  const balanceDiff = afterBalance - beforeBalance;
+  const riskDiff = afterRisk - beforeRisk;
+
+  // Formatted strings for display
+  const durationDiffStr = durationDiff.toFixed(1);
+  const workloadDiffStr = workloadDiff.toFixed(0);
+  const balanceDiffStr = balanceDiff.toFixed(0);
+  const riskDiffStr = riskDiff.toFixed(1);
+
+  let entry: ChangeLogEntry;
+
+  switch (changeType) {
+    case 'Add New Task': {
+      const newSP = Math.floor(Math.random() * 10) + 3;
+      const opt = Math.floor(Math.random() * 3) + 1;
+      const most = opt + Math.floor(Math.random() * 3) + 2;
+      const pess = most + Math.floor(Math.random() * 4) + 2;
+      const duration = ((opt + 4 * most + pess) / 6).toFixed(1);
+      const responsible = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
+      const accountable = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
+
+      entry = {
+        title: 'Nový Feature Request Pridaný',
+        timestamp,
+        icon: 'add_circle',
+        color: 'primary',
+        taskName: `New Task: ${randomTask.name}`,
+        description: `Klient požaduje nový feature (${newSP} story points)`,
+        taskChanges: {
+          storyPoints: { before: 0, after: newSP },
+          pert: {
+            before: { optimistic: 0, mostLikely: 0, pessimistic: 0 },
+            after: { optimistic: opt, mostLikely: most, pessimistic: pess },
+          },
+          duration: { before: 0, after: parseFloat(duration) },
+          raci: {
+            before: { responsible: [], accountable: [] },
+            after: { responsible, accountable },
+          },
+          priority: { before: '-', after: randomTask.priority },
+        },
+        adaptations: [
+          `📊 PERT duration vypočítané: Expected = (${opt} + 4×${most} + ${pess}) / 6 = ${duration} dní`,
+          `👥 Automaticky priradené: ${responsible[0]} (R), ${accountable[0]} (A)`,
+          `⚖️ Prerozdelené zaťaženie tímu: ${workloadDiffStr}% zmena`,
+          `🎯 Aktualizovaná kritická cesta: ${durationDiff > 0 ? '+' : ''}${durationDiffStr}d`,
+          '🔄 RACI validácia: pravidlá skontrolované a validated',
+        ],
+        metrics: [
+          {
+            label: 'Duration Impact',
+            value: `${durationDiff > 0 ? '+' : ''}${durationDiffStr}d`,
+            color: durationDiff > 0 ? 'orange' : 'green',
+          },
+          {
+            label: 'Team Balance',
+            value: `${balanceDiff > 0 ? '+' : ''}${balanceDiffStr}%`,
+            color: balanceDiff > 0 ? 'green' : 'orange',
+          },
+          {
+            label: 'Risk',
+            value: `${riskDiff > 0 ? '+' : ''}${riskDiffStr}`,
+            color: riskDiff > 0 ? 'orange' : 'green',
+          },
+          { label: 'Adaptation Time', value: `${adaptTime}ms`, color: 'green' },
+        ],
+      };
+      break;
+    }
+
+    case 'Change Task Priority': {
+      const priorities = ['Low', 'Medium', 'High', 'Critical'];
+      const currentPriority = randomTask.priority;
+      let newPriority = priorities[Math.floor(Math.random() * priorities.length)]!;
+      while (newPriority === currentPriority) {
+        newPriority = priorities[Math.floor(Math.random() * priorities.length)]!;
+      }
+
+      const oldSP = randomTask.storyPoints || 5;
+      const oldOpt = Math.floor(oldSP * 0.6);
+      const oldMost = oldSP;
+      const oldPess = Math.floor(oldSP * 1.5);
+      const oldDuration = ((oldOpt + 4 * oldMost + oldPess) / 6).toFixed(1);
+
+      const speedup = newPriority === 'Critical' ? 0.7 : 1.0;
+      const newOpt = Math.floor(oldOpt * speedup);
+      const newMost = Math.floor(oldMost * speedup);
+      const newPess = Math.floor(oldPess * speedup);
+      const newDuration = ((newOpt + 4 * newMost + newPess) / 6).toFixed(1);
+
+      const oldResponsible = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
+      const newResponsible =
+        newPriority === 'Critical'
+          ? [teamMembers[0]!]
+          : [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
+
+      entry = {
+        title: `Zmena Priority: ${currentPriority} → ${newPriority}`,
+        timestamp,
+        icon: 'priority_high',
+        color: newPriority === 'Critical' ? 'red' : 'orange',
+        taskName: randomTask.name,
+        description: `Priorita tasku zmenená na ${newPriority}`,
+        taskChanges: {
+          storyPoints: { before: oldSP, after: oldSP },
+          pert: {
+            before: { optimistic: oldOpt, mostLikely: oldMost, pessimistic: oldPess },
+            after: { optimistic: newOpt, mostLikely: newMost, pessimistic: newPess },
+          },
+          duration: { before: parseFloat(oldDuration), after: parseFloat(newDuration) },
+          raci: {
+            before: { responsible: oldResponsible, accountable: ['Sarah Johnson'] },
+            after: { responsible: newResponsible, accountable: ['Sarah Johnson'] },
+          },
+          priority: { before: currentPriority, after: newPriority },
+        },
+        adaptations: [
+          `🔝 Priorita zmenená: ${currentPriority} → ${newPriority}`,
+          newPriority === 'Critical'
+            ? '🔄 Reassigned na senior developera'
+            : '✅ RACI roles upravené',
+          `📊 PERT prepočítaný: ${oldDuration}d → ${newDuration}d (${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d)`,
+          `⚖️ Team workload adjusted: ${workloadDiffStr}%`,
+          newPriority === 'Critical'
+            ? '⚡ Aktivovaný fast-track režím'
+            : '📅 Sprint backlog reordered',
+        ],
+        metrics: [
+          {
+            label: 'Duration Impact',
+            value: `${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d`,
+            color: 'green',
+          },
+          {
+            label: 'Risk Change',
+            value: `${riskDiffStr}`,
+            color: riskDiff < 0 ? 'green' : 'orange',
+          },
+          {
+            label: 'Priority',
+            value: `${currentPriority}→${newPriority}`,
+            color: newPriority === 'Critical' ? 'red' : 'orange',
+          },
+          { label: 'Adaptation Time', value: `${adaptTime}ms`, color: 'green' },
+        ],
+      };
+      break;
+    }
+
+    case 'Modify Task Duration': {
+      const oldSP = randomTask.storyPoints || 5;
+      const spChange = Math.floor(Math.random() * 5) - 2;
+      const newSP = Math.max(1, oldSP + spChange);
+
+      const oldOpt = Math.floor(oldSP * 0.6);
+      const oldMost = oldSP;
+      const oldPess = Math.floor(oldSP * 1.5);
+      const oldDuration = ((oldOpt + 4 * oldMost + oldPess) / 6).toFixed(1);
+
+      const newOpt = Math.floor(newSP * 0.6);
+      const newMost = newSP;
+      const newPess = Math.floor(newSP * 1.5);
+      const newDuration = ((newOpt + 4 * newMost + newPess) / 6).toFixed(1);
+
+      const responsible1 = teamMembers[Math.floor(Math.random() * teamMembers.length)]!;
+      const responsible2 =
+        spChange > 2 ? teamMembers[Math.floor(Math.random() * teamMembers.length)]! : null;
+
+      entry = {
+        title: 'Zmena Story Points na Existujúcom Tasku',
+        timestamp,
+        icon: 'edit',
+        color: 'orange',
+        taskName: randomTask.name,
+        description: `Klient ${spChange > 0 ? 'rozšíril' : 'zredukoval'} požiadavky (${spChange > 0 ? '+' : ''}${spChange} SP)`,
+        taskChanges: {
+          storyPoints: { before: oldSP, after: newSP },
+          pert: {
+            before: { optimistic: oldOpt, mostLikely: oldMost, pessimistic: oldPess },
+            after: { optimistic: newOpt, mostLikely: newMost, pessimistic: newPess },
+          },
+          duration: { before: parseFloat(oldDuration), after: parseFloat(newDuration) },
+          raci: {
+            before: { responsible: [responsible1], accountable: ['Sarah Johnson'] },
+            after: {
+              responsible: responsible2 ? [responsible1, responsible2] : [responsible1],
+              accountable: ['Sarah Johnson'],
+            },
+          },
+        },
+        adaptations: [
+          `📈 PERT časy aktualizované: ${oldDuration}d → ${newDuration}d (${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d)`,
+          responsible2
+            ? `👥 Pridaný ${responsible2} ako druhý Responsible (workload sharing)`
+            : '👥 RACI role unchanged',
+          `⚖️ Zaťaženie tímu: ${workloadDiffStr}% zmena`,
+          `🔄 Celkový project duration: ${durationDiff > 0 ? '+' : ''}${durationDiffStr} dní`,
+          '📊 Critical path analysis updated',
+        ],
+        metrics: [
+          {
+            label: 'Story Points',
+            value: `${spChange > 0 ? '+' : ''}${spChange} SP`,
+            color: spChange > 0 ? 'orange' : 'green',
+          },
+          {
+            label: 'Duration Impact',
+            value: `${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d`,
+            color: spChange > 0 ? 'orange' : 'green',
+          },
+          {
+            label: 'Team Balance',
+            value: `${balanceDiff > 0 ? '+' : ''}${balanceDiffStr}%`,
+            color: balanceDiff > 0 ? 'green' : 'orange',
+          },
+          { label: 'Adaptation Time', value: `${adaptTime}ms`, color: 'green' },
+        ],
+      };
+      break;
+    }
+
+    case 'Reassign Team Members': {
+      const oldResponsible = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
+      const newResponsible = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
+      const oldAccountable = [teamMembers[1]!];
+      const newAccountable = [teamMembers[2]!];
+
+      entry = {
+        title: 'Reassignment členov tímu',
+        timestamp,
+        icon: 'swap_horiz',
+        color: 'blue',
+        taskName: randomTask.name,
+        description: `RACI role prerozdelené kvôli workload balancingu`,
+        taskChanges: {
+          raci: {
+            before: { responsible: oldResponsible, accountable: oldAccountable },
+            after: { responsible: newResponsible, accountable: newAccountable },
+          },
+        },
+        adaptations: [
+          `🔄 Responsible: ${oldResponsible[0]} → ${newResponsible[0]}`,
+          `📋 Accountable: ${oldAccountable[0]} → ${newAccountable[0]}`,
+          `⚖️ Workload rebalanced: ${workloadDiffStr}% zmena`,
+          `📊 Team balance improved: ${balanceDiff > 0 ? '+' : ''}${balanceDiffStr}%`,
+          '✅ RACI compliance maintained',
+        ],
+        metrics: [
+          {
+            label: 'Team Balance',
+            value: `${balanceDiff > 0 ? '+' : ''}${balanceDiffStr}%`,
+            color: balanceDiff > 0 ? 'green' : 'orange',
+          },
+          { label: 'Workload Change', value: `${workloadDiffStr}%`, color: 'primary' },
+          { label: 'Members Affected', value: '2', color: 'blue' },
+          { label: 'Adaptation Time', value: `${adaptTime}ms`, color: 'green' },
+        ],
+      };
+      break;
+    }
+
+    default: {
+      // Mixed Changes
+      const oldSP = randomTask.storyPoints || 5;
+      const newSP = oldSP + Math.floor(Math.random() * 4) - 1;
+
+      entry = {
+        title: 'Mixed Changes (Multiple Updates)',
+        timestamp,
+        icon: 'change_circle',
+        color: 'purple',
+        taskName: randomTask.name,
+        description: 'Viacero zmien aplikovaných naraz',
+        taskChanges: {
+          storyPoints: { before: oldSP, after: newSP },
+        },
+        adaptations: [
+          '🔄 Multiple requirement changes detected',
+          `📊 PERT times recalculated`,
+          `👥 RACI roles optimized`,
+          `⚖️ Team workload rebalanced`,
+          '🎯 Critical path updated',
+        ],
+        metrics: [
+          {
+            label: 'Changes Applied',
+            value: `${simulationSettings.value.numberOfChanges}`,
+            color: 'purple',
+          },
+          {
+            label: 'Duration Impact',
+            value: `${durationDiffStr}d`,
+            color: durationDiff > 0 ? 'orange' : 'green',
+          },
+          {
+            label: 'Team Balance',
+            value: `${balanceDiffStr}%`,
+            color: balanceDiff > 0 ? 'green' : 'orange',
+          },
+          { label: 'Adaptation Time', value: `${adaptTime}ms`, color: 'green' },
+        ],
+      };
+    }
+  }
+
+  // Add to beginning of log (newest first)
+  changeLog.value.unshift(entry);
+}
+
+function exportChangeLog() {
+  const data = {
+    project: selectedProject.value?.name || 'Unknown',
+    totalChanges: changeLog.value.length,
+    changes: changeLog.value,
+    exportTimestamp: new Date().toISOString(),
+  };
+
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `change-log-${selectedProject.value?.name || 'project'}-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  $q.notify({
+    message: 'Change log exported successfully!',
+    color: 'positive',
+    icon: 'download',
     position: 'top',
   });
 }
@@ -953,5 +1656,43 @@ function resetSimulation() {
     width: 50px;
     font-size: 12px;
   }
+}
+
+/* Task Details Styles */
+.task-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.detail-label {
+  font-weight: 600;
+  font-size: 12px;
+  color: #666;
+  min-width: 90px;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #333;
+}
+
+.raci-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.adaptation-list li {
+  margin-bottom: 8px;
+  line-height: 1.5;
 }
 </style>

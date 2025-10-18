@@ -84,57 +84,124 @@
             <table class="raci-table">
               <thead>
                 <tr>
-                  <th class="task-column">Task / Activity</th>
-                  <th v-for="member in projectMembers" :key="member.id" class="member-column">
-                    <div class="member-header">
-                      <q-avatar size="24px" class="q-mb-xs">
-                        <img :src="member.avatar" />
-                      </q-avatar>
-                      <div class="text-caption text-weight-bold">
-                        {{ member.name.split(' ')[0] }}
-                      </div>
-                      <div class="text-caption text-grey-7">{{ getMemberRole(member.id) }}</div>
-                    </div>
-                  </th>
+                  <th class="task-column">Task Name</th>
+                  <th class="raci-column">Responsible</th>
+                  <th class="raci-column">Accountable</th>
+                  <th class="raci-column">Consulted</th>
+                  <th class="raci-column">Informed</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="task in selectedProject.tasks" :key="task.id" class="task-row">
                   <td class="task-cell">
                     <div class="text-weight-medium">{{ task.title }}</div>
-                    <div class="text-caption text-grey-7">{{ task.type }}</div>
+                    <div class="text-caption text-grey-7">
+                      {{ task.type }} • {{ task.storyPoints }} SP
+                    </div>
+                    <div class="text-caption text-grey-6">{{ task.description }}</div>
                   </td>
-                  <td v-for="member in projectMembers" :key="member.id" class="responsibility-cell">
-                    <div class="row q-gutter-xs justify-center">
-                      <q-chip
-                        v-if="task.raci.responsible.includes(member.id)"
-                        color="red"
-                        text-color="white"
-                        size="sm"
-                        label="R"
-                      />
-                      <q-chip
-                        v-if="task.raci.accountable === member.id"
-                        color="blue"
-                        text-color="white"
-                        size="sm"
-                        label="A"
-                      />
-                      <q-chip
-                        v-if="task.raci.consulted.includes(member.id)"
-                        color="orange"
-                        text-color="white"
-                        size="sm"
-                        label="C"
-                      />
-                      <q-chip
-                        v-if="task.raci.informed.includes(member.id)"
-                        color="green"
-                        text-color="white"
-                        size="sm"
-                        label="I"
-                      />
-                      <span v-if="!hasRaciRole(task, member.id)" class="text-grey-5">-</span>
+                  <td class="raci-cell">
+                    <div class="raci-members">
+                      <div
+                        v-for="memberId in task.raci.responsible"
+                        :key="memberId"
+                        class="member-chip"
+                      >
+                        <q-tooltip>
+                          <div class="member-tooltip">
+                            <div class="text-weight-bold">{{ getMemberFullName(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberRole(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberEmail(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberSkills(memberId) }}</div>
+                          </div>
+                        </q-tooltip>
+                        <q-chip
+                          color="red"
+                          text-color="white"
+                          size="sm"
+                          :label="getMemberName(memberId)"
+                        />
+                      </div>
+                      <span v-if="task.raci.responsible.length === 0" class="text-grey-5">-</span>
+                    </div>
+                  </td>
+                  <td class="raci-cell">
+                    <div class="raci-members">
+                      <div v-if="task.raci.accountable" class="member-chip">
+                        <q-tooltip>
+                          <div class="member-tooltip">
+                            <div class="text-weight-bold">
+                              {{ getMemberFullName(task.raci.accountable) }}
+                            </div>
+                            <div class="text-caption">
+                              {{ getMemberRole(task.raci.accountable) }}
+                            </div>
+                            <div class="text-caption">
+                              {{ getMemberEmail(task.raci.accountable) }}
+                            </div>
+                            <div class="text-caption">
+                              {{ getMemberSkills(task.raci.accountable) }}
+                            </div>
+                          </div>
+                        </q-tooltip>
+                        <q-chip
+                          color="blue"
+                          text-color="white"
+                          size="sm"
+                          :label="getMemberName(task.raci.accountable)"
+                        />
+                      </div>
+                      <span v-else class="text-grey-5">-</span>
+                    </div>
+                  </td>
+                  <td class="raci-cell">
+                    <div class="raci-members">
+                      <div
+                        v-for="memberId in task.raci.consulted"
+                        :key="memberId"
+                        class="member-chip"
+                      >
+                        <q-tooltip>
+                          <div class="member-tooltip">
+                            <div class="text-weight-bold">{{ getMemberFullName(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberRole(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberEmail(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberSkills(memberId) }}</div>
+                          </div>
+                        </q-tooltip>
+                        <q-chip
+                          color="orange"
+                          text-color="white"
+                          size="sm"
+                          :label="getMemberName(memberId)"
+                        />
+                      </div>
+                      <span v-if="task.raci.consulted.length === 0" class="text-grey-5">-</span>
+                    </div>
+                  </td>
+                  <td class="raci-cell">
+                    <div class="raci-members">
+                      <div
+                        v-for="memberId in task.raci.informed"
+                        :key="memberId"
+                        class="member-chip"
+                      >
+                        <q-tooltip>
+                          <div class="member-tooltip">
+                            <div class="text-weight-bold">{{ getMemberFullName(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberRole(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberEmail(memberId) }}</div>
+                            <div class="text-caption">{{ getMemberSkills(memberId) }}</div>
+                          </div>
+                        </q-tooltip>
+                        <q-chip
+                          color="green"
+                          text-color="white"
+                          size="sm"
+                          :label="getMemberName(memberId)"
+                        />
+                      </div>
+                      <span v-if="task.raci.informed.length === 0" class="text-grey-5">-</span>
                     </div>
                   </td>
                 </tr>
@@ -305,6 +372,26 @@ const projectMembers = computed(() => {
 });
 
 // Helper functions
+function getMemberName(memberId: number) {
+  const member = projectMembers.value.find((m) => m?.id === memberId);
+  return member ? member.name.split(' ')[0] : `Member ${memberId}`;
+}
+
+function getMemberFullName(memberId: number) {
+  const member = projectMembers.value.find((m) => m?.id === memberId);
+  return member ? member.name : `Member ${memberId}`;
+}
+
+function getMemberEmail(memberId: number) {
+  const member = projectMembers.value.find((m) => m?.id === memberId);
+  return member ? member.email : '';
+}
+
+function getMemberSkills(memberId: number) {
+  const member = projectMembers.value.find((m) => m?.id === memberId);
+  return member ? member.skills.join(', ') : '';
+}
+
 function getMemberRole(memberId: number) {
   if (!selectedProject.value) return '';
   const role = selectedProject.value.roles.find((r) => r.memberId === memberId);
@@ -380,7 +467,7 @@ function exportMatrix() {
 .raci-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
+  min-width: 900px;
 }
 
 .raci-table th,
@@ -391,7 +478,7 @@ function exportMatrix() {
 }
 
 .task-column {
-  min-width: 250px;
+  min-width: 300px;
   text-align: left !important;
   background: #f5f5f5;
   position: sticky;
@@ -399,16 +486,10 @@ function exportMatrix() {
   z-index: 2;
 }
 
-.member-column {
-  min-width: 120px;
+.raci-column {
+  min-width: 150px;
   background: #f5f5f5;
-}
-
-.member-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  font-weight: bold;
 }
 
 .task-cell {
@@ -419,12 +500,47 @@ function exportMatrix() {
   z-index: 1;
 }
 
+.raci-cell {
+  vertical-align: middle;
+  background: white;
+}
+
+.raci-members {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.member-chip {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .task-row:hover {
   background-color: #fafafa;
 }
 
-.responsibility-cell {
-  vertical-align: middle;
-  background: white;
+.task-row:hover .task-cell {
+  background-color: #fafafa;
+}
+
+.task-row:hover .raci-cell {
+  background-color: #fafafa;
+}
+
+.member-tooltip {
+  padding: 8px;
+  max-width: 200px;
+}
+
+.member-tooltip .text-weight-bold {
+  margin-bottom: 4px;
+}
+
+.member-tooltip .text-caption {
+  margin-bottom: 2px;
+  line-height: 1.2;
 }
 </style>

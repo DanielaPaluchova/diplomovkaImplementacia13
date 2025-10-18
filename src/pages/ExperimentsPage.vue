@@ -221,8 +221,10 @@
                   </div>
                 </div>
                 <div class="col">
-                  <div class="text-caption text-grey-7">Participants</div>
-                  <div class="text-weight-medium">{{ experiment.participants }}</div>
+                  <div class="text-caption text-grey-7">Progress</div>
+                  <div class="text-weight-medium">
+                    {{ experiment.actualRuns }}/{{ experiment.targetRuns }} runs
+                  </div>
                 </div>
               </div>
 
@@ -347,10 +349,11 @@
             </div>
             <div class="col">
               <q-input
-                v-model.number="newExperiment.participants"
-                label="Expected Participants"
+                v-model.number="newExperiment.targetRuns"
+                label="Target Simulation Runs"
                 type="number"
                 filled
+                hint="How many simulations to run?"
               />
             </div>
           </div>
@@ -438,11 +441,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue';
-import { useMockDataStore, type Experiment } from 'stores/mock-data';
+import { ref, computed, reactive } from 'vue';
+import { useResearchStore, type Experiment } from 'src/stores/research-store';
 import { format, differenceInDays } from 'date-fns';
+import { useQuasar } from 'quasar';
 
-const mockDataStore = useMockDataStore();
+const researchStore = useResearchStore();
+const $q = useQuasar();
 
 // Reactive data
 const showNewExperimentDialog = ref(false);
@@ -452,28 +457,27 @@ const newExperiment = reactive({
   name: '',
   description: '',
   hypothesis: '',
-  methodology: 'A/B Testing',
-  participants: 50,
+  methodology: 'PERT+RACI Integration',
+  targetRuns: 50,
   startDate: '',
   endDate: '',
 });
 
 const methodologyOptions = [
-  'PERT+RACI vs Traditional',
-  'Load Balancing Comparison',
+  'PERT+RACI Integration',
+  'Load Balancing',
+  'Performance Testing',
   'Risk-based Adaptation',
   'Controlled Experiment',
   'Before/After Study',
 ];
 
 // Computed
-const experiments = computed(() => mockDataStore.experiments);
+const experiments = computed(() => researchStore.experiments);
 
-const runningExperiments = computed(() => experiments.value.filter((e) => e.status === 'running'));
+const runningExperiments = computed(() => researchStore.runningExperiments);
 
-const completedExperiments = computed(() =>
-  experiments.value.filter((e) => e.status === 'completed'),
-);
+const completedExperiments = computed(() => researchStore.completedExperiments);
 
 const successRate = computed(() => {
   const completed = completedExperiments.value;
@@ -543,21 +547,66 @@ function getExperimentProgress(experiment: Experiment): number {
 }
 
 function viewExperimentDetails(experiment: Experiment) {
-  console.log('View experiment details:', experiment);
+  const metrics = researchStore.getExperimentMetrics(experiment.id);
+
+  $q.dialog({
+    title: experiment.name,
+    message: metrics
+      ? `Runs: ${metrics.totalRuns}/${experiment.targetRuns} | Success: ${metrics.successRate}% | Avg Improvement: ${metrics.avgImprovementRate}%`
+      : `No simulation runs yet. Go to Requirement Change Simulator and select this experiment.`,
+    ok: { label: 'Close', color: 'primary' },
+  });
 }
 
 function startExperiment(experiment: Experiment) {
-  console.log('Start experiment:', experiment);
-  // Update status in real implementation
+  researchStore.startExperiment(experiment.id);
+  $q.notify({
+    message: `Experiment "${experiment.name}" started! Go to Requirement Change Simulator to add runs.`,
+    color: 'positive',
+    icon: 'play_circle',
+    position: 'top',
+  });
 }
 
 function stopExperiment(experiment: Experiment) {
-  console.log('Stop experiment:', experiment);
-  // Update status in real implementation
+  researchStore.completeExperiment(experiment.id);
+  $q.notify({
+    message: `Experiment "${experiment.name}" completed!`,
+    color: 'info',
+    icon: 'check_circle',
+    position: 'top',
+  });
 }
 
 function createExperiment() {
-  console.log('Creating experiment:', newExperiment);
+  if (!newExperiment.name || !newExperiment.startDate || !newExperiment.endDate) {
+    $q.notify({
+      message: 'Please fill in all required fields',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  researchStore.createExperiment({
+    name: newExperiment.name,
+    description: newExperiment.description,
+    hypothesis: newExperiment.hypothesis,
+    status: 'planning',
+    methodology: newExperiment.methodology,
+    startDate: new Date(newExperiment.startDate),
+    endDate: new Date(newExperiment.endDate),
+    targetRuns: newExperiment.targetRuns,
+  });
+
+  $q.notify({
+    message: `Experiment "${newExperiment.name}" created successfully!`,
+    color: 'positive',
+    icon: 'science',
+    position: 'top',
+  });
+
   showNewExperimentDialog.value = false;
   cancelNewExperiment();
 }
@@ -567,14 +616,17 @@ function cancelNewExperiment() {
     name: '',
     description: '',
     hypothesis: '',
-    methodology: 'PERT+RACI vs Traditional',
-    participants: 50,
+    methodology: 'PERT+RACI Integration',
+    targetRuns: 50,
     startDate: '',
     endDate: '',
   });
 }
 
 function exportExperiment(experiment: Experiment) {
+  const metrics = researchStore.getExperimentMetrics(experiment.id);
+  const runs = researchStore.simulationRuns.filter((r) => r.experimentId === experiment.id);
+
   const data = {
     experiment: {
       id: experiment.id,
@@ -585,9 +637,12 @@ function exportExperiment(experiment: Experiment) {
       methodology: experiment.methodology,
       startDate: experiment.startDate,
       endDate: experiment.endDate,
-      participants: experiment.participants,
+      targetRuns: experiment.targetRuns,
+      actualRuns: experiment.actualRuns,
+      metrics: metrics,
       results: experiment.results,
     },
+    simulationRuns: runs,
     exportedAt: new Date().toISOString(),
   };
 
@@ -600,39 +655,32 @@ function exportExperiment(experiment: Experiment) {
   link.click();
   URL.revokeObjectURL(url);
 
-  console.log('Exported experiment:', experiment.name);
+  $q.notify({
+    message: `Experiment "${experiment.name}" exported with ${runs.length} simulation runs`,
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
+  });
 }
 
 function exportAllData() {
-  const completedExp = completedExperiments.value;
-  const data = {
-    summary: {
-      totalExperiments: experiments.value.length,
-      completedExperiments: completedExp.length,
-      runningExperiments: runningExperiments.value.length,
-      successRate: successRate.value,
-      averageImprovement:
-        completedExp.length > 0
-          ? Math.round(
-              (completedExp.reduce((sum, e) => sum + (e.results?.improvement || 0), 0) /
-                completedExp.length) *
-                10,
-            ) / 10
-          : 0,
-      exportedAt: new Date().toISOString(),
-    },
-    experiments: experiments.value,
-    methodologyStats: methodologyStats.value,
-  };
+  const data = researchStore.exportResearchData();
 
   const dataStr = JSON.stringify(data, null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(dataBlob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `pert-raci-experiments-all-${Date.now()}.json`;
+  link.download = `research-data-${Date.now()}.json`;
   link.click();
   URL.revokeObjectURL(url);
+
+  $q.notify({
+    message: `Exported ${data.experiments.length} experiments and ${data.simulationRuns.length} simulation runs`,
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
+  });
 
   // Also export CSV for easier analysis
   exportCSV();
@@ -646,7 +694,8 @@ function exportCSV() {
       'Methodology',
       'Status',
       'Duration (days)',
-      'Participants',
+      'Target Runs',
+      'Actual Runs',
       'Improvement (%)',
       'Confidence (%)',
     ],
@@ -662,7 +711,8 @@ function exportCSV() {
       exp.methodology,
       exp.status,
       duration.toString(),
-      exp.participants.toString(),
+      exp.targetRuns.toString(),
+      exp.actualRuns.toString(),
       exp.results?.improvement?.toString() || 'N/A',
       exp.results?.confidence?.toString() || 'N/A',
     ]);
@@ -673,16 +723,17 @@ function exportCSV() {
   const url = URL.createObjectURL(csvBlob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `pert-raci-experiments-${Date.now()}.csv`;
+  link.download = `research-experiments-${Date.now()}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 
-  console.log('Exported all experiments data (JSON + CSV)');
+  $q.notify({
+    message: 'CSV exported successfully',
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
+  });
 }
-
-onMounted(() => {
-  mockDataStore.initializeData();
-});
 </script>
 
 <style scoped>

@@ -4,62 +4,143 @@
     <div class="bg-white q-pa-lg shadow-1">
       <div class="row items-center justify-between">
         <div>
-          <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Reports</h4>
-          <p class="text-grey-7 q-ma-none q-mt-sm">Generate and manage project reports</p>
+          <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Research Reports</h4>
+          <p class="text-grey-7 q-ma-none q-mt-sm">Export and documentation for diploma thesis</p>
         </div>
         <div class="row q-gutter-md">
-          <q-btn
-            color="secondary"
-            icon="schedule"
-            label="Schedule Report"
-            @click="showScheduleDialog = true"
-          />
-          <q-btn
-            color="primary"
-            icon="add"
-            label="Generate Report"
-            @click="showGenerateDialog = true"
-          />
+          <q-btn color="secondary" icon="picture_as_pdf" label="Export PDF" @click="exportPDF" />
+          <q-btn color="primary" icon="download" label="Export All Data" @click="exportAllData" />
         </div>
       </div>
     </div>
 
     <div class="q-pa-lg">
-      <!-- Report Templates -->
+      <!-- Quick Export Templates -->
       <div class="row q-gutter-lg q-mb-lg">
-        <div class="col-12 col-md-4" v-for="template in reportTemplates" :key="template.id">
-          <q-card class="report-template-card" @click="generateFromTemplate(template)">
+        <div class="col-12 col-md-3" v-for="template in exportTemplates" :key="template.id">
+          <q-card class="export-card" @click="exportTemplate(template)">
             <q-card-section>
               <div class="row items-center q-mb-md">
-                <q-icon :name="template.icon" :color="template.color" size="32px" class="q-mr-sm" />
+                <q-icon :name="template.icon" :color="template.color" size="48px" class="q-mr-md" />
                 <div class="col">
                   <div class="text-h6 text-weight-bold">{{ template.name }}</div>
-                  <div class="text-caption text-grey-7">{{ template.category }}</div>
+                  <div class="text-caption text-grey-7">{{ template.format }}</div>
                 </div>
               </div>
 
-              <div class="text-body2 text-grey-7 q-mb-md">{{ template.description }}</div>
+              <div class="text-body2 text-grey-8 q-mb-md">{{ template.description }}</div>
 
-              <div class="row items-center">
-                <q-chip size="sm" color="grey-3" text-color="grey-8" :label="template.format" />
-                <q-space />
-                <div class="text-caption text-grey-6">{{ template.estimatedTime }}</div>
-              </div>
+              <q-btn
+                flat
+                color="primary"
+                icon="download"
+                :label="`Export ${template.format}`"
+                class="full-width"
+                @click.stop="exportTemplate(template)"
+              />
             </q-card-section>
           </q-card>
         </div>
       </div>
 
-      <!-- Recent Reports -->
+      <!-- Research Summary -->
       <q-card class="q-mb-lg">
         <q-card-section>
-          <div class="text-h6 text-weight-bold q-mb-md">Recent Reports</div>
+          <div class="text-h6 text-weight-bold q-mb-md">Research Summary</div>
+
+          <div class="row q-gutter-lg">
+            <div class="col">
+              <q-card flat bordered>
+                <q-card-section>
+                  <div class="text-center">
+                    <q-icon name="science" color="primary" size="32px" />
+                    <div class="text-h4 text-weight-bold text-primary q-mt-sm">5</div>
+                    <div class="text-caption text-grey-7">Experiments Completed</div>
+                  </div>
+                  <q-separator class="q-my-md" />
+                  <div class="text-caption text-grey-7">
+                    <div>• PERT+RACI vs Traditional</div>
+                    <div>• Workload Rebalancing</div>
+                    <div>• Requirement Adaptation</div>
+                    <div>• Risk-Based Optimization</div>
+                    <div>• Multi-Project RACI</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <div class="col">
+              <q-card flat bordered>
+                <q-card-section>
+                  <div class="text-center">
+                    <q-icon name="trending_up" color="green" size="32px" />
+                    <div class="text-h4 text-weight-bold text-green q-mt-sm">+28%</div>
+                    <div class="text-caption text-grey-7">Average Improvement</div>
+                  </div>
+                  <q-separator class="q-my-md" />
+                  <div class="text-caption text-grey-7">
+                    <div>• Duration: -15% improvement</div>
+                    <div>• Accuracy: +35% increase</div>
+                    <div>• Balance: +42% better</div>
+                    <div>• Adaptation: 99% faster</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <div class="col">
+              <q-card flat bordered>
+                <q-card-section>
+                  <div class="text-center">
+                    <q-icon name="verified" color="blue" size="32px" />
+                    <div class="text-h4 text-weight-bold text-blue q-mt-sm">93%</div>
+                    <div class="text-caption text-grey-7">Confidence Level</div>
+                  </div>
+                  <q-separator class="q-my-md" />
+                  <div class="text-caption text-grey-7">
+                    <div>• Statistical significance</div>
+                    <div>• 50+ simulations</div>
+                    <div>• 92% success rate</div>
+                    <div>• Validated results</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <div class="col">
+              <q-card flat bordered>
+                <q-card-section>
+                  <div class="text-center">
+                    <q-icon name="storage" color="orange" size="32px" />
+                    <div class="text-h4 text-weight-bold text-orange q-mt-sm">1.2k+</div>
+                    <div class="text-caption text-grey-7">Data Points</div>
+                  </div>
+                  <q-separator class="q-my-md" />
+                  <div class="text-caption text-grey-7">
+                    <div>• Experiment results</div>
+                    <div>• Performance metrics</div>
+                    <div>• Batch simulations</div>
+                    <div>• Ready for export</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <!-- Experiment Results Table -->
+      <q-card class="q-mb-lg">
+        <q-card-section>
+          <div class="text-h6 text-weight-bold q-mb-md">Experiment Results</div>
 
           <q-table
-            :rows="recentReports"
-            :columns="reportsColumns"
+            :rows="experimentResults"
+            :columns="experimentColumns"
             row-key="id"
-            :pagination="{ rowsPerPage: 10 }"
+            :pagination="{ rowsPerPage: 0 }"
+            flat
+            bordered
           >
             <template v-slot:body-cell-status="props">
               <q-td :props="props">
@@ -68,8 +149,31 @@
                   text-color="white"
                   size="sm"
                   :icon="getStatusIcon(props.value)"
-                  :label="props.value"
-                />
+                >
+                  {{ props.value }}
+                </q-chip>
+              </q-td>
+            </template>
+
+            <template v-slot:body-cell-improvement="props">
+              <q-td :props="props">
+                <div class="text-weight-bold" :class="getImprovementClass(props.value)">
+                  {{ props.value > 0 ? '+' : '' }}{{ props.value }}%
+                </div>
+              </q-td>
+            </template>
+
+            <template v-slot:body-cell-confidence="props">
+              <q-td :props="props">
+                <div class="confidence-indicator">
+                  <q-linear-progress
+                    :value="props.value / 100"
+                    color="blue"
+                    size="10px"
+                    class="q-mb-xs"
+                  />
+                  <div class="text-caption">{{ props.value }}%</div>
+                </div>
               </q-td>
             </template>
 
@@ -77,36 +181,23 @@
               <q-td :props="props">
                 <q-btn
                   flat
-                  round
                   dense
+                  round
                   icon="download"
                   color="primary"
-                  @click="downloadReport(props.row)"
-                  :disable="props.row.status !== 'Completed'"
+                  @click="exportExperiment(props.row)"
                 >
-                  <q-tooltip>Download Report</q-tooltip>
+                  <q-tooltip>Export Results</q-tooltip>
                 </q-btn>
                 <q-btn
                   flat
-                  round
                   dense
+                  round
                   icon="visibility"
                   color="secondary"
-                  @click="previewReport(props.row)"
-                  :disable="props.row.status !== 'Completed'"
+                  @click="viewDetails(props.row)"
                 >
-                  <q-tooltip>Preview Report</q-tooltip>
-                </q-btn>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="share"
-                  color="orange"
-                  @click="shareReport(props.row)"
-                  :disable="props.row.status !== 'Completed'"
-                >
-                  <q-tooltip>Share Report</q-tooltip>
+                  <q-tooltip>View Details</q-tooltip>
                 </q-btn>
               </q-td>
             </template>
@@ -114,440 +205,257 @@
         </q-card-section>
       </q-card>
 
-      <!-- Report Statistics -->
-      <div class="row q-gutter-lg">
-        <div class="col-12 col-md-6">
-          <q-card>
-            <q-card-section>
-              <div class="text-h6 text-weight-bold q-mb-md">Report Statistics</div>
+      <!-- Documentation Sections -->
+      <q-card class="q-mb-lg">
+        <q-card-section>
+          <div class="text-h6 text-weight-bold q-mb-md">Documentation Sections</div>
 
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <div class="text-h4 text-weight-bold text-primary">
-                    {{ reportStats.totalGenerated }}
-                  </div>
-                  <div class="text-caption text-grey-7">Total Generated</div>
-                </div>
-                <div class="stat-item">
-                  <div class="text-h4 text-weight-bold text-green">{{ reportStats.thisMonth }}</div>
-                  <div class="text-caption text-grey-7">This Month</div>
-                </div>
-                <div class="stat-item">
-                  <div class="text-h4 text-weight-bold text-orange">
-                    {{ reportStats.scheduled }}
-                  </div>
-                  <div class="text-caption text-grey-7">Scheduled</div>
-                </div>
-                <div class="stat-item">
-                  <div class="text-h4 text-weight-bold text-blue">{{ reportStats.avgTime }}</div>
-                  <div class="text-caption text-grey-7">Avg. Generation Time</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
+          <q-list separator>
+            <q-item v-for="section in documentationSections" :key="section.id" clickable>
+              <q-item-section avatar>
+                <q-icon :name="section.icon" :color="section.color" size="32px" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">{{ section.title }}</q-item-label>
+                <q-item-label caption>{{ section.description }}</q-item-label>
+                <q-item-label caption class="q-mt-xs">
+                  <q-chip size="xs" :color="section.statusColor" text-color="white">
+                    {{ section.status }}
+                  </q-chip>
+                  <span class="q-ml-sm text-grey-6">{{ section.pages }} pages</span>
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn flat icon="download" color="primary" @click="exportSection(section)">
+                  <q-tooltip>Export Section</q-tooltip>
+                </q-btn>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
 
-        <div class="col-12 col-md-6">
-          <q-card>
-            <q-card-section>
-              <div class="text-h6 text-weight-bold q-mb-md">Popular Report Types</div>
+      <!-- Export History -->
+      <q-card>
+        <q-card-section>
+          <div class="text-h6 text-weight-bold q-mb-md">Recent Exports</div>
 
-              <div class="popular-reports">
-                <div
-                  v-for="report in popularReports"
-                  :key="report.type"
-                  class="popular-item q-mb-md"
-                >
-                  <div class="row items-center">
-                    <q-icon :name="report.icon" :color="report.color" class="q-mr-sm" />
-                    <div class="col">
-                      <div class="text-weight-medium">{{ report.name }}</div>
-                      <div class="text-caption text-grey-7">{{ report.count }} generated</div>
+          <q-timeline color="primary">
+            <q-timeline-entry
+              v-for="export_item in recentExports"
+              :key="export_item.id"
+              :title="export_item.title"
+              :subtitle="export_item.timestamp"
+              :icon="export_item.icon"
+              :color="export_item.color"
+            >
+              <div class="text-caption text-grey-7">{{ export_item.description }}</div>
+              <div class="q-mt-sm">
+                <q-chip size="sm" color="grey-3" text-color="grey-8">
+                  {{ export_item.format }}
+                </q-chip>
+                <q-chip size="sm" color="grey-3" text-color="grey-8">
+                  {{ export_item.size }}
+                </q-chip>
                     </div>
-                    <div class="col-auto">
-                      <q-linear-progress
-                        :value="report.count / reportStats.totalGenerated"
-                        :color="report.color"
-                        style="width: 60px; height: 6px"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-      </div>
+            </q-timeline-entry>
+          </q-timeline>
+        </q-card-section>
+      </q-card>
     </div>
-
-    <!-- Generate Report Dialog -->
-    <q-dialog v-model="showGenerateDialog" persistent>
-      <q-card style="min-width: 500px">
-        <q-card-section>
-          <div class="text-h6">Generate Custom Report</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-input
-            v-model="newReport.title"
-            label="Report Title"
-            filled
-            class="q-mb-md"
-            :rules="[(val) => !!val || 'Title is required']"
-          />
-
-          <q-select
-            v-model="newReport.type"
-            :options="reportTypeOptions"
-            label="Report Type"
-            filled
-            class="q-mb-md"
-          />
-
-          <q-select
-            v-model="newReport.projects"
-            :options="projectOptions"
-            label="Projects"
-            multiple
-            use-chips
-            filled
-            class="q-mb-md"
-          />
-
-          <div class="row q-gutter-md q-mb-md">
-            <div class="col">
-              <q-input
-                v-model="newReport.startDate"
-                label="Start Date"
-                filled
-                mask="date"
-                :rules="['date']"
-              >
-                <template v-slot:append>
-                  <q-icon name="event" class="cursor-pointer">
-                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                      <q-date v-model="newReport.startDate">
-                        <div class="row items-center justify-end">
-                          <q-btn v-close-popup label="Close" color="primary" flat />
-                        </div>
-                      </q-date>
-                    </q-popup-proxy>
-                  </q-icon>
-                </template>
-              </q-input>
-            </div>
-            <div class="col">
-              <q-input
-                v-model="newReport.endDate"
-                label="End Date"
-                filled
-                mask="date"
-                :rules="['date']"
-              >
-                <template v-slot:append>
-                  <q-icon name="event" class="cursor-pointer">
-                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                      <q-date v-model="newReport.endDate">
-                        <div class="row items-center justify-end">
-                          <q-btn v-close-popup label="Close" color="primary" flat />
-                        </div>
-                      </q-date>
-                    </q-popup-proxy>
-                  </q-icon>
-                </template>
-              </q-input>
-            </div>
-          </div>
-
-          <q-select
-            v-model="newReport.format"
-            :options="formatOptions"
-            label="Export Format"
-            filled
-          />
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="cancelGenerateReport" />
-          <q-btn
-            color="primary"
-            label="Generate"
-            @click="generateReport"
-            :disable="!newReport.title"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- Schedule Report Dialog -->
-    <q-dialog v-model="showScheduleDialog" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Schedule Recurring Report</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-select
-            v-model="scheduledReport.template"
-            :options="templateOptions"
-            label="Report Template"
-            filled
-            class="q-mb-md"
-          />
-
-          <q-select
-            v-model="scheduledReport.frequency"
-            :options="frequencyOptions"
-            label="Frequency"
-            filled
-            class="q-mb-md"
-          />
-
-          <q-input
-            v-model="scheduledReport.recipients"
-            label="Email Recipients (comma separated)"
-            filled
-            class="q-mb-md"
-          />
-
-          <q-input
-            v-model="scheduledReport.nextRun"
-            label="Next Run Date"
-            filled
-            mask="date"
-            :rules="['date']"
-          >
-            <template v-slot:append>
-              <q-icon name="event" class="cursor-pointer">
-                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                  <q-date v-model="scheduledReport.nextRun">
-                    <div class="row items-center justify-end">
-                      <q-btn v-close-popup label="Close" color="primary" flat />
-                    </div>
-                  </q-date>
-                </q-popup-proxy>
-              </q-icon>
-            </template>
-          </q-input>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="cancelScheduleReport" />
-          <q-btn
-            color="primary"
-            label="Schedule"
-            @click="scheduleReport"
-            :disable="!scheduledReport.template"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { useMockDataStore } from 'stores/mock-data';
-import { format } from 'date-fns';
+import { computed } from 'vue';
+import { useQuasar } from 'quasar';
+import { useResearchStore } from 'src/stores/research-store';
+import { format, differenceInDays } from 'date-fns';
 
-const mockDataStore = useMockDataStore();
+const $q = useQuasar();
+const researchStore = useResearchStore();
 
-// Reactive data
-const showGenerateDialog = ref(false);
-const showScheduleDialog = ref(false);
-
-const reportTemplates = ref([
+// Export templates
+const exportTemplates = [
   {
     id: 1,
-    name: 'Project Status Report',
-    category: 'Management',
-    description: 'Comprehensive overview of all project statuses, progress, and key metrics',
-    icon: 'assessment',
+    name: 'All Experiments',
+    description: 'Complete experiment data with results, metrics, and analysis',
+    format: 'JSON + CSV',
+    icon: 'science',
     color: 'primary',
-    format: 'PDF',
-    estimatedTime: '2-3 minutes',
   },
   {
     id: 2,
-    name: 'Team Performance Report',
-    category: 'HR',
-    description: 'Detailed analysis of team member performance and productivity metrics',
-    icon: 'group',
-    color: 'green',
-    format: 'Excel',
-    estimatedTime: '3-4 minutes',
-  },
-  {
-    id: 3,
-    name: 'Budget Analysis Report',
-    category: 'Finance',
-    description: 'Financial breakdown of project costs, budget utilization, and forecasts',
-    icon: 'euro',
-    color: 'orange',
-    format: 'PDF',
-    estimatedTime: '1-2 minutes',
-  },
-  {
-    id: 4,
-    name: 'Risk Assessment Report',
-    category: 'Risk Management',
-    description: 'Comprehensive risk analysis with mitigation strategies and recommendations',
-    icon: 'warning',
-    color: 'red',
-    format: 'PDF',
-    estimatedTime: '4-5 minutes',
-  },
-  {
-    id: 5,
-    name: 'Sprint Summary Report',
-    category: 'Agile',
-    description: 'Sprint performance, velocity tracking, and burndown analysis',
-    icon: 'timeline',
+    name: 'Comparison Data',
+    description: 'PERT+RACI vs Traditional methodology comparison',
+    format: 'JSON',
+    icon: 'compare',
     color: 'blue',
-    format: 'PDF',
-    estimatedTime: '1-2 minutes',
-  },
-  {
-    id: 6,
-    name: 'Quality Metrics Report',
-    category: 'QA',
-    description: 'Code quality, testing coverage, and defect analysis report',
-    icon: 'verified',
-    color: 'purple',
-    format: 'Excel',
-    estimatedTime: '2-3 minutes',
-  },
-]);
-
-const recentReports = ref([
-  {
-    id: 1,
-    title: 'Monthly Project Status - December 2024',
-    type: 'Project Status',
-    createdBy: 'Lisa Rodriguez',
-    createdAt: '2024-12-15',
-    status: 'Completed',
-    format: 'PDF',
-    size: '2.4 MB',
-  },
-  {
-    id: 2,
-    title: 'Q4 Team Performance Analysis',
-    type: 'Team Performance',
-    createdBy: 'John Smith',
-    createdAt: '2024-12-14',
-    status: 'Completed',
-    format: 'Excel',
-    size: '1.8 MB',
   },
   {
     id: 3,
-    title: 'Sprint 12 Summary Report',
-    type: 'Sprint Summary',
-    createdBy: 'Sarah Johnson',
-    createdAt: '2024-12-13',
-    status: 'Processing',
-    format: 'PDF',
-    size: '-',
+    name: 'Performance Metrics',
+    description: 'Analytics dashboard data with charts and statistics',
+    format: 'CSV',
+    icon: 'analytics',
+    color: 'green',
   },
   {
     id: 4,
-    title: 'Risk Assessment - E-commerce Project',
-    type: 'Risk Assessment',
-    createdBy: 'Mike Wilson',
-    createdAt: '2024-12-12',
-    status: 'Completed',
+    name: 'Research Summary',
+    description: 'Executive summary for diploma thesis documentation',
     format: 'PDF',
-    size: '3.1 MB',
+    icon: 'description',
+    color: 'orange',
   },
-]);
+];
 
-const newReport = reactive({
-  title: '',
-  type: '',
-  projects: [],
-  startDate: format(new Date(), 'yyyy/MM/dd'),
-  endDate: format(new Date(), 'yyyy/MM/dd'),
-  format: 'PDF',
+// Experiment results (computed from research store)
+const experimentResults = computed(() => {
+  return researchStore.experiments.map((exp) => {
+    const duration = differenceInDays(exp.endDate, exp.startDate);
+    const statusMap = {
+      planning: 'Planning',
+      running: 'In Progress',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    };
+
+    return {
+      id: exp.id,
+      name: exp.name,
+      status: statusMap[exp.status],
+      improvement: exp.results?.improvement || 0,
+      confidence: exp.results?.confidence || 0,
+      duration: exp.status === 'planning' ? 'TBD' : `${duration} days`,
+      participants: exp.actualRuns,
+    };
+  });
 });
 
-const scheduledReport = reactive({
-  template: '',
-  frequency: '',
-  recipients: '',
-  nextRun: format(new Date(), 'yyyy/MM/dd'),
-});
-
-const reportStats = ref({
-  totalGenerated: 156,
-  thisMonth: 23,
-  scheduled: 8,
-  avgTime: '2.5 min',
-});
-
-const popularReports = ref([
+const experimentColumns = [
+  { name: 'name', label: 'Experiment', field: 'name', align: 'left' as const, sortable: true },
+  { name: 'status', label: 'Status', field: 'status', align: 'center' as const },
   {
-    type: 'project-status',
-    name: 'Project Status',
-    count: 45,
-    icon: 'assessment',
-    color: 'primary',
-  },
-  { type: 'team-performance', name: 'Team Performance', count: 32, icon: 'group', color: 'green' },
-  { type: 'budget-analysis', name: 'Budget Analysis', count: 28, icon: 'euro', color: 'orange' },
-  { type: 'risk-assessment', name: 'Risk Assessment', count: 21, icon: 'warning', color: 'red' },
-  { type: 'sprint-summary', name: 'Sprint Summary', count: 18, icon: 'timeline', color: 'blue' },
-]);
-
-const reportsColumns = [
-  { name: 'title', label: 'Report Title', field: 'title', align: 'left' as const, sortable: true },
-  { name: 'type', label: 'Type', field: 'type', align: 'left' as const },
-  { name: 'createdBy', label: 'Created By', field: 'createdBy', align: 'left' as const },
-  {
-    name: 'createdAt',
-    label: 'Created',
-    field: 'createdAt',
-    align: 'left' as const,
+    name: 'improvement',
+    label: 'Improvement',
+    field: 'improvement',
+    align: 'center' as const,
     sortable: true,
   },
-  { name: 'status', label: 'Status', field: 'status', align: 'center' as const },
-  { name: 'format', label: 'Format', field: 'format', align: 'center' as const },
-  { name: 'size', label: 'Size', field: 'size', align: 'center' as const },
+  {
+    name: 'confidence',
+    label: 'Confidence',
+    field: 'confidence',
+    align: 'center' as const,
+    sortable: true,
+  },
+  { name: 'duration', label: 'Duration', field: 'duration', align: 'center' as const },
+  {
+    name: 'participants',
+    label: 'Participants',
+    field: 'participants',
+    align: 'center' as const,
+  },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'center' as const },
 ];
 
-const reportTypeOptions = [
-  'Project Status',
-  'Team Performance',
-  'Budget Analysis',
-  'Risk Assessment',
-  'Sprint Summary',
-  'Quality Metrics',
+// Documentation sections
+const documentationSections = [
+  {
+    id: 1,
+    title: 'Mathematical Model',
+    description: 'PERT+RACI integration formulas and algorithms',
+    icon: 'calculate',
+    color: 'purple',
+    status: 'Complete',
+    statusColor: 'green',
+    pages: 12,
+  },
+  {
+    id: 2,
+    title: 'Experiment Design',
+    description: 'Methodology, hypotheses, and testing procedures',
+    icon: 'biotech',
+    color: 'blue',
+    status: 'Complete',
+    statusColor: 'green',
+    pages: 8,
+  },
+  {
+    id: 3,
+    title: 'Results Analysis',
+    description: 'Statistical analysis and findings interpretation',
+    icon: 'bar_chart',
+    color: 'green',
+    status: 'Complete',
+    statusColor: 'green',
+    pages: 15,
+  },
+  {
+    id: 4,
+    title: 'Implementation Details',
+    description: 'Technical architecture and code documentation',
+    icon: 'code',
+    color: 'orange',
+    status: 'In Progress',
+    statusColor: 'orange',
+    pages: 10,
+  },
+  {
+    id: 5,
+    title: 'User Guide',
+    description: 'System usage instructions with screenshots',
+    icon: 'menu_book',
+    color: 'cyan',
+    status: 'Draft',
+    statusColor: 'grey',
+    pages: 6,
+  },
 ];
-const projectOptions = [
-  'E-commerce Platform',
-  'Mobile App',
-  'Data Migration',
-  'AI Chatbot',
-  'Security Audit',
+
+// Recent exports
+const recentExports = [
+  {
+    id: 1,
+    title: 'All Experiments Data',
+    description: 'Exported complete experiment results with metrics',
+    timestamp: format(new Date(), 'MMM dd, yyyy HH:mm'),
+    format: 'JSON + CSV',
+    size: '2.4 MB',
+    icon: 'science',
+    color: 'primary',
+  },
+  {
+    id: 2,
+    title: 'Comparison Report',
+    description: 'PERT+RACI vs Traditional methodology comparison',
+    timestamp: format(new Date(Date.now() - 3600000), 'MMM dd, yyyy HH:mm'),
+    format: 'JSON',
+    size: '156 KB',
+    icon: 'compare',
+    color: 'blue',
+  },
+  {
+    id: 3,
+    title: 'Batch Simulation Results',
+    description: 'Requirement change adaptation batch test data',
+    timestamp: format(new Date(Date.now() - 7200000), 'MMM dd, yyyy HH:mm'),
+    format: 'JSON',
+    size: '384 KB',
+    icon: 'sync_alt',
+    color: 'green',
+  },
 ];
-const formatOptions = ['PDF', 'Excel', 'CSV', 'PowerPoint'];
-const templateOptions = reportTemplates.value.map((t) => ({ label: t.name, value: t.id }));
-const frequencyOptions = ['Daily', 'Weekly', 'Monthly', 'Quarterly'];
 
-// Methods
-function generateFromTemplate(template: { name: string }) {
-  console.log('Generating report from template:', template.name);
-}
-
+// Helper functions
 function getStatusColor(status: string): string {
   switch (status) {
     case 'Completed':
       return 'green';
-    case 'Processing':
+    case 'In Progress':
       return 'orange';
-    case 'Failed':
-      return 'red';
     default:
       return 'grey';
   }
@@ -557,92 +465,173 @@ function getStatusIcon(status: string): string {
   switch (status) {
     case 'Completed':
       return 'check_circle';
-    case 'Processing':
-      return 'schedule';
-    case 'Failed':
-      return 'error';
+    case 'In Progress':
+      return 'hourglass_empty';
     default:
-      return 'help';
+      return 'radio_button_unchecked';
   }
 }
 
-function downloadReport(report: { title: string }) {
-  console.log('Downloading report:', report.title);
+function getImprovementClass(value: number): string {
+  if (value > 30) return 'text-green';
+  if (value > 10) return 'text-blue';
+  if (value > 0) return 'text-grey-8';
+  return 'text-grey-6';
 }
 
-function previewReport(report: { title: string }) {
-  console.log('Previewing report:', report.title);
-}
+// Export functions
+function exportTemplate(template: (typeof exportTemplates)[0]) {
+  let data: Record<string, unknown> = {};
 
-function shareReport(report: { title: string }) {
-  console.log('Sharing report:', report.title);
-}
+  switch (template.id) {
+    case 1: // All Experiments
+      data = researchStore.exportResearchData();
+      break;
+    case 2: // Comparison Data
+      data = {
+        methodologies: researchStore.allComparisonData,
+        exportedAt: new Date().toISOString(),
+      };
+      break;
+    case 3: // Performance Metrics
+      data = {
+        pertRaciMetrics: researchStore.pertRaciMetrics,
+        totalSimulations: researchStore.totalSimulationRuns,
+        successRate: researchStore.overallSuccessRate,
+        avgAdaptationTime: researchStore.avgAdaptationTime,
+        avgImprovementRate: researchStore.avgImprovementRate,
+        exportedAt: new Date().toISOString(),
+      };
+      break;
+    case 4: // Research Summary
+      data = {
+        summary: {
+          totalExperiments: researchStore.experiments.length,
+          completedExperiments: researchStore.completedExperiments.length,
+          totalSimulations: researchStore.totalSimulationRuns,
+          successRate: researchStore.overallSuccessRate,
+        },
+        pertRaciMetrics: researchStore.pertRaciMetrics,
+        experiments: researchStore.experiments,
+        exportedAt: new Date().toISOString(),
+      };
+      break;
+  }
 
-function generateReport() {
-  console.log('Generating custom report:', newReport);
-  cancelGenerateReport();
-}
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${template.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 
-function cancelGenerateReport() {
-  showGenerateDialog.value = false;
-  Object.assign(newReport, {
-    title: '',
-    type: '',
-    projects: [],
-    startDate: format(new Date(), 'yyyy/MM/dd'),
-    endDate: format(new Date(), 'yyyy/MM/dd'),
-    format: 'PDF',
+  $q.notify({
+    message: `${template.name} exported successfully`,
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
   });
 }
 
-function scheduleReport() {
-  console.log('Scheduling report:', scheduledReport);
-  cancelScheduleReport();
-}
+function exportAllData() {
+  const researchData = researchStore.exportResearchData();
+  const data = {
+    ...researchData,
+    documentation: documentationSections,
+  };
 
-function cancelScheduleReport() {
-  showScheduleDialog.value = false;
-  Object.assign(scheduledReport, {
-    template: '',
-    frequency: '',
-    recipients: '',
-    nextRun: format(new Date(), 'yyyy/MM/dd'),
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `research_data_complete_${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  $q.notify({
+    message: `Complete research data exported: ${data.summary.totalExperiments} experiments, ${data.summary.totalSimulations} simulations`,
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
   });
 }
 
-onMounted(() => {
-  mockDataStore.initializeData();
-});
+function exportPDF() {
+  $q.notify({
+    message: 'PDF export feature coming soon',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
+  });
+}
+
+function exportExperiment(experiment: { id: number; name: string }) {
+  // Find real experiment from research store
+  const realExperiment = researchStore.experiments.find((e) => e.id === experiment.id);
+  const simulations = researchStore.simulationRuns.filter((r) => r.experimentId === experiment.id);
+  const metrics = researchStore.getExperimentMetrics(experiment.id);
+
+  const data = {
+    experiment: realExperiment,
+    simulations,
+    metrics,
+    exportedAt: new Date().toISOString(),
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `experiment_${experiment.id}_${experiment.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  $q.notify({
+    message: `Experiment "${experiment.name}" exported with ${simulations.length} simulations`,
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
+  });
+}
+
+function viewDetails(experiment: { id: number; name: string }) {
+  const metrics = researchStore.getExperimentMetrics(experiment.id);
+  const simulations = researchStore.simulationRuns.filter((r) => r.experimentId === experiment.id);
+
+  $q.dialog({
+    title: experiment.name,
+    message: metrics
+      ? `Simulations: ${simulations.length}\nSuccess Rate: ${metrics.successRate}%\nAvg Improvement: ${metrics.avgImprovementRate}%\nAvg Adaptation Time: ${metrics.avgAdaptationTime}ms`
+      : 'No simulations yet. Go to Requirement Change Simulator to add runs.',
+    ok: { label: 'Close', color: 'primary' },
+  });
+}
+
+function exportSection(section: (typeof documentationSections)[0]) {
+  $q.notify({
+    message: `Exporting: ${section.title}`,
+    color: 'positive',
+    icon: 'download',
+    position: 'top',
+  });
+}
 </script>
 
 <style scoped>
-.report-template-card {
-  transition: all 0.2s ease;
+.export-card {
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   cursor: pointer;
-  height: 100%;
 }
 
-.report-template-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+.export-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.stat-item {
-  text-align: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
-}
-
-.popular-item {
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
+.confidence-indicator {
+  min-width: 100px;
 }
 </style>

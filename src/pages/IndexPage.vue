@@ -4,243 +4,394 @@
     <div class="bg-white q-pa-lg shadow-1">
       <div class="row items-center q-gutter-md">
         <div class="col">
-          <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Welcome back, Daniela! 👋</h4>
+          <h4 class="text-h4 text-weight-bold text-primary q-ma-none">
+            Welcome back, {{ authStore.userName }}! 👋
+          </h4>
           <p class="text-grey-7 q-ma-none q-mt-sm">
-            Here's what's happening with your projects today
+            Here's your PERT+RACI research and project management overview
           </p>
         </div>
         <div class="col-auto">
-          <q-btn
-            color="primary"
-            icon="folder"
-            label="View All Projects"
-            unelevated
-            class="q-px-lg"
-            @click="navigateToProjects"
-          />
+          <q-btn-group>
+            <q-btn
+              color="primary"
+              icon="auto_awesome"
+              label="PERT+RACI"
+              unelevated
+              @click="navigateTo('/pert-raci-optimization')"
+            />
+            <q-btn
+              color="secondary"
+              icon="science"
+              label="Experiments"
+              unelevated
+              @click="navigateTo('/experiments')"
+            />
+          </q-btn-group>
         </div>
       </div>
     </div>
 
     <div class="q-pa-lg">
-      <!-- KPI Cards Row -->
+      <!-- PERT+RACI Research Status -->
+      <div class="q-mb-md">
+        <div class="text-h6 text-weight-bold text-primary q-mb-sm">
+          <q-icon name="auto_awesome" class="q-mr-sm" />
+          PERT+RACI Integration Status
+        </div>
+        <q-separator class="q-mb-md" />
+      </div>
+
       <div class="row q-gutter-md q-mb-lg">
-        <div class="col-12 col-md-3" v-for="kpi in kpiCards" :key="kpi.title">
-          <q-card class="kpi-card" :class="`bg-${kpi.color}-1`">
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-primary-1">
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
                 <div class="col">
-                  <div class="text-h6 text-weight-bold" :class="`text-${kpi.color}`">
-                    {{ kpi.value }}
-                  </div>
-                  <div class="text-caption text-grey-7">{{ kpi.title }}</div>
+                  <div class="text-h4 text-weight-bold text-primary">92%</div>
+                  <div class="text-caption text-grey-7">PERT Accuracy</div>
                 </div>
                 <div class="col-auto">
-                  <q-icon :name="kpi.icon" size="32px" :class="`text-${kpi.color}`" />
+                  <q-icon name="account_tree" size="32px" class="text-primary" />
                 </div>
               </div>
             </q-card-section>
             <q-card-section class="q-pt-none">
               <div class="row items-center">
-                <q-icon
-                  :name="kpi.trend === 'up' ? 'trending_up' : 'trending_down'"
-                  :class="kpi.trend === 'up' ? 'text-green' : 'text-red'"
-                  size="16px"
-                />
-                <span
-                  class="text-caption q-ml-xs"
-                  :class="kpi.trend === 'up' ? 'text-green' : 'text-red'"
-                >
-                  {{ kpi.change }}
-                </span>
-                <span class="text-caption text-grey-7 q-ml-xs">vs last week</span>
+                <q-icon name="trending_up" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">+15%</span>
+                <span class="text-caption text-grey-7 q-ml-xs">vs traditional</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-green-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-green">+28%</div>
+                  <div class="text-caption text-grey-7">Avg. Improvement</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="trending_up" size="32px" class="text-green" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="verified" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">93%</span>
+                <span class="text-caption text-grey-7 q-ml-xs">confidence</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-blue-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-blue">&lt;5s</div>
+                  <div class="text-caption text-grey-7">Adaptation Time</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="sync_alt" size="32px" class="text-blue" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="speed" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">99%</span>
+                <span class="text-caption text-grey-7 q-ml-xs">faster</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-orange-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-orange">5/5</div>
+                  <div class="text-caption text-grey-7">Experiments</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="science" size="32px" class="text-orange" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="check_circle" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">4 completed</span>
               </div>
             </q-card-section>
           </q-card>
         </div>
       </div>
 
-      <!-- Main Content Row -->
-      <div class="row q-gutter-lg">
-        <!-- Left Column -->
-        <div class="col-12 col-lg-8">
-          <!-- Active Projects -->
-          <q-card class="q-mb-lg">
-            <q-card-section>
-              <div class="row items-center">
-                <div class="text-h6 text-weight-bold">Active Projects</div>
-                <q-space />
-                <q-btn flat color="primary" label="View All" @click="navigateToProjects" />
+      <!-- Project Management Overview -->
+      <div class="q-mb-md">
+        <div class="text-h6 text-weight-bold text-primary q-mb-sm">
+          <q-icon name="folder" class="q-mr-sm" />
+          Project Management Overview
+        </div>
+        <q-separator class="q-mb-md" />
+      </div>
+
+      <div class="row q-gutter-md q-mb-lg">
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-purple-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-purple">12</div>
+                  <div class="text-caption text-grey-7">Active Projects</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="work" size="32px" class="text-purple" />
+                </div>
               </div>
             </q-card-section>
-            <q-separator />
-            <q-card-section class="q-pa-none">
-              <q-list>
-                <q-item
-                  v-for="project in activeProjects.slice(0, 3)"
-                  :key="project.id"
-                  clickable
-                  class="q-pa-md"
-                  @click="navigateToProject(project.id)"
-                >
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="trending_up" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">+2</span>
+                <span class="text-caption text-grey-7 q-ml-xs">this month</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-cyan-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-cyan">89%</div>
+                  <div class="text-caption text-grey-7">On-Time Delivery</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="schedule" size="32px" class="text-cyan" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="trending_up" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">+8%</span>
+                <span class="text-caption text-grey-7 q-ml-xs">improvement</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-indigo-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-indigo">8</div>
+                  <div class="text-caption text-grey-7">Team Members</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="group" size="32px" class="text-indigo" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="sentiment_satisfied" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">8.5/10</span>
+                <span class="text-caption text-grey-7 q-ml-xs">satisfaction</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <q-card class="kpi-card bg-teal-1">
+            <q-card-section class="q-pb-none">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-teal">85%</div>
+                  <div class="text-caption text-grey-7">Efficiency</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="speed" size="32px" class="text-teal" />
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <div class="row items-center">
+                <q-icon name="check" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">On track</span>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <div class="row q-gutter-lg q-mb-lg">
+        <!-- Recent Experiments -->
+        <div class="col-12 col-lg-6">
+          <q-card>
+            <q-card-section>
+              <div class="row items-center q-mb-md">
+                <div class="text-h6 text-weight-bold">
+                  <q-icon name="science" class="q-mr-sm" />
+                  Recent Experiments
+                </div>
+                <q-space />
+                <q-btn flat dense icon="arrow_forward" @click="navigateTo('/experiments')" />
+              </div>
+
+              <q-list separator>
+                <q-item v-for="experiment in recentExperiments" :key="experiment.id">
                   <q-item-section avatar>
-                    <q-avatar :color="project.color" text-color="white" :icon="project.icon" />
+                    <q-icon
+                      :name="experiment.status === 'Completed' ? 'check_circle' : 'hourglass_empty'"
+                      :color="experiment.status === 'Completed' ? 'green' : 'orange'"
+                      size="sm"
+                    />
                   </q-item-section>
-
                   <q-item-section>
-                    <q-item-label class="text-weight-medium">
-                      {{ project.name }}
-                    </q-item-label>
-                    <q-item-label caption>
-                      {{ project.description }}
-                    </q-item-label>
-                    <div class="q-mt-sm">
-                      <q-linear-progress
-                        :value="project.progress / 100"
-                        :color="project.color"
-                        class="q-mt-xs"
-                      />
-                      <div class="row items-center q-mt-xs">
-                        <span class="text-caption text-grey-7">
-                          {{ project.tasksCompleted }}/{{ project.totalTasks }} tasks
-                        </span>
-                        <q-space />
-                        <q-chip
-                          :color="getStatusColor(project.status)"
-                          text-color="white"
-                          size="sm"
-                          dense
-                        >
-                          {{ project.status }}
-                        </q-chip>
-                      </div>
-                    </div>
+                    <q-item-label class="text-weight-medium">{{ experiment.name }}</q-item-label>
+                    <q-item-label caption>{{ experiment.status }}</q-item-label>
                   </q-item-section>
-
-                  <q-item-section side>
-                    <div class="text-caption text-grey-7">Due:</div>
-                    <div class="text-caption text-weight-medium">
-                      {{ formatDate(project.dueDate) }}
-                    </div>
+                  <q-item-section side v-if="experiment.improvement">
+                    <q-chip color="green" text-color="white" size="sm">
+                      +{{ experiment.improvement }}%
+                    </q-chip>
                   </q-item-section>
                 </q-item>
               </q-list>
             </q-card-section>
           </q-card>
-
-          <!-- Quick Actions -->
-          <q-card>
-            <q-card-section>
-              <div class="text-h6 text-weight-bold q-mb-md">Quick Actions</div>
-              <div class="row q-gutter-md">
-                <div class="col-12 col-sm-6 col-md-4">
-                  <q-btn
-                    unelevated
-                    color="primary"
-                    icon="add"
-                    label="New Project"
-                    class="full-width"
-                    @click="navigateToProjects"
-                  />
-                </div>
-                <div class="col-12 col-sm-6 col-md-4">
-                  <q-btn
-                    unelevated
-                    color="green"
-                    icon="group_add"
-                    label="Manage Team"
-                    class="full-width"
-                    @click="navigateToTeam"
-                  />
-                </div>
-                <div class="col-12 col-sm-6 col-md-4">
-                  <q-btn
-                    unelevated
-                    color="orange"
-                    icon="analytics"
-                    label="View Analytics"
-                    class="full-width"
-                    @click="navigateToAnalytics"
-                  />
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
         </div>
 
-        <!-- Right Column -->
-        <div class="col-12 col-lg-4">
-          <!-- Recent Activity -->
-          <q-card class="q-mb-lg">
-            <q-card-section>
-              <div class="text-h6 text-weight-bold">Recent Activity</div>
-            </q-card-section>
-            <q-separator />
-            <q-card-section class="q-pa-none">
-              <q-timeline color="primary">
-                <q-timeline-entry
-                  v-for="activity in recentActivity"
-                  :key="activity.id"
-                  :icon="activity.icon"
-                  :color="activity.color"
-                  class="q-pa-md"
-                >
-                  <template v-slot:title>
-                    <div class="text-weight-medium">{{ activity.title }}</div>
-                  </template>
-                  <template v-slot:subtitle>
-                    <div class="text-caption text-grey-7">
-                      {{ formatTime(activity.timestamp) }}
-                    </div>
-                  </template>
-                  <div class="text-caption">{{ activity.description }}</div>
-                </q-timeline-entry>
-              </q-timeline>
-            </q-card-section>
-          </q-card>
-
-          <!-- Team Availability -->
+        <!-- Active Projects -->
+        <div class="col-12 col-lg-6">
           <q-card>
             <q-card-section>
-              <div class="text-h6 text-weight-bold q-mb-md">Team Availability</div>
-              <div v-for="member in teamAvailability" :key="member.id" class="q-mb-md">
-                <div class="row items-center q-mb-xs">
-                  <q-avatar size="32px" class="q-mr-sm">
-                    <img :src="member.avatar" />
-                  </q-avatar>
-                  <div class="col">
-                    <div class="text-weight-medium">{{ member.name }}</div>
-                    <div class="text-caption text-grey-7">{{ member.role }}</div>
-                  </div>
-                  <q-badge
-                    :color="member.available ? 'green' : 'red'"
-                    :label="member.available ? 'Available' : 'Busy'"
-                  />
+              <div class="row items-center q-mb-md">
+                <div class="text-h6 text-weight-bold">
+                  <q-icon name="work" class="q-mr-sm" />
+                  Active Projects
                 </div>
-                <q-linear-progress
-                  :value="member.workload / 100"
-                  :color="member.workload > 80 ? 'red' : member.workload > 60 ? 'orange' : 'green'"
-                  class="q-mt-xs"
-                />
-                <div class="text-caption text-grey-7 q-mt-xs">Workload: {{ member.workload }}%</div>
+                <q-space />
+                <q-btn flat dense icon="arrow_forward" @click="navigateTo('/projects')" />
+              </div>
+
+              <div class="projects-list">
+                <div
+                  v-for="project in activeProjects"
+                  :key="project.id"
+                  class="project-item q-mb-md"
+                >
+                  <div class="row items-center q-mb-xs">
+                    <q-icon :name="project.icon" :color="project.color" size="sm" class="q-mr-sm" />
+                    <div class="text-body2 text-weight-medium">{{ project.name }}</div>
+                    <q-space />
+                    <q-chip :color="getStatusColor(project.status)" text-color="white" size="xs">
+                      {{ project.status }}
+                    </q-chip>
+                  </div>
+                  <div class="row items-center">
+                    <div class="col">
+                      <q-linear-progress
+                        :value="project.progress / 100"
+                        :color="project.color"
+                        size="6px"
+                      />
+                    </div>
+                    <div class="text-caption text-grey-7 q-ml-sm">{{ project.progress }}%</div>
+                  </div>
+                </div>
               </div>
             </q-card-section>
           </q-card>
         </div>
       </div>
+
+      <!-- Quick Actions -->
+      <q-card>
+        <q-card-section>
+          <div class="text-h6 text-weight-bold q-mb-md">
+            <q-icon name="bolt" class="q-mr-sm" />
+            Quick Actions
+          </div>
+
+          <div class="row q-gutter-md">
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-btn
+                flat
+                class="full-width q-pa-md action-btn"
+                @click="navigateTo('/pert-raci-optimization')"
+              >
+                <div class="column items-center">
+                  <q-icon name="auto_awesome" color="primary" size="48px" class="q-mb-sm" />
+                  <div class="text-weight-bold text-primary">PERT+RACI</div>
+                  <div class="text-caption text-grey-7">Run optimization</div>
+                </div>
+              </q-btn>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-btn
+                flat
+                class="full-width q-pa-md action-btn"
+                @click="navigateTo('/requirement-changes')"
+              >
+                <div class="column items-center">
+                  <q-icon name="sync_alt" color="blue" size="48px" class="q-mb-sm" />
+                  <div class="text-weight-bold text-blue">Req. Changes</div>
+                  <div class="text-caption text-grey-7">Simulate adaptation</div>
+                </div>
+              </q-btn>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-btn flat class="full-width q-pa-md action-btn" @click="navigateTo('/experiments')">
+                <div class="column items-center">
+                  <q-icon name="science" color="green" size="48px" class="q-mb-sm" />
+                  <div class="text-weight-bold text-green">Experiments</div>
+                  <div class="text-caption text-grey-7">View research</div>
+                </div>
+              </q-btn>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-3">
+              <q-btn flat class="full-width q-pa-md action-btn" @click="navigateTo('/analytics')">
+                <div class="column items-center">
+                  <q-icon name="analytics" color="orange" size="48px" class="q-mb-sm" />
+                  <div class="text-weight-bold text-orange">Analytics</div>
+                  <div class="text-caption text-grey-7">Performance metrics</div>
+                </div>
+              </q-btn>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
     </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { format, formatDistanceToNow } from 'date-fns';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
+import { useAuthStore } from 'src/stores/auth-store';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
+const authStore = useAuthStore();
 
 // Check for access denied message
 onMounted(() => {
@@ -257,152 +408,56 @@ onMounted(() => {
   }
 });
 
-// Mock data
-const kpiCards = [
-  {
-    title: 'Active Projects',
-    value: '12',
-    icon: 'folder',
-    color: 'primary',
-    trend: 'up',
-    change: '+2',
-  },
-  {
-    title: 'Tasks Completed',
-    value: '147',
-    icon: 'task_alt',
-    color: 'green',
-    trend: 'up',
-    change: '+12%',
-  },
-  {
-    title: 'Team Members',
-    value: '8',
-    icon: 'group',
-    color: 'blue',
-    trend: 'up',
-    change: '+1',
-  },
-  {
-    title: 'Avg. Efficiency',
-    value: '94%',
-    icon: 'speed',
-    color: 'orange',
-    trend: 'down',
-    change: '-2%',
-  },
+// Recent Experiments
+const recentExperiments = [
+  { id: 1, name: 'PERT+RACI vs Traditional', status: 'Completed', improvement: 28 },
+  { id: 2, name: 'Workload Rebalancing', status: 'Completed', improvement: 42 },
+  { id: 3, name: 'Requirement Adaptation', status: 'Completed', improvement: 99 },
+  { id: 4, name: 'Risk-Based Optimization', status: 'Completed', improvement: 43 },
+  { id: 5, name: 'Multi-Project RACI', status: 'In Progress', improvement: null },
 ];
 
+// Active Projects
 const activeProjects = [
   {
     id: 1,
-    name: 'E-commerce Platform Redesign',
-    description: 'Complete UI/UX overhaul of the main platform',
-    progress: 75,
-    tasksCompleted: 18,
-    totalTasks: 24,
-    status: 'On Track',
-    dueDate: new Date('2024-01-15'),
-    color: 'primary',
+    name: 'E-commerce Platform',
     icon: 'shopping_cart',
+    color: 'primary',
+    progress: 75,
+    status: 'On Track',
   },
   {
     id: 2,
-    name: 'Mobile App Development',
-    description: 'Native iOS and Android application',
-    progress: 45,
-    tasksCompleted: 12,
-    totalTasks: 28,
-    status: 'In Progress',
-    dueDate: new Date('2024-02-20'),
-    color: 'green',
+    name: 'Mobile App',
     icon: 'phone_android',
-  },
-  {
-    id: 3,
-    name: 'Data Migration Project',
-    description: 'Legacy system to cloud migration',
-    progress: 30,
-    tasksCompleted: 8,
-    totalTasks: 22,
-    status: 'At Risk',
-    dueDate: new Date('2024-01-30'),
-    color: 'orange',
-    icon: 'cloud_upload',
-  },
-];
-
-const recentActivity = [
-  {
-    id: 1,
-    title: 'Task Completed',
-    description: 'Frontend authentication module finished',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    icon: 'check_circle',
     color: 'green',
-  },
-  {
-    id: 2,
-    title: 'New Team Member',
-    description: 'Lisa Anderson joined the team',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    icon: 'person_add',
-    color: 'blue',
+    progress: 45,
+    status: 'In Progress',
   },
   {
     id: 3,
-    title: 'Project Updated',
-    description: 'Mobile App Development timeline adjusted',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-    icon: 'update',
+    name: 'Data Migration',
+    icon: 'storage',
     color: 'orange',
+    progress: 30,
+    status: 'At Risk',
   },
   {
     id: 4,
-    title: 'Risk Identified',
-    description: 'Data Migration project needs attention',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8),
-    icon: 'warning',
-    color: 'red',
+    name: 'API Integration',
+    icon: 'api',
+    color: 'blue',
+    progress: 60,
+    status: 'On Track',
   },
 ];
 
-const teamAvailability = [
-  {
-    id: 1,
-    name: 'John Smith',
-    role: 'Frontend Developer',
-    avatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-    available: true,
-    workload: 75,
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    role: 'Backend Developer',
-    avatar: 'https://cdn.quasar.dev/img/avatar2.jpg',
-    available: false,
-    workload: 90,
-  },
-  {
-    id: 3,
-    name: 'Mike Wilson',
-    role: 'UI/UX Designer',
-    avatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-    available: true,
-    workload: 60,
-  },
-  {
-    id: 4,
-    name: 'Emma Davis',
-    role: 'Project Manager',
-    avatar: 'https://cdn.quasar.dev/img/avatar4.jpg',
-    available: true,
-    workload: 45,
-  },
-];
+// Helper functions
+function navigateTo(path: string) {
+  router.push(path);
+}
 
-// Methods
 function getStatusColor(status: string): string {
   switch (status) {
     case 'On Track':
@@ -417,30 +472,6 @@ function getStatusColor(status: string): string {
       return 'grey';
   }
 }
-
-function formatDate(date: Date): string {
-  return format(date, 'MMM dd, yyyy');
-}
-
-function formatTime(date: Date): string {
-  return formatDistanceToNow(date, { addSuffix: true });
-}
-
-function navigateToProjects() {
-  router.push('/projects');
-}
-
-function navigateToProject(projectId: number) {
-  router.push(`/projects/${projectId}`);
-}
-
-function navigateToTeam() {
-  router.push('/team');
-}
-
-function navigateToAnalytics() {
-  router.push('/analytics');
-}
 </script>
 
 <style scoped>
@@ -448,9 +479,34 @@ function navigateToAnalytics() {
   transition:
     transform 0.2s,
     box-shadow 0.2s;
+  cursor: pointer;
 }
 
 .kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.project-item {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.project-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.action-btn {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.action-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
