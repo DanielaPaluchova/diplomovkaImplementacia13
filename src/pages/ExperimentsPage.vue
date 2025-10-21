@@ -441,13 +441,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import { useResearchStore, type Experiment } from 'src/stores/research-store';
 import { format, differenceInDays } from 'date-fns';
 import { useQuasar } from 'quasar';
 
 const researchStore = useResearchStore();
 const $q = useQuasar();
+
+// Fetch experiments from API
+onMounted(async () => {
+  await researchStore.fetchExperiments();
+});
 
 // Reactive data
 const showNewExperimentDialog = ref(false);
@@ -531,18 +536,29 @@ function getStatusIcon(status: string): string {
   }
 }
 
-function formatDateRange(startDate: Date, endDate: Date): string {
-  return `${format(startDate, 'MMM dd')} - ${format(endDate, 'MMM dd, yyyy')}`;
+// Helper to ensure Date object
+function ensureDate(date: string | Date): Date {
+  return typeof date === 'string' ? new Date(date) : date;
 }
 
-function getDuration(startDate: Date, endDate: Date): number {
-  return differenceInDays(endDate, startDate);
+function formatDateRange(startDate: string | Date, endDate: string | Date): string {
+  const start = ensureDate(startDate);
+  const end = ensureDate(endDate);
+  return `${format(start, 'MMM dd')} - ${format(end, 'MMM dd, yyyy')}`;
+}
+
+function getDuration(startDate: string | Date, endDate: string | Date): number {
+  const start = ensureDate(startDate);
+  const end = ensureDate(endDate);
+  return differenceInDays(end, start);
 }
 
 function getExperimentProgress(experiment: Experiment): number {
   const now = new Date();
-  const total = differenceInDays(experiment.endDate, experiment.startDate);
-  const elapsed = differenceInDays(now, experiment.startDate);
+  const start = ensureDate(experiment.startDate);
+  const end = ensureDate(experiment.endDate);
+  const total = differenceInDays(end, start);
+  const elapsed = differenceInDays(now, start);
   return Math.max(0, Math.min(1, elapsed / total));
 }
 
@@ -702,17 +718,15 @@ function exportCSV() {
   ];
 
   experiments.value.forEach((exp) => {
-    const duration = Math.round(
-      (exp.endDate.getTime() - exp.startDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const duration = getDuration(exp.startDate, exp.endDate);
     csvRows.push([
       exp.id.toString(),
       exp.name,
       exp.methodology,
       exp.status,
       duration.toString(),
-      exp.targetRuns.toString(),
-      exp.actualRuns.toString(),
+      exp.targetRuns?.toString() || '0',
+      exp.actualRuns?.toString() || '0',
       exp.results?.improvement?.toString() || 'N/A',
       exp.results?.confidence?.toString() || 'N/A',
     ]);

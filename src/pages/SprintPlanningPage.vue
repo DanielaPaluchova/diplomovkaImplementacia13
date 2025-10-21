@@ -306,7 +306,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import { useProjectStore, type Task } from 'src/stores/project-store';
+import { useProjectStore, type Task, type Sprint } from 'src/stores/project-store';
 
 interface TeamMember {
   id: number;
@@ -343,9 +343,9 @@ watch(
   selectedProjectId,
   (newProjectId) => {
     if (newProjectId) {
-      const project = projectStore.getProject(newProjectId);
+      const project = projectStore.getProjectById(newProjectId);
       if (project) {
-        const activeSprint = project.sprints.find((s) => s.status === 'active');
+        const activeSprint = project.sprints.find((s: Sprint) => s.status === 'active');
         if (activeSprint) {
           sprintName.value = activeSprint.name;
           sprintGoal.value = activeSprint.goal;
@@ -368,8 +368,8 @@ watch(
 );
 
 // Helper to format date for input
-function formatDateForInput(date: Date): string {
-  const d = new Date(date);
+function formatDateForInput(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : new Date(date);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -423,24 +423,24 @@ const teamMembers: TeamMember[] = [
 // Get tasks from the selected project
 const backlogTasks = computed(() => {
   if (!selectedProjectId.value) return [];
-  const project = projectStore.getProject(selectedProjectId.value);
+  const project = projectStore.getProjectById(selectedProjectId.value);
   if (!project) return [];
 
   // Get tasks that are not in any sprint (backlog)
-  return project.tasks.filter((task) => task.sprintId === null);
+  return project.tasks.filter((task: Task) => task.sprintId === null);
 });
 
 const sprintTasks = computed(() => {
   if (!selectedProjectId.value) return [];
-  const project = projectStore.getProject(selectedProjectId.value);
+  const project = projectStore.getProjectById(selectedProjectId.value);
   if (!project) return [];
 
   // Get the active sprint
-  const activeSprint = project.sprints.find((s) => s.status === 'active');
+  const activeSprint = project.sprints.find((s: Sprint) => s.status === 'active');
   if (!activeSprint) return [];
 
   // Get tasks that are in the active sprint
-  return project.tasks.filter((task) => task.sprintId === activeSprint.id);
+  return project.tasks.filter((task: Task) => task.sprintId === activeSprint.id);
 });
 
 // Computed
@@ -482,10 +482,10 @@ function onDrop(event: DragEvent) {
   isDragOver.value = false;
 
   if (draggedTask.value && selectedProjectId.value) {
-    const project = projectStore.getProject(selectedProjectId.value);
+    const project = projectStore.getProjectById(selectedProjectId.value);
     if (!project) return;
 
-    const activeSprint = project.sprints.find((s) => s.status === 'active');
+    const activeSprint = project.sprints.find((s: Sprint) => s.status === 'active');
     if (!activeSprint) {
       $q.notify({
         message: 'No active sprint. Please start a sprint first.',
@@ -497,7 +497,7 @@ function onDrop(event: DragEvent) {
     }
 
     // Find the task in the project and update its sprintId
-    const task = project.tasks.find((t) => t.id === draggedTask.value!.id);
+    const task = project.tasks.find((t: Task) => t.id === draggedTask.value!.id);
     if (task && task.sprintId === null) {
       task.sprintId = activeSprint.id;
 
@@ -517,11 +517,11 @@ function onDrop(event: DragEvent) {
 function removeFromSprint(taskId: number) {
   if (!selectedProjectId.value) return;
 
-  const project = projectStore.getProject(selectedProjectId.value);
+  const project = projectStore.getProjectById(selectedProjectId.value);
   if (!project) return;
 
   // Find the task and remove it from sprint
-  const task = project.tasks.find((t) => t.id === taskId);
+  const task = project.tasks.find((t: Task) => t.id === taskId);
   if (task) {
     task.sprintId = null;
 
@@ -577,9 +577,9 @@ function startSprint() {
   }
 
   // Check if there's an active sprint to update or create new one
-  const project = projectStore.getProject(selectedProjectId.value);
+  const project = projectStore.getProjectById(selectedProjectId.value);
   if (project) {
-    const activeSprint = project.sprints.find((s) => s.status === 'active');
+    const activeSprint = project.sprints.find((s: Sprint) => s.status === 'active');
 
     if (activeSprint) {
       // Update existing sprint
@@ -589,7 +589,7 @@ function startSprint() {
         startDate: new Date(startDate.value),
         endDate: new Date(endDate.value),
         totalTasks: sprintTasks.value.length,
-        taskIds: sprintTasks.value.map((t) => t.id),
+        taskIds: sprintTasks.value.map((t: Task) => t.id),
       });
 
       $q.notify({
@@ -608,7 +608,7 @@ function startSprint() {
         status: 'active',
         totalTasks: sprintTasks.value.length,
         completedTasks: 0,
-        taskIds: sprintTasks.value.map((t) => t.id),
+        taskIds: sprintTasks.value.map((t: Task) => t.id),
       });
 
       $q.notify({

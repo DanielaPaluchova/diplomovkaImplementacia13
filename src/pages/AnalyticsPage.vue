@@ -403,7 +403,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useResearchStore } from 'src/stores/research-store';
 import { useTeamStore } from 'src/stores/team-store';
@@ -413,6 +413,15 @@ const $q = useQuasar();
 const researchStore = useResearchStore();
 const teamStore = useTeamStore();
 const projectStore = useProjectStore();
+
+// Fetch data from API
+onMounted(async () => {
+  await Promise.all([
+    projectStore.fetchProjects(),
+    teamStore.fetchTeamMembers(),
+    researchStore.fetchExperiments(),
+  ]);
+});
 
 // Time range
 const selectedTimeRange = ref('Last 30 Days');

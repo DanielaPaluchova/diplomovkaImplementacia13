@@ -302,10 +302,13 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue';
-import { useMockDataStore } from 'stores/mock-data';
+import { useProjectStore } from 'src/stores/project-store';
+import { useTeamStore } from 'src/stores/team-store';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
+const projectStore = useProjectStore();
+const teamStore = useTeamStore();
 
 interface KanbanColumn {
   id: string;
@@ -327,8 +330,6 @@ interface KanbanTask {
   status: string;
   projectId: number;
 }
-
-const mockDataStore = useMockDataStore();
 
 // Reactive data
 const showAddTaskDialog = ref(false);
@@ -435,7 +436,7 @@ const availableLabels = [
   'ui/ux',
 ];
 
-const teamMemberOptions = computed(() => mockDataStore.teamMembers.map((member) => member.name));
+const teamMemberOptions = computed(() => teamStore.teamMembers.map((member) => member.name));
 
 // Methods
 function getTasksInColumn(columnId: string) {
@@ -609,8 +610,8 @@ function deleteTask(task: KanbanTask) {
   }
 }
 
-onMounted(() => {
-  mockDataStore.initializeData();
+onMounted(async () => {
+  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
 });
 </script>
 

@@ -73,7 +73,7 @@
               <div class="row q-col-gutter-md q-mb-lg">
                 <div class="col-6 col-md-3">
                   <q-card>
-                <q-card-section>
+                    <q-card-section>
                       <div class="text-caption text-grey-7">Progress</div>
                       <div class="text-h5 text-weight-bold text-primary">
                         {{ project.progress }}%
@@ -174,34 +174,34 @@
                 <q-card-section>
                   <div class="text-h6 text-weight-bold q-mb-md">Recent Tasks</div>
                   <q-list separator>
-                  <q-item v-for="task in recentTasks" :key="task.id">
-                    <q-item-section avatar>
-                      <q-checkbox
+                    <q-item v-for="task in recentTasks" :key="task.id">
+                      <q-item-section avatar>
+                        <q-checkbox
                           :model-value="task.status === 'Done'"
                           @update:model-value="toggleTaskStatus(task)"
-                        color="primary"
-                      />
-                    </q-item-section>
-                    <q-item-section>
+                          color="primary"
+                        />
+                      </q-item-section>
+                      <q-item-section>
                         <q-item-label :class="{ 'text-strike': task.status === 'Done' }">
                           {{ task.title }}
-                      </q-item-label>
-                      <q-item-label caption>
-                        <q-chip
-                          :color="getPriorityColor(task.priority)"
-                          text-color="white"
-                          size="sm"
-                          dense
-                        >
-                          {{ task.priority }}
-                        </q-chip>
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
+                        </q-item-label>
+                        <q-item-label caption>
+                          <q-chip
+                            :color="getPriorityColor(task.priority)"
+                            text-color="white"
+                            size="sm"
+                            dense
+                          >
+                            {{ task.priority }}
+                          </q-chip>
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
                         <q-chip size="sm" dense>{{ task.storyPoints }} SP</q-chip>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
                 </q-card-section>
               </q-card>
             </div>
@@ -271,15 +271,15 @@
                         >
                           {{ member.workload }}%
                         </span>
-                        </div>
-                        <q-linear-progress
-                          :value="member.workload / 100"
-                          :color="
-                          member.workload > 100 ? 'red' : member.workload > 80 ? 'orange' : 'green'
-                          "
-                        size="8px"
-                        />
                       </div>
+                      <q-linear-progress
+                        :value="member.workload / 100"
+                        :color="
+                          member.workload > 100 ? 'red' : member.workload > 80 ? 'orange' : 'green'
+                        "
+                        size="8px"
+                      />
+                    </div>
 
                     <q-separator
                       class="q-mt-md"
@@ -1219,11 +1219,11 @@
 
         <q-card-section class="q-pt-md">
           <q-input v-model="editTask.title" label="Task Title" filled class="q-mb-md" />
-              <q-input
+          <q-input
             v-model="editTask.description"
             label="Description"
             type="textarea"
-                filled
+            filled
             class="q-mb-md"
           />
           <div class="row q-gutter-md q-mb-md">
@@ -1254,11 +1254,11 @@
               />
             </div>
             <div class="col">
-            <q-select
+              <q-select
                 v-model="editTask.assigneeId"
                 :options="teamMembersOptions"
                 label="Assignee"
-              filled
+                filled
                 clearable
                 emit-value
                 map-options
@@ -1266,10 +1266,10 @@
                 <template v-slot:prepend v-if="editTask.assigneeId">
                   <q-avatar size="24px">
                     <img :src="getAssigneeAvatar(editTask.assigneeId)" />
-                    </q-avatar>
-              </template>
-            </q-select>
-          </div>
+                  </q-avatar>
+                </template>
+              </q-select>
+            </div>
           </div>
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
@@ -1329,7 +1329,7 @@
                 hint="Worst case scenario"
               />
             </div>
-            </div>
+          </div>
 
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">RACI Matrix</div>
@@ -1392,7 +1392,7 @@
           <div class="text-h5 text-weight-bold">
             <q-icon name="event_note" size="sm" class="q-mr-sm" />
             {{ editingSprintId ? 'Edit Sprint' : 'Create New Sprint' }}
-                    </div>
+          </div>
         </q-card-section>
 
         <q-card-section>
@@ -1402,10 +1402,10 @@
           <div class="row q-gutter-md">
             <div class="col">
               <q-input v-model="sprintForm.startDate" label="Start Date *" type="date" filled />
-                      </div>
+            </div>
             <div class="col">
               <q-input v-model="sprintForm.endDate" label="End Date *" type="date" filled />
-                    </div>
+            </div>
           </div>
         </q-card-section>
 
@@ -1516,18 +1516,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { format } from 'date-fns';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useProjectStore, type Task, type Project, type Sprint } from 'src/stores/project-store';
-import { useMockDataStore, type TeamMember } from 'src/stores/mock-data';
+import { useTeamStore, type TeamMember } from 'src/stores/team-store';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
 const projectStore = useProjectStore();
-const mockDataStore = useMockDataStore();
+const teamStore = useTeamStore();
+
+// Fetch data from API
+onMounted(async () => {
+  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
+  // Load specific project if ID is in route
+  if (route.params.id) {
+    const id = parseInt(route.params.id as string);
+    await projectStore.getProject(id);
+  }
+});
 
 const activeTab = ref('overview');
 const showNewTaskDialog = ref(false);
@@ -1552,7 +1562,7 @@ const kanbanDraggedTask = ref<Task | null>(null);
 // Get project from store
 const projectId = computed(() => Number(route.params.id));
 const project = computed(() => {
-  const p = projectStore.getProject(projectId.value);
+  const p = projectStore.getProjectById(projectId.value);
   if (!p) {
     // Return default project if not found
     return {
@@ -1580,9 +1590,7 @@ const project = computed(() => {
 
 // Get team members for this project from mock data store
 const projectTeamMembers = computed(() => {
-  return mockDataStore.teamMembers.filter((member) =>
-    project.value.teamMemberIds.includes(member.id),
-  );
+  return teamStore.teamMembers.filter((member) => project.value.teamMemberIds.includes(member.id));
 });
 
 // Get tasks from project
@@ -1634,7 +1642,7 @@ const teamMembersOptions = computed(() => {
 // Available team members to add
 const availableMembersToAdd = computed(() => {
   const currentMemberIds = project.value.teamMemberIds;
-  return mockDataStore.teamMembers.filter((m) => !currentMemberIds.includes(m.id));
+  return teamStore.teamMembers.filter((m) => !currentMemberIds.includes(m.id));
 });
 
 // Kanban board tasks
@@ -1661,7 +1669,7 @@ const newTask = ref({
   description: '',
   priority: 'medium' as 'high' | 'medium' | 'low',
   type: 'feature' as 'feature' | 'bug' | 'task',
-    storyPoints: 5,
+  storyPoints: 5,
   complexity: 5,
   labels: [] as string[],
   pert: {
@@ -1754,8 +1762,9 @@ function getPriorityColor(priority: string): string {
   }
 }
 
-function formatDate(date: Date): string {
-  return format(date, 'MMM dd, yyyy');
+function formatDate(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return format(d, 'MMM dd, yyyy');
 }
 
 // Drag and drop functions
@@ -1813,11 +1822,11 @@ function onDrop() {
       totalTasks: sprintTasks.value.length,
     });
 
-  $q.notify({
+    $q.notify({
       message: `Added "${task.title}" to ${activeSprint.value.name}`,
-    color: 'positive',
+      color: 'positive',
       icon: 'check',
-    position: 'top',
+      position: 'top',
       timeout: 1000,
     });
   }
@@ -2032,7 +2041,7 @@ function saveEditTask() {
 
     // Update assignee name
     if (task.assigneeId) {
-      const assignee = mockDataStore.teamMembers.find((m) => m.id === task.assigneeId);
+      const assignee = teamStore.teamMembers.find((m) => m.id === task.assigneeId);
       if (assignee) {
         task.assignee = assignee.name;
       }
@@ -2050,13 +2059,13 @@ function saveEditTask() {
       });
     }
 
-  $q.notify({
+    $q.notify({
       message: `Task "${task.title}" updated successfully`,
-    color: 'positive',
+      color: 'positive',
       icon: 'check_circle',
-    position: 'top',
-  });
-}
+      position: 'top',
+    });
+  }
 
   showEditTaskDialog.value = false;
   cancelEditTask();
@@ -2140,13 +2149,13 @@ function completeSprint(sprint: Sprint) {
 function deleteSprint(sprint: Sprint) {
   projectStore.deleteSprint(projectId.value, sprint.id);
 
-    $q.notify({
-      message: 'Sprint deleted',
-      color: 'positive',
-      icon: 'delete',
-      position: 'top',
-    });
-  }
+  $q.notify({
+    message: 'Sprint deleted',
+    color: 'positive',
+    icon: 'delete',
+    position: 'top',
+  });
+}
 
 function createSprint() {
   if (!isSprintFormValid.value) {
@@ -2243,12 +2252,12 @@ function saveRoleChange() {
     selectedRole.value as 'owner' | 'admin' | 'developer' | 'viewer',
   );
 
-    $q.notify({
-      message: `${memberToChangeRole.value.name}'s role changed to ${selectedRole.value.toUpperCase()}`,
-      color: 'positive',
-      icon: 'check_circle',
-      position: 'top',
-    });
+  $q.notify({
+    message: `${memberToChangeRole.value.name}'s role changed to ${selectedRole.value.toUpperCase()}`,
+    color: 'positive',
+    icon: 'check_circle',
+    position: 'top',
+  });
 
   showChangeRoleDialog.value = false;
   cancelChangeRole();
@@ -2262,12 +2271,12 @@ function cancelChangeRole() {
 function removeMember(member: TeamMember) {
   projectStore.removeMemberFromProject(projectId.value, member.id);
 
-    $q.notify({
-      message: `${member.name} removed from project`,
-      color: 'positive',
-      icon: 'person_remove',
-      position: 'top',
-    });
+  $q.notify({
+    message: `${member.name} removed from project`,
+    color: 'positive',
+    icon: 'person_remove',
+    position: 'top',
+  });
 }
 
 function addMemberToProject() {
@@ -2279,7 +2288,7 @@ function addMemberToProject() {
     newMemberRole.value as 'owner' | 'admin' | 'developer' | 'viewer',
   );
 
-    $q.notify({
+  $q.notify({
     message: `${selectedMemberToAdd.value.name} added to project successfully!`,
     color: 'positive',
     icon: 'check_circle',
@@ -2354,7 +2363,7 @@ function getProjectWorkload(memberId: number): number {
 
 function getOtherProjectsWorkload(memberId: number): number {
   // Get member's total workload and subtract this project's workload
-  const member = mockDataStore.teamMembers.find((m) => m.id === memberId);
+  const member = teamStore.teamMembers.find((m) => m.id === memberId);
   if (!member) return 0;
 
   const thisProjectWorkload = getProjectWorkload(memberId);
@@ -2366,7 +2375,7 @@ function getOtherProjectsWorkload(memberId: number): number {
 function getAssigneeAvatar(assigneeId: number | null): string {
   if (!assigneeId) return 'https://cdn.quasar.dev/img/avatar.png';
 
-  const member = mockDataStore.teamMembers.find((m) => m.id === assigneeId);
+  const member = teamStore.teamMembers.find((m) => m.id === assigneeId);
   return member?.avatar || 'https://cdn.quasar.dev/img/avatar.png';
 }
 </script>

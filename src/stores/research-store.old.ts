@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { api } from 'src/services/api';
 
 // ============================================================================
 // INTERFACES
@@ -65,11 +64,10 @@ export interface Experiment {
   hypothesis: string;
   status: 'planning' | 'running' | 'completed' | 'cancelled';
   methodology: string;
-  startDate: Date | string;
-  endDate: Date | string;
-  targetRuns?: number;
-  actualRuns?: number;
-  participants?: number;
+  startDate: Date;
+  endDate: Date;
+  targetRuns: number;
+  actualRuns: number;
   metrics?: ExperimentMetrics | undefined;
   results?: {
     success: boolean;
@@ -99,9 +97,46 @@ export const useResearchStore = defineStore('research', () => {
   // STATE
   // ============================================================================
 
-  const experiments = ref<Experiment[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+  const experiments = ref<Experiment[]>([
+    {
+      id: 1,
+      name: 'PERT+RACI vs Traditional Planning',
+      description: 'Comparing integrated PERT+RACI approach with traditional planning methods',
+      hypothesis:
+        'PERT+RACI integration will improve delivery accuracy by 25% and reduce conflicts by 30%',
+      status: 'running',
+      methodology: 'PERT+RACI Integration',
+      startDate: new Date('2024-01-01'),
+      endDate: new Date('2024-03-31'),
+      targetRuns: 50,
+      actualRuns: 0,
+    },
+    {
+      id: 2,
+      name: 'Automatic Workload Rebalancing',
+      description: 'Testing automatic RACI reassignment when team members are overloaded',
+      hypothesis: 'Automatic rebalancing will maintain team utilization under 80%',
+      status: 'planning',
+      methodology: 'Load Balancing',
+      startDate: new Date('2024-02-01'),
+      endDate: new Date('2024-04-30'),
+      targetRuns: 30,
+      actualRuns: 0,
+    },
+    {
+      id: 3,
+      name: 'Requirement Change Adaptation Speed',
+      description: 'Measuring system adaptation speed to client requirement changes',
+      hypothesis: 'System will adapt to changes in <5 seconds while maintaining optimal balance',
+      status: 'planning',
+      methodology: 'Performance Testing',
+      startDate: new Date('2024-03-01'),
+      endDate: new Date('2024-05-31'),
+      targetRuns: 100,
+      actualRuns: 0,
+    },
+  ]);
+
   const simulationRuns = ref<SimulationRun[]>([]);
 
   const comparisonBaselines = ref<ComparisonData[]>([
@@ -126,120 +161,6 @@ export const useResearchStore = defineStore('research', () => {
       sampleSize: 100,
     },
   ]);
-
-  // ============================================================================
-  // API ACTIONS
-  // ============================================================================
-
-  // Fetch all experiments
-  async function fetchExperiments() {
-    loading.value = true;
-    error.value = null;
-    try {
-      const data = await api.get<Experiment[]>('/experiments');
-      experiments.value = data;
-      return data;
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch experiments';
-      console.error('Failed to fetch experiments:', err);
-      return [];
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Get single experiment
-  async function getExperiment(id: number): Promise<Experiment | undefined> {
-    loading.value = true;
-    error.value = null;
-    try {
-      const data = await api.get<Experiment>(`/experiments/${id}`);
-      const index = experiments.value.findIndex((e) => e.id === id);
-      if (index !== -1) {
-        experiments.value[index] = data;
-      }
-      return data;
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch experiment';
-      console.error('Failed to fetch experiment:', err);
-      return undefined;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Create new experiment
-  async function createExperiment(experiment: Partial<Experiment>) {
-    loading.value = true;
-    error.value = null;
-    try {
-      const data = await api.post<Experiment>('/experiments', experiment);
-      experiments.value.push(data);
-      return data;
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to create experiment';
-      console.error('Failed to create experiment:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Update experiment
-  async function updateExperiment(id: number, updates: Partial<Experiment>) {
-    loading.value = true;
-    error.value = null;
-    try {
-      const data = await api.put<Experiment>(`/experiments/${id}`, updates);
-      const index = experiments.value.findIndex((e) => e.id === id);
-      if (index !== -1) {
-        experiments.value[index] = data;
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to update experiment';
-      console.error('Failed to update experiment:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Delete experiment
-  async function deleteExperiment(id: number) {
-    loading.value = true;
-    error.value = null;
-    try {
-      await api.delete(`/experiments/${id}`);
-      const index = experiments.value.findIndex((e) => e.id === id);
-      if (index !== -1) {
-        experiments.value.splice(index, 1);
-        // Also remove associated simulation runs
-        simulationRuns.value = simulationRuns.value.filter((r) => r.experimentId !== id);
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to delete experiment';
-      console.error('Failed to delete experiment:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Get experiment stats
-  async function fetchExperimentStats() {
-    loading.value = true;
-    error.value = null;
-    try {
-      const data = await api.get('/experiments/stats');
-      return data;
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch experiment stats';
-      console.error('Failed to fetch experiment stats:', err);
-      return null;
-    } finally {
-      loading.value = false;
-    }
-  }
 
   // ============================================================================
   // GETTERS
@@ -318,6 +239,7 @@ export const useResearchStore = defineStore('research', () => {
 
   const allComparisonData = computed(() => [...comparisonBaselines.value, pertRaciMetrics.value]);
 
+  // Experiment-specific metrics
   const getExperimentMetrics = computed(() => (experimentId: number): ExperimentMetrics | null => {
     const runs = simulationRuns.value.filter((r) => r.experimentId === experimentId && r.success);
 
@@ -374,9 +296,12 @@ export const useResearchStore = defineStore('research', () => {
   });
 
   // ============================================================================
-  // LOCAL ACTIONS (Simulations)
+  // ACTIONS
   // ============================================================================
 
+  /**
+   * Add a new simulation run
+   */
   function addSimulationRun(run: Omit<SimulationRun, 'id'>) {
     const newRun: SimulationRun = {
       ...run,
@@ -393,6 +318,9 @@ export const useResearchStore = defineStore('research', () => {
     return newRun;
   }
 
+  /**
+   * Update experiment progress
+   */
   function updateExperimentProgress(experimentId: number) {
     const experiment = experiments.value.find((e) => e.id === experimentId);
     if (!experiment) return;
@@ -407,15 +335,14 @@ export const useResearchStore = defineStore('research', () => {
     }
 
     // Auto-complete if target reached
-    if (
-      experiment.targetRuns &&
-      experiment.actualRuns >= experiment.targetRuns &&
-      experiment.status === 'running'
-    ) {
+    if (experiment.actualRuns >= experiment.targetRuns && experiment.status === 'running') {
       completeExperiment(experimentId);
     }
   }
 
+  /**
+   * Start an experiment
+   */
   function startExperiment(experimentId: number) {
     const experiment = experiments.value.find((e) => e.id === experimentId);
     if (experiment && experiment.status === 'planning') {
@@ -424,6 +351,9 @@ export const useResearchStore = defineStore('research', () => {
     }
   }
 
+  /**
+   * Complete an experiment
+   */
   function completeExperiment(experimentId: number) {
     const experiment = experiments.value.find((e) => e.id === experimentId);
     if (!experiment) return;
@@ -436,10 +366,7 @@ export const useResearchStore = defineStore('research', () => {
     if (metrics) {
       const improvement = metrics.avgImprovementRate;
       const success = metrics.successRate >= 80 && improvement > 0;
-      const confidence = Math.min(
-        95,
-        70 + ((experiment.targetRuns || 0) / (experiment.actualRuns || 1)) * 25,
-      );
+      const confidence = Math.min(95, 70 + (metrics.totalRuns / experiment.targetRuns) * 25);
 
       experiment.results = {
         success,
@@ -452,6 +379,35 @@ export const useResearchStore = defineStore('research', () => {
     }
   }
 
+  /**
+   * Create a new experiment
+   */
+  function createExperiment(experiment: Omit<Experiment, 'id' | 'actualRuns'>) {
+    const newId = Math.max(...experiments.value.map((e) => e.id), 0) + 1;
+    const newExperiment: Experiment = {
+      ...experiment,
+      id: newId,
+      actualRuns: 0,
+    };
+    experiments.value.push(newExperiment);
+    return newExperiment;
+  }
+
+  /**
+   * Delete an experiment
+   */
+  function deleteExperiment(experimentId: number) {
+    const index = experiments.value.findIndex((e) => e.id === experimentId);
+    if (index !== -1) {
+      experiments.value.splice(index, 1);
+      // Also remove associated simulation runs
+      simulationRuns.value = simulationRuns.value.filter((r) => r.experimentId !== experimentId);
+    }
+  }
+
+  /**
+   * Clear all simulation runs (for testing/reset)
+   */
   function clearSimulationRuns() {
     simulationRuns.value = [];
     // Reset experiment progress
@@ -461,6 +417,9 @@ export const useResearchStore = defineStore('research', () => {
     });
   }
 
+  /**
+   * Export all research data
+   */
   function exportResearchData() {
     return {
       experiments: experiments.value,
@@ -482,16 +441,6 @@ export const useResearchStore = defineStore('research', () => {
     experiments,
     simulationRuns,
     comparisonBaselines,
-    loading,
-    error,
-
-    // API Actions
-    fetchExperiments,
-    getExperiment,
-    createExperiment,
-    updateExperiment,
-    deleteExperiment,
-    fetchExperimentStats,
 
     // Getters
     runningExperiments,
@@ -508,13 +457,14 @@ export const useResearchStore = defineStore('research', () => {
     recentRuns,
     runsByChangeType,
 
-    // Local Actions
+    // Actions
     addSimulationRun,
     updateExperimentProgress,
     startExperiment,
     completeExperiment,
+    createExperiment,
+    deleteExperiment,
     clearSimulationRuns,
     exportResearchData,
   };
 });
-

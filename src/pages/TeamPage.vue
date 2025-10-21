@@ -455,13 +455,18 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue';
-import { useMockDataStore, type TeamMember } from 'stores/mock-data';
-import { useAuthStore } from 'stores/auth-store';
+import { useTeamStore, type TeamMember } from 'src/stores/team-store';
+import { useAuthStore } from 'src/stores/auth-store';
 import { useQuasar } from 'quasar';
 
-const mockDataStore = useMockDataStore();
+const teamStore = useTeamStore();
 const authStore = useAuthStore();
 const $q = useQuasar();
+
+// Fetch team members from API
+onMounted(async () => {
+  await teamStore.fetchTeamMembers();
+});
 
 // Reactive data
 const showAddMemberDialog = ref(false);
@@ -591,7 +596,7 @@ const availableSkills = [
 const skillOptions = ref([...availableSkills]);
 
 // Computed
-const teamMembers = computed(() => mockDataStore.teamMembers);
+const teamMembers = computed(() => teamStore.teamMembers);
 
 const averageWorkload = computed(() => {
   if (teamMembers.value.length === 0) return 0;
@@ -600,7 +605,7 @@ const averageWorkload = computed(() => {
 });
 
 const totalActiveProjects = computed(() =>
-  teamMembers.value.reduce((sum, m) => sum + m.activeProjects, 0),
+  teamMembers.value.reduce((sum, m) => sum + (m.activeProjects || 0), 0),
 );
 
 const topSkills = computed(() => {
@@ -637,7 +642,7 @@ function viewMemberProfile(member: TeamMember) {
   showMemberProfile.value = true;
 }
 
-function addMember() {
+async function addMember() {
   // Validate required fields
   if (!newMember.name || !newMember.email || !newMember.role) {
     $q.notify({
@@ -662,31 +667,35 @@ function addMember() {
     return;
   }
 
-  // Add member to store
-  const addedMember = mockDataStore.addTeamMember({
-    name: newMember.name,
-    email: newMember.email,
-    role: finalRole,
-    skills: newMember.skills,
-    workload: newMember.workload,
-  });
+  // Add member to store via API
+  try {
+    await teamStore.addTeamMember({
+      name: newMember.name,
+      email: newMember.email,
+      role: finalRole,
+      avatar: newMember.avatar || 'https://cdn.quasar.dev/img/avatar.png',
+      skills: newMember.skills,
+      workload: newMember.workload,
+    });
 
-  // Update avatar if custom one was uploaded
-  if (newMember.avatar) {
-    addedMember.avatar = newMember.avatar;
+    $q.notify({
+      message: `Team member "${newMember.name}" added successfully!`,
+      color: 'positive',
+      icon: 'person_add',
+      position: 'top',
+    });
+
+    showAddMemberDialog.value = false;
+    cancelAddMember();
+  } catch (err) {
+    console.error('Add team member error:', err);
+    $q.notify({
+      message: 'Failed to add team member',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
   }
-
-  console.log('Added member:', addedMember);
-
-  $q.notify({
-    message: `Team member "${newMember.name}" added successfully!`,
-    color: 'positive',
-    icon: 'person_add',
-    position: 'top',
-  });
-
-  showAddMemberDialog.value = false;
-  cancelAddMember();
 }
 
 function cancelAddMember() {
@@ -798,7 +807,7 @@ function handleEditAvatarUpload(event: Event) {
   }
 }
 
-function saveEditMember() {
+async function saveEditMember() {
   // Validate required fields
   if (!editMember.name || !editMember.email || !editMember.role) {
     $q.notify({
@@ -823,22 +832,25 @@ function saveEditMember() {
     return;
   }
 
-  // Find and update the member in the store
-  const memberIndex = mockDataStore.teamMembers.findIndex((m) => m.id === editMember.id);
-  if (memberIndex !== -1) {
-    mockDataStore.teamMembers[memberIndex]!.name = editMember.name;
-    mockDataStore.teamMembers[memberIndex]!.email = editMember.email;
-    mockDataStore.teamMembers[memberIndex]!.role = finalRole;
-    mockDataStore.teamMembers[memberIndex]!.systemRole = editMember.systemRole as
-      | 'admin'
-      | 'manager'
-      | 'developer'
-      | 'viewer';
-    mockDataStore.teamMembers[memberIndex]!.skills = [...editMember.skills];
-    mockDataStore.teamMembers[memberIndex]!.workload = editMember.workload;
-    if (editMember.avatar) {
-      mockDataStore.teamMembers[memberIndex]!.avatar = editMember.avatar;
-    }
+  // Update member using teamStore
+  try {
+    await teamStore.updateTeamMember(editMember.id, {
+      name: editMember.name,
+      email: editMember.email,
+      role: finalRole,
+      skills: [...editMember.skills],
+      workload: editMember.workload,
+      ...(editMember.avatar && { avatar: editMember.avatar }),
+    });
+  } catch (err) {
+    console.error('Update team member error:', err);
+    $q.notify({
+      message: 'Failed to update team member',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+    return;
   }
 
   $q.notify({
@@ -898,8 +910,8 @@ function getSystemRoleLabel(role: string): string {
   }
 }
 
-onMounted(() => {
-  mockDataStore.initializeData();
+onMounted(async () => {
+  await Promise.all([teamStore.fetchTeamMembers()]);
 });
 </script>
 

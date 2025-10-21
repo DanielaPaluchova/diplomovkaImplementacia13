@@ -56,7 +56,7 @@
                   <div class="text-h6 text-weight-bold" :class="`text-${method.color}`">
                     {{ method.accuracyRate }}%
                   </div>
-                    </div>
+                </div>
                 <div class="metric-item">
                   <div class="text-caption text-grey-7">Team Satisfaction</div>
                   <div class="text-h6 text-weight-bold" :class="`text-${method.color}`">
@@ -123,12 +123,12 @@
               <q-td :props="props">
                 <div class="comparison-cell">
                   <div class="value">{{ props.value }}</div>
-                    <q-linear-progress
+                  <q-linear-progress
                     :value="getProgressValue(props.value, props.row.max)"
                     color="blue"
                     size="8px"
-                      class="q-mt-xs"
-                    />
+                    class="q-mt-xs"
+                  />
                 </div>
               </q-td>
             </template>
@@ -192,8 +192,8 @@
               </div>
             </q-card-section>
           </q-card>
+        </div>
       </div>
-    </div>
 
       <!-- Statistical Analysis -->
       <q-card class="q-mb-lg">
@@ -207,8 +207,8 @@
                   <div class="text-h4 text-weight-bold text-green">+28%</div>
                   <div class="text-caption text-grey-7">Average Improvement</div>
                   <div class="text-caption text-positive q-mt-xs">PERT+RACI vs Traditional</div>
-        </q-card-section>
-      </q-card>
+                </q-card-section>
+              </q-card>
             </div>
             <div class="col">
               <q-card flat bordered>
@@ -216,7 +216,7 @@
                   <div class="text-h4 text-weight-bold text-blue">93%</div>
                   <div class="text-caption text-grey-7">Confidence Level</div>
                   <div class="text-caption text-info q-mt-xs">Statistical Significance</div>
-        </q-card-section>
+                </q-card-section>
               </q-card>
             </div>
             <div class="col">
@@ -272,12 +272,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useResearchStore } from 'src/stores/research-store';
 
 const $q = useQuasar();
 const researchStore = useResearchStore();
+
+// Fetch data from API
+onMounted(async () => {
+  await researchStore.fetchExperiments();
+});
 
 // Methodologies to compare (computed from research store)
 const methodologies = computed(() => {
@@ -287,8 +292,8 @@ const methodologies = computed(() => {
   const adaptTimeSeconds = hasRealData ? (pertRaciMetrics.adaptationTime / 1000).toFixed(3) : '< 5';
 
   return [
-  {
-    id: 1,
+    {
+      id: 1,
       name: 'Traditional PM',
       category: 'Baseline',
       icon: 'folder',
@@ -307,9 +312,9 @@ const methodologies = computed(() => {
         'Limited team coordination',
         'Manual planning prone to errors',
       ],
-  },
-  {
-    id: 2,
+    },
+    {
+      id: 2,
       name: 'PERT Analysis',
       category: 'Time Optimization',
       icon: 'account_tree',
@@ -333,9 +338,9 @@ const methodologies = computed(() => {
         'Limited real-time adaptation',
         'Requires expertise',
       ],
-  },
-  {
-    id: 3,
+    },
+    {
+      id: 3,
       name: 'PERT + RACI Integration',
       category: 'Innovative Approach',
       icon: 'auto_awesome',

@@ -465,7 +465,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { format } from 'date-fns';
 import { useRouter } from 'vue-router';
 import { useTeamStore } from 'src/stores/team-store';
@@ -474,6 +474,11 @@ import { useProjectStore } from 'src/stores/project-store';
 const router = useRouter();
 const teamStore = useTeamStore();
 const projectStore = useProjectStore();
+
+// Fetch data from API
+onMounted(async () => {
+  await Promise.all([teamStore.fetchTeamMembers(), projectStore.fetchProjects()]);
+});
 
 // Reactive data
 const searchQuery = ref('');
@@ -567,7 +572,8 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
       }
     });
 
-    const totalWorkload = Math.round((totalStoryPoints / member.maxStoryPoints) * 100);
+    const maxStoryPoints = member.maxStoryPoints || 40; // Default to 40 if not set
+    const totalWorkload = Math.round((totalStoryPoints / maxStoryPoints) * 100);
 
     // Get active sprints
     const activeSprints = projectStore.projects.filter(
@@ -610,7 +616,7 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
       skills: member.skills,
       totalWorkload,
       totalStoryPoints,
-      maxStoryPoints: member.maxStoryPoints,
+      maxStoryPoints: maxStoryPoints,
       projects: memberProjects,
       activeSprints: activeSprints.length,
       sprintDetails,
@@ -701,7 +707,7 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
       // Get team members for this sprint
       const teamMembers = project.teamMemberIds
         .map((memberId) => {
-          const member = teamStore.getTeamMember(memberId);
+          const member = teamStore.teamMembers.find((tm) => tm.id === memberId);
           if (!member) return null;
 
           // Mock story points calculation
@@ -721,8 +727,14 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
         projectId: project.id,
         projectName: project.name,
         sprintName: activeSprint.name,
-        startDate: activeSprint.startDate,
-        endDate: activeSprint.endDate,
+        startDate:
+          typeof activeSprint.startDate === 'string'
+            ? new Date(activeSprint.startDate)
+            : activeSprint.startDate,
+        endDate:
+          typeof activeSprint.endDate === 'string'
+            ? new Date(activeSprint.endDate)
+            : activeSprint.endDate,
         totalTasks: activeSprint.totalTasks || 0,
         completedTasks: activeSprint.completedTasks || 0,
         remainingTasks: (activeSprint.totalTasks || 0) - (activeSprint.completedTasks || 0),

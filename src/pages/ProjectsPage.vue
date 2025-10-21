@@ -287,13 +287,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { format } from 'date-fns';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import { useProjectStore } from 'src/stores/project-store';
+import { useTeamStore } from 'src/stores/team-store';
 
 const router = useRouter();
 const $q = useQuasar();
+const projectStore = useProjectStore();
+const teamStore = useTeamStore();
 
 // Reactive data
 const showNewProjectDialog = ref(false);
@@ -303,6 +307,11 @@ const projectToDelete = ref<Project | null>(null);
 const searchQuery = ref('');
 const statusFilter = ref<string | null>(null);
 const sortBy = ref('Recent');
+
+// Fetch data from API
+onMounted(async () => {
+  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
+});
 
 interface Project {
   id: number;
@@ -344,109 +353,8 @@ const projectForm = ref<ProjectForm>({
   teamMembers: [],
 });
 
-// Available team members (global team pool)
-const availableTeamMembers: TeamMember[] = [
-  {
-    id: 1,
-    name: 'John Smith',
-    role: 'Frontend Developer',
-    avatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    role: 'Backend Developer',
-    avatar: 'https://cdn.quasar.dev/img/avatar2.jpg',
-  },
-  {
-    id: 3,
-    name: 'Mike Wilson',
-    role: 'UI/UX Designer',
-    avatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-  },
-  {
-    id: 4,
-    name: 'Emma Davis',
-    role: 'Project Manager',
-    avatar: 'https://cdn.quasar.dev/img/avatar4.jpg',
-  },
-  {
-    id: 5,
-    name: 'David Brown',
-    role: 'QA Engineer',
-    avatar: 'https://cdn.quasar.dev/img/avatar5.jpg',
-  },
-  {
-    id: 6,
-    name: 'Lisa Anderson',
-    role: 'DevOps Engineer',
-    avatar: 'https://cdn.quasar.dev/img/avatar6.jpg',
-  },
-];
-
-// Mock projects data
-const projects = ref<Project[]>([
-  {
-    id: 1,
-    name: 'E-commerce Platform Redesign',
-    description: 'Complete UI/UX overhaul of the main platform',
-    template: 'Agile Development',
-    icon: 'shopping_cart',
-    progress: 75,
-    tasksCompleted: 18,
-    totalTasks: 24,
-    status: 'On Track',
-    dueDate: new Date('2024-03-15'),
-    createdAt: new Date('2024-01-05'),
-    teamMembers: [availableTeamMembers[0], availableTeamMembers[2], availableTeamMembers[3]].filter(
-      Boolean,
-    ) as TeamMember[],
-  },
-  {
-    id: 2,
-    name: 'Mobile App Development',
-    description: 'Native iOS and Android application',
-    template: 'Agile Development',
-    icon: 'phone_android',
-    progress: 45,
-    tasksCompleted: 12,
-    totalTasks: 28,
-    status: 'In Progress',
-    dueDate: new Date('2024-04-20'),
-    createdAt: new Date('2024-01-10'),
-    teamMembers: [availableTeamMembers[0], availableTeamMembers[1], availableTeamMembers[4]].filter(
-      Boolean,
-    ) as TeamMember[],
-  },
-  {
-    id: 3,
-    name: 'Data Migration Project',
-    description: 'Legacy system to cloud migration',
-    template: 'Agile Development',
-    icon: 'cloud_upload',
-    progress: 30,
-    tasksCompleted: 8,
-    totalTasks: 22,
-    status: 'At Risk',
-    dueDate: new Date('2024-02-28'),
-    createdAt: new Date('2024-01-15'),
-    teamMembers: [availableTeamMembers[1], availableTeamMembers[5]].filter(Boolean) as TeamMember[],
-  },
-  {
-    id: 4,
-    name: 'Marketing Campaign Dashboard',
-    description: 'Real-time analytics dashboard for marketing team',
-    template: 'Agile Development',
-    icon: 'dashboard',
-    progress: 60,
-    tasksCompleted: 15,
-    totalTasks: 20,
-    status: 'On Track',
-    dueDate: new Date('2024-03-30'),
-    createdAt: new Date('2024-01-20'),
-    teamMembers: [availableTeamMembers[0], availableTeamMembers[2]].filter(Boolean) as TeamMember[],
-  },
-]);
+// Get data from stores
+const availableTeamMembers = computed(() => teamStore.teamMembers);
 
 const iconOptions = [
   'folder',
@@ -467,7 +375,16 @@ const sortOptions = ['Recent', 'Name', 'Due Date', 'Progress'];
 
 // Computed
 const filteredProjects = computed(() => {
-  let filtered = [...projects.value];
+  let filtered = [
+    ...projectStore.projects.map((p) => ({
+      ...p,
+      dueDate: typeof p.dueDate === 'string' ? new Date(p.dueDate) : p.dueDate,
+      createdAt: typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt,
+      teamMembers: p.teamMemberIds
+        .map((id) => teamStore.teamMembers.find((m) => m.id === id))
+        .filter(Boolean) as TeamMember[],
+    })),
+  ];
 
   // Search filter
   if (searchQuery.value) {
@@ -553,15 +470,22 @@ function confirmDeleteProject(project: Project) {
   showDeleteDialog.value = true;
 }
 
-function deleteProject() {
+async function deleteProject() {
   if (projectToDelete.value) {
-    const index = projects.value.findIndex((p) => p.id === projectToDelete.value!.id);
-    if (index > -1) {
-      projects.value.splice(index, 1);
+    try {
+      await projectStore.deleteProject(projectToDelete.value.id);
       $q.notify({
         message: `Project "${projectToDelete.value.name}" deleted successfully`,
         color: 'positive',
         icon: 'check_circle',
+        position: 'top',
+      });
+    } catch (err) {
+      console.error('Delete project error:', err);
+      $q.notify({
+        message: 'Failed to delete project',
+        color: 'negative',
+        icon: 'error',
         position: 'top',
       });
     }
@@ -570,7 +494,7 @@ function deleteProject() {
   projectToDelete.value = null;
 }
 
-function saveProject() {
+async function saveProject() {
   // Validate
   if (!projectForm.value.name || !projectForm.value.description || !projectForm.value.dueDate) {
     $q.notify({
@@ -582,59 +506,62 @@ function saveProject() {
     return;
   }
 
-  if (editingProject.value) {
-    // Update existing project
-    const index = projects.value.findIndex((p) => p.id === editingProject.value!.id);
-    if (index > -1) {
-      const existingProject = projects.value[index]!;
-      projects.value[index] = {
-        id: existingProject.id,
+  try {
+    if (editingProject.value) {
+      // Update existing project
+      await projectStore.updateProject(editingProject.value.id, {
         name: projectForm.value.name,
         description: projectForm.value.description,
         template: projectForm.value.template,
         icon: projectForm.value.icon,
-        progress: existingProject.progress,
-        tasksCompleted: existingProject.tasksCompleted,
-        totalTasks: existingProject.totalTasks,
-        status: existingProject.status,
         dueDate: new Date(projectForm.value.dueDate),
-        createdAt: existingProject.createdAt,
-        teamMembers: projectForm.value.teamMembers,
-      };
+        teamMemberIds: projectForm.value.teamMembers.map((m) => m.id),
+      });
       $q.notify({
         message: `Project "${projectForm.value.name}" updated successfully`,
         color: 'positive',
         icon: 'check_circle',
         position: 'top',
       });
+    } else {
+      // Create new project
+      await projectStore.addProject({
+        name: projectForm.value.name,
+        description: projectForm.value.description,
+        template: projectForm.value.template,
+        icon: projectForm.value.icon,
+        progress: 0,
+        tasksCompleted: 0,
+        totalTasks: 0,
+        status: 'In Progress',
+        dueDate: new Date(projectForm.value.dueDate),
+        createdAt: new Date(),
+        teamMemberIds: projectForm.value.teamMembers.map((m) => m.id),
+        roles: [],
+        sprints: [],
+        tasks: [],
+        totalStoryPoints: 0,
+        estimatedDuration: 0,
+      });
+      $q.notify({
+        message: `Project "${projectForm.value.name}" created successfully`,
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top',
+      });
     }
-  } else {
-    // Create new project
-    const newProject: Project = {
-      id: Math.max(...projects.value.map((p) => p.id), 0) + 1,
-      name: projectForm.value.name,
-      description: projectForm.value.description,
-      template: projectForm.value.template,
-      icon: projectForm.value.icon,
-      progress: 0,
-      tasksCompleted: 0,
-      totalTasks: 0,
-      status: 'In Progress',
-      dueDate: new Date(projectForm.value.dueDate),
-      createdAt: new Date(),
-      teamMembers: projectForm.value.teamMembers,
-    };
-    projects.value.push(newProject);
+
+    showNewProjectDialog.value = false;
+    cancelProjectDialog();
+  } catch (err) {
+    console.error('Save project error:', err);
     $q.notify({
-      message: `Project "${projectForm.value.name}" created successfully`,
-      color: 'positive',
-      icon: 'check_circle',
+      message: 'Failed to save project',
+      color: 'negative',
+      icon: 'error',
       position: 'top',
     });
   }
-
-  showNewProjectDialog.value = false;
-  cancelProjectDialog();
 }
 
 function cancelProjectDialog() {

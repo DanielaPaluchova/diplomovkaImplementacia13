@@ -339,14 +339,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore, type Task } from 'src/stores/project-store';
-import { useMockDataStore } from 'src/stores/mock-data';
+import { useTeamStore } from 'src/stores/team-store';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
-const mockDataStore = useMockDataStore();
+const teamStore = useTeamStore();
+
+// Fetch data from API
+onMounted(async () => {
+  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
+});
 
 const selectedProjectId = ref<number | null>(null);
 
@@ -367,7 +372,7 @@ const selectedProject = computed(() => {
 const projectMembers = computed(() => {
   if (!selectedProject.value) return [];
   return selectedProject.value.teamMemberIds
-    .map((id) => mockDataStore.teamMembers.find((m) => m.id === id))
+    .map((id) => teamStore.teamMembers.find((m) => m.id === id))
     .filter((m) => m !== undefined);
 });
 

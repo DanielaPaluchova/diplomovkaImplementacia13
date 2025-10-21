@@ -517,4 +517,3 @@ export const useResearchStore = defineStore('research', () => {
     exportResearchData,
   };
 });
-

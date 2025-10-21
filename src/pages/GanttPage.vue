@@ -381,11 +381,11 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue';
-import { useMockDataStore } from 'stores/mock-data';
+import { useTeamStore } from 'src/stores/team-store';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { useProjectStore } from 'src/stores/project-store';
 
-const mockDataStore = useMockDataStore();
+const teamStore = useTeamStore();
 const projectStore = useProjectStore();
 
 // Project Selection
@@ -535,7 +535,7 @@ const newTask = reactive({
 const taskTypeOptions = ['task', 'milestone', 'summary'];
 
 // Computed
-const teamMembers = computed(() => mockDataStore.teamMembers);
+const teamMembers = computed(() => teamStore.teamMembers);
 const teamMemberOptions = computed(() => teamMembers.value.map((m) => m.name));
 
 const completedTasks = computed(() => ganttTasks.value.filter((t) => t.progress === 100));
@@ -712,8 +712,8 @@ function zoomOut() {
   zoomLevel.value = Math.max(zoomLevel.value / 1.2, 0.5);
 }
 
-onMounted(() => {
-  mockDataStore.initializeData();
+onMounted(async () => {
+  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
 });
 </script>
 

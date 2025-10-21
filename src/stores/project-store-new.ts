@@ -125,47 +125,6 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  // Get project by ID from local state (sync)
-  function getProjectById(id: number): Project | undefined {
-    return projects.value.find((p) => p.id === id);
-  }
-
-  // Project member management
-  function addMemberToProject(projectId: number, memberId: number, role: ProjectRole['role']) {
-    const project = projects.value.find((p) => p.id === projectId);
-    if (project) {
-      const permissions = getRolePermissions(role);
-      project.teamMemberIds.push(memberId);
-      project.roles.push({
-        memberId,
-        role,
-        permissions,
-      });
-    }
-  }
-
-  function updateMemberRole(projectId: number, memberId: number, role: ProjectRole['role']) {
-    const project = projects.value.find((p) => p.id === projectId);
-    if (project) {
-      const roleIndex = project.roles.findIndex((r) => r.memberId === memberId);
-      if (roleIndex !== -1) {
-        project.roles[roleIndex] = {
-          memberId,
-          role,
-          permissions: getRolePermissions(role),
-        };
-      }
-    }
-  }
-
-  function removeMemberFromProject(projectId: number, memberId: number) {
-    const project = projects.value.find((p) => p.id === projectId);
-    if (project) {
-      project.teamMemberIds = project.teamMemberIds.filter((id) => id !== memberId);
-      project.roles = project.roles.filter((r) => r.memberId !== memberId);
-    }
-  }
-
   // Create new project
   async function addProject(project: Partial<Project>) {
     loading.value = true;
@@ -333,7 +292,6 @@ export const useProjectStore = defineStore('project', () => {
     error,
     fetchProjects,
     getProject,
-    getProjectById,
     addProject,
     updateProject,
     deleteProject,
@@ -343,8 +301,5 @@ export const useProjectStore = defineStore('project', () => {
     getActiveSprint,
     getMemberRole,
     getRolePermissions,
-    addMemberToProject,
-    updateMemberRole,
-    removeMemberFromProject,
   };
 });
