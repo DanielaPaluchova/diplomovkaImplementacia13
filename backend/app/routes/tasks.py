@@ -185,9 +185,7 @@ def update_task(task_id):
         if old_story_points != task.story_points:
             project.total_story_points = project.total_story_points - old_story_points + task.story_points
         
-        # Update progress
-        if project.total_tasks > 0:
-            project.progress = int((project.tasks_completed / project.total_tasks) * 100)
+        # progress is computed automatically in to_dict() method
         
         task.updated_at = datetime.utcnow()
         db.session.commit()
@@ -216,11 +214,7 @@ def delete_task(task_id):
         if task.story_points:
             project.total_story_points -= task.story_points
         
-        # Recalculate progress
-        if project.total_tasks > 0:
-            project.progress = int((project.tasks_completed / project.total_tasks) * 100)
-        else:
-            project.progress = 0
+        # progress is computed automatically in to_dict() method
         
         db.session.delete(task)
         db.session.commit()

@@ -670,14 +670,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
-import { useResearchStore, type SimulationRun } from 'src/stores/research-store';
+import { useTeamStore } from 'src/stores/team-store';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
-const researchStore = useResearchStore();
+const teamStore = useTeamStore();
+
+// Load data on mount
+onMounted(async () => {
+  await projectStore.fetchProjects(true);
+  await teamStore.fetchTeamMembers();
+});
 
 // Project selection
 const selectedProjectId = ref<number | null>(1);
@@ -730,18 +736,67 @@ const adaptationStrategyOptions = [
   'Risk-Based Adaptation',
 ];
 
-const beforeMetrics = ref({
-  duration: 45,
-  workload: 85,
-  riskScore: 6.5,
-  balanceScore: 72,
+// Calculate metrics from selected project
+const beforeMetrics = computed(() => {
+  if (!selectedProject.value) {
+    return {
+      duration: 0,
+      workload: 0,
+      riskScore: 0,
+      balanceScore: 0,
+    };
+  }
+
+  const project = selectedProject.value;
+  const tasks = project.tasks || [];
+
+  // Calculate duration from PERT estimates or story points
+  const duration = tasks.reduce((sum, task) => {
+    return sum + (task.pert?.expected || task.storyPoints * 0.5 || 0);
+  }, 0);
+
+  // Calculate workload - average team member workload
+  const teamMembers = teamStore.teamMembers.filter((m) => project.teamMemberIds?.includes(m.id));
+  const avgWorkload =
+    teamMembers.length > 0
+      ? teamMembers.reduce((sum, m) => sum + m.workload, 0) / teamMembers.length
+      : 0;
+
+  // Calculate risk score based on task complexity and uncertainty
+  const avgRisk =
+    tasks.length > 0
+      ? tasks.reduce((sum, task) => {
+          const pert = task.pert;
+          const uncertainty =
+            pert?.pessimistic && pert?.optimistic
+              ? (pert.pessimistic - pert.optimistic) / (pert.expected || 1)
+              : 0.5;
+          return sum + uncertainty * 10;
+        }, 0) / tasks.length
+      : 0;
+
+  // Calculate balance score - how evenly distributed work is
+  const workloads = teamMembers.map((m) => m.workload);
+  const avgLoad = avgWorkload;
+  const variance =
+    workloads.length > 0
+      ? workloads.reduce((sum, w) => sum + Math.pow(w - avgLoad, 2), 0) / workloads.length
+      : 0;
+  const balanceScore = Math.max(0, 100 - Math.sqrt(variance));
+
+  return {
+    duration: Math.round(duration * 10) / 10,
+    workload: Math.round(avgWorkload),
+    riskScore: Math.round(avgRisk * 10) / 10,
+    balanceScore: Math.round(balanceScore),
+  };
 });
 
 const afterMetrics = ref({
-  duration: 48,
-  workload: 75,
-  riskScore: 4.8,
-  balanceScore: 89,
+  duration: 0,
+  workload: 0,
+  riskScore: 0,
+  balanceScore: 0,
 });
 
 const adaptationTime = ref(0);
@@ -930,35 +985,11 @@ async function runSimulation() {
     adaptationTime.value,
   );
 
-  // Save to research store
+  // Note: Simulation tracking has been removed
+  // Previous research store integration is no longer available
   if (selectedProject.value) {
-    const runData: Omit<SimulationRun, 'id'> = {
-      timestamp: new Date(),
-      projectId: selectedProject.value.id,
-      projectName: selectedProject.value.name,
-      changeType: simulationSettings.value.changeType,
-      before: {
-        duration: beforeDuration,
-        workload: beforeWorkload,
-        riskScore: beforeRisk,
-        balanceScore: beforeBalance,
-      },
-      after: {
-        duration: afterMetrics.value.duration,
-        workload: afterMetrics.value.workload,
-        riskScore: afterMetrics.value.riskScore,
-        balanceScore: afterMetrics.value.balanceScore,
-      },
-      adaptationTime: adaptationTime.value,
-      improvementRate: improvementRate.value,
-      success: true,
-    };
-
-    if (selectedExperimentId.value) {
-      runData.experimentId = selectedExperimentId.value;
-    }
-
-    researchStore.addSimulationRun(runData);
+    // Simulation completed successfully
+    // Data is shown in the UI but not persisted to backend
   }
 
   showSimulationDialog.value = false;
@@ -1047,35 +1078,11 @@ async function runBatchSimulation() {
         adaptTime,
       );
 
-      // Save to research store
+      // Note: Simulation tracking has been removed
+      // Previous research store integration is no longer available
       if (selectedProject.value) {
-        const runData: Omit<SimulationRun, 'id'> = {
-          timestamp: new Date(),
-          projectId: selectedProject.value.id,
-          projectName: selectedProject.value.name,
-          changeType,
-          before: {
-            duration: durationBefore,
-            workload: workloadBefore,
-            riskScore: riskBefore,
-            balanceScore: balanceBefore,
-          },
-          after: {
-            duration: durationAfter,
-            workload: workloadAfter,
-            riskScore: riskAfter,
-            balanceScore: balanceAfter,
-          },
-          adaptationTime: adaptTime,
-          improvementRate: improvement,
-          success,
-        };
-
-        if (selectedExperimentId.value) {
-          runData.experimentId = selectedExperimentId.value;
-        }
-
-        researchStore.addSimulationRun(runData);
+        // Simulation completed successfully
+        // Data is shown in the UI but not persisted to backend
       }
     }
   }
@@ -1132,18 +1139,14 @@ function getAdaptationTimeClass(time: number): string {
 }
 
 function resetSimulation() {
-  beforeMetrics.value = {
-    duration: 45,
-    workload: 85,
-    riskScore: 6.5,
-    balanceScore: 72,
-  };
+  // beforeMetrics is computed from project, no need to reset
 
+  // Reset afterMetrics to initial state
   afterMetrics.value = {
-    duration: 48,
-    workload: 75,
-    riskScore: 4.8,
-    balanceScore: 89,
+    duration: 0,
+    workload: 0,
+    riskScore: 0,
+    balanceScore: 0,
   };
 
   adaptationTime.value = 0;
@@ -1196,14 +1199,12 @@ function generateChangeLogEntry(
   // Select random task
   const randomTask = tasks[Math.floor(Math.random() * tasks.length)]!;
 
-  const teamMembers = [
-    'John Smith',
-    'Sarah Johnson',
-    'Mike Wilson',
-    'Emma Davis',
-    'David Brown',
-    'Lisa Anderson',
-  ];
+  // Get team member names from store
+  const teamMemberNames = teamStore.teamMembers.map((m) => m.name);
+  const teamMembers =
+    teamMemberNames.length > 0
+      ? teamMemberNames
+      : ['John Smith', 'Sarah Johnson', 'Mike Wilson', 'Emma Davis']; // Fallback if not loaded yet
 
   const timestamp = new Date().toLocaleString('sk-SK');
   const durationDiff = afterDuration - beforeDuration;

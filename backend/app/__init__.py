@@ -21,7 +21,10 @@ jwt = JWTManager()
 def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__)
-    
+
+    # Disable strict slashes globally to prevent 308 redirects
+    app.url_map.strict_slashes = False
+
     # Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:daniela13@localhost:5432/diplonovka_db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -55,15 +58,11 @@ def create_app():
     from app.routes.projects import projects_bp
     from app.routes.teams import teams_bp
     from app.routes.tasks import tasks_bp
-    from app.routes.experiments import experiments_bp
-    from app.routes.analytics import analytics_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(projects_bp, url_prefix='/api/projects')
     app.register_blueprint(teams_bp, url_prefix='/api/teams')
     app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
-    app.register_blueprint(experiments_bp, url_prefix='/api/experiments')
-    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     
     # Health check endpoint
     @app.route('/api/health')

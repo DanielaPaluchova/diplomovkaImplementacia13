@@ -8,7 +8,6 @@ from app.models.project import Project
 from app.models.sprint import Sprint
 from app.models.task import Task
 from app.models.project_role import ProjectRole
-from app.models.experiment import Experiment
 from datetime import datetime, timedelta
 
 def seed_users():
@@ -51,7 +50,7 @@ def seed_users():
             db.session.add(user)
     
     db.session.commit()
-    print("✓ Users seeded")
+    print("[OK] Users seeded")
 
 
 def seed_team_members():
@@ -66,7 +65,6 @@ def seed_team_members():
             'role': 'Senior Frontend Developer',
             'avatar': 'https://cdn.quasar.dev/img/avatar2.jpg',
             'status': 'online',
-            'workload': 85,
             'skills': ['Vue.js', 'TypeScript', 'React', 'Node.js', 'GraphQL']
         },
         {
@@ -76,7 +74,6 @@ def seed_team_members():
             'role': 'Backend Developer',
             'avatar': 'https://cdn.quasar.dev/img/avatar3.jpg',
             'status': 'busy',
-            'workload': 75,
             'skills': ['Python', 'Django', 'PostgreSQL', 'Docker', 'AWS']
         },
         {
@@ -86,7 +83,6 @@ def seed_team_members():
             'role': 'DevOps Engineer',
             'avatar': 'https://cdn.quasar.dev/img/avatar4.jpg',
             'status': 'away',
-            'workload': 90,
             'skills': ['Kubernetes', 'Docker', 'Jenkins', 'AWS', 'Terraform']
         },
         {
@@ -96,7 +92,6 @@ def seed_team_members():
             'role': 'UI/UX Designer',
             'avatar': 'https://cdn.quasar.dev/img/avatar5.jpg',
             'status': 'online',
-            'workload': 60,
             'skills': ['Figma', 'Adobe XD', 'Sketch', 'Prototyping', 'User Research']
         },
         {
@@ -106,7 +101,6 @@ def seed_team_members():
             'role': 'Full Stack Developer',
             'avatar': 'https://cdn.quasar.dev/img/avatar.png',
             'status': 'online',
-            'workload': 70,
             'skills': ['Vue.js', 'Python', 'FastAPI', 'MongoDB', 'Redis']
         },
         {
@@ -117,7 +111,6 @@ def seed_team_members():
             'system_role': 'manager',
             'avatar': 'https://cdn.quasar.dev/img/avatar6.jpg',
             'status': 'busy',
-            'workload': 95,
             'skills': ['Scrum', 'Kanban', 'PERT', 'Risk Management', 'Stakeholder Management']
         }
     ]
@@ -131,81 +124,12 @@ def seed_team_members():
                 system_role=member_data.get('system_role'),
                 avatar=member_data['avatar'],
                 status=member_data['status'],
-                workload=member_data['workload'],
                 skills=member_data['skills']
             )
             db.session.add(member)
     
     db.session.commit()
-    print("✓ Team members seeded")
-
-
-def seed_experiments():
-    """Seed experiments"""
-    print("Seeding experiments...")
-    
-    experiments_data = [
-        {
-            'name': 'PERT+RACI vs Traditional Planning',
-            'description': 'Comparing integrated PERT+RACI approach with traditional planning methods across 10 projects',
-            'hypothesis': 'PERT+RACI integration will improve delivery accuracy by 25% and reduce team conflicts by 30%',
-            'status': 'completed',
-            'methodology': 'PERT+RACI vs Traditional',
-            'start_date': datetime(2023, 10, 1),
-            'end_date': datetime(2023, 12, 15),
-            'participants': 50,
-            'results': {'success': True, 'improvement': 28, 'confidence': 93}
-        },
-        {
-            'name': 'Automatic Workload Rebalancing',
-            'description': 'Testing automatic RACI reassignment when team members are overloaded (>80% workload)',
-            'hypothesis': 'Automatic rebalancing will maintain team utilization under 80% while preserving project deadlines',
-            'status': 'running',
-            'methodology': 'Load Balancing Comparison',
-            'start_date': datetime(2023, 11, 15),
-            'end_date': datetime(2024, 1, 30),
-            'participants': 35
-        },
-        {
-            'name': 'Requirement Change Adaptation',
-            'description': 'Simulating 50 client requirement changes and measuring system adaptation speed and accuracy',
-            'hypothesis': 'System will adapt to requirement changes in <5 seconds while maintaining optimal PERT+RACI balance',
-            'status': 'running',
-            'methodology': 'Controlled Experiment',
-            'start_date': datetime(2024, 1, 5),
-            'end_date': datetime(2024, 2, 5),
-            'participants': 25
-        },
-        {
-            'name': 'Risk-Based PERT Optimization',
-            'description': 'Comparing traditional PERT with risk-adjusted PERT (factoring in team overload)',
-            'hypothesis': 'Risk-aware PERT will reduce project delays by 40% compared to standard PERT',
-            'status': 'completed',
-            'methodology': 'Risk-based Adaptation',
-            'start_date': datetime(2023, 9, 1),
-            'end_date': datetime(2023, 11, 30),
-            'participants': 45,
-            'results': {'success': True, 'improvement': 43, 'confidence': 89}
-        },
-        {
-            'name': 'Multi-Project RACI Conflicts',
-            'description': 'Identifying and resolving RACI role conflicts when team members work across multiple projects',
-            'hypothesis': 'Automated conflict detection will reduce role confusion by 60%',
-            'status': 'planning',
-            'methodology': 'Before/After Study',
-            'start_date': datetime(2024, 2, 1),
-            'end_date': datetime(2024, 4, 1),
-            'participants': 40
-        }
-    ]
-    
-    for exp_data in experiments_data:
-        if not Experiment.query.filter_by(name=exp_data['name']).first():
-            experiment = Experiment(**exp_data)
-            db.session.add(experiment)
-    
-    db.session.commit()
-    print("✓ Experiments seeded")
+    print("[OK] Team members seeded")
 
 
 def seed_projects():
@@ -219,7 +143,6 @@ def seed_projects():
             description='Complete UI/UX overhaul of the main platform',
             template='Agile Development',
             icon='shopping_cart',
-            progress=75,
             tasks_completed=3,
             total_tasks=9,
             status='On Track',
@@ -238,10 +161,8 @@ def seed_projects():
             goal='Setup authentication and user management',
             start_date=datetime(2024, 1, 8),
             end_date=datetime(2024, 1, 22),
-            status='completed',
-            total_tasks=3,
-            completed_tasks=3,
-            task_ids=[1, 2, 3]
+            status='completed'
+            # task_ids, total_tasks, completed_tasks computed automatically
         )
         sprint2 = Sprint(
             project_id=project1.id,
@@ -249,10 +170,8 @@ def seed_projects():
             goal='Product catalog and shopping cart',
             start_date=datetime(2024, 1, 23),
             end_date=datetime(2024, 2, 6),
-            status='active',
-            total_tasks=3,
-            completed_tasks=0,
-            task_ids=[4, 5, 6]
+            status='active'
+            # task_ids, total_tasks, completed_tasks computed automatically
         )
         db.session.add_all([sprint1, sprint2])
         
@@ -365,7 +284,6 @@ def seed_projects():
             description='Native iOS and Android application for food delivery',
             template='Agile Development',
             icon='phone_android',
-            progress=45,
             tasks_completed=2,
             total_tasks=7,
             status='In Progress',
@@ -377,13 +295,133 @@ def seed_projects():
         db.session.add(project2)
         db.session.flush()
         
+        # Add sprint for project 2
+        sprint3 = Sprint(
+            project_id=project2.id,
+            name='Sprint 1 - Mobile',
+            goal='Core app functionality and navigation',
+            start_date=datetime(2024, 2, 1),
+            end_date=datetime(2024, 2, 15),
+            status='active'
+            # task_ids, total_tasks, completed_tasks computed automatically
+        )
+        db.session.add(sprint3)
+        
+        # Add tasks for project 2
+        task4 = Task(
+            project_id=project2.id,
+            sprint_id=sprint3.id,
+            name='User Registration Flow',
+            title='User Registration Flow',
+            description='Implement user registration with email verification',
+            status='Done',
+            priority='high',
+            type='feature',
+            story_points=8,
+            assignee_id=1,
+            assignee='John Smith',
+            due_date=datetime(2024, 2, 15),
+            completed=True,
+            labels=['mobile', 'frontend'],
+            complexity=7,
+            pert_optimistic=20,
+            pert_most_likely=32,
+            pert_pessimistic=48,
+            raci_responsible=[1],
+            raci_accountable=2,
+            raci_consulted=[5],
+            raci_informed=[]
+        )
+        task4.calculate_pert_expected()
+        
+        task5 = Task(
+            project_id=project2.id,
+            sprint_id=sprint3.id,
+            name='Restaurant Listing Screen',
+            title='Restaurant Listing Screen',
+            description='Display nearby restaurants with filters',
+            status='Done',
+            priority='high',
+            type='feature',
+            story_points=5,
+            assignee_id=5,
+            assignee='Alex Chen',
+            due_date=datetime(2024, 2, 15),
+            completed=True,
+            labels=['mobile', 'ui'],
+            complexity=6,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=32,
+            raci_responsible=[5],
+            raci_accountable=2,
+            raci_consulted=[1],
+            raci_informed=[]
+        )
+        task5.calculate_pert_expected()
+        
+        task6 = Task(
+            project_id=project2.id,
+            sprint_id=sprint3.id,
+            name='Order Management System',
+            title='Order Management System',
+            description='Backend API for order processing',
+            status='In Progress',
+            priority='medium',
+            type='feature',
+            story_points=8,
+            assignee_id=2,
+            assignee='Sarah Johnson',
+            due_date=datetime(2024, 2, 15),
+            completed=False,
+            labels=['backend', 'api'],
+            complexity=8,
+            pert_optimistic=24,
+            pert_most_likely=40,
+            pert_pessimistic=56,
+            raci_responsible=[2],
+            raci_accountable=2,
+            raci_consulted=[5],
+            raci_informed=[1]
+        )
+        task6.calculate_pert_expected()
+        
+        task7 = Task(
+            project_id=project2.id,
+            sprint_id=sprint3.id,
+            name='Payment Integration',
+            title='Payment Integration',
+            description='Integrate Stripe payment gateway',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=13,
+            assignee_id=2,
+            assignee='Sarah Johnson',
+            due_date=datetime(2024, 2, 15),
+            completed=False,
+            labels=['backend', 'payment'],
+            complexity=9,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=72,
+            raci_responsible=[2],
+            raci_accountable=2,
+            raci_consulted=[1, 5],
+            raci_informed=[]
+        )
+        task7.calculate_pert_expected()
+        
+        db.session.add_all([task4, task5, task6, task7])
+        
+        # Project stats (total_tasks, tasks_completed) are updated automatically by Task model
+        
         # Add more projects for variety
         project3 = Project(
             name='Data Migration Project',
             description='Legacy system to cloud migration with data transformation',
             template='Waterfall',
             icon='cloud_upload',
-            progress=30,
             tasks_completed=0,
             total_tasks=0,
             status='At Risk',
@@ -400,7 +438,6 @@ def seed_projects():
             description='Integration of AI-powered chatbot for customer support',
             template='Agile Development',
             icon='smart_toy',
-            progress=60,
             tasks_completed=0,
             total_tasks=0,
             status='On Track',
@@ -417,7 +454,6 @@ def seed_projects():
             description='Complete security audit and GDPR compliance implementation',
             template='Waterfall',
             icon='security',
-            progress=90,
             tasks_completed=0,
             total_tasks=0,
             status='On Track',
@@ -434,7 +470,6 @@ def seed_projects():
             description='Modernizing REST APIs to GraphQL with performance optimization',
             template='Hybrid',
             icon='api',
-            progress=25,
             tasks_completed=0,
             total_tasks=0,
             status='In Progress',
@@ -445,20 +480,883 @@ def seed_projects():
         )
         db.session.add(project6)
     
+    # Create realistic project - Hotel Booking Platform
+    if not Project.query.filter_by(name='Hotel Booking Platform').first():
+        project7 = Project(
+            name='Hotel Booking Platform',
+            description='Comprehensive hotel reservation system with real-time availability, booking management, and payment processing',
+            template='Agile Development',
+            icon='hotel',
+            tasks_completed=0,
+            total_tasks=0,  # Will be updated after creating tasks
+            status='In Progress',
+            due_date=datetime(2024, 8, 30),
+            team_member_ids=[1, 2, 3, 4, 5, 6],
+            total_story_points=0,  # Will be calculated
+            estimated_duration=180
+        )
+        db.session.add(project7)
+        db.session.flush()
+        
+        # Add project roles for Hotel Booking Platform
+        role_proj7_1 = ProjectRole(
+            project_id=project7.id,
+            member_id=6,
+            role='owner',
+            can_edit=True,
+            can_delete=True,
+            can_manage_team=True,
+            can_manage_sprints=True
+        )
+        role_proj7_2 = ProjectRole(
+            project_id=project7.id,
+            member_id=1,
+            role='developer',
+            can_edit=True,
+            can_delete=False,
+            can_manage_team=False,
+            can_manage_sprints=False
+        )
+        role_proj7_3 = ProjectRole(
+            project_id=project7.id,
+            member_id=2,
+            role='developer',
+            can_edit=True,
+            can_delete=False,
+            can_manage_team=False,
+            can_manage_sprints=False
+        )
+        role_proj7_4 = ProjectRole(
+            project_id=project7.id,
+            member_id=4,
+            role='developer',
+            can_edit=True,
+            can_delete=False,
+            can_manage_team=False,
+            can_manage_sprints=False
+        )
+        db.session.add_all([role_proj7_1, role_proj7_2, role_proj7_3, role_proj7_4])
+        
+        # Create Sprint 1 - Foundation & Analysis
+        sprint_hotel_1 = Sprint(
+            project_id=project7.id,
+            name='Sprint 1 - Foundation & Analysis',
+            goal='Complete requirements analysis, system design, and project setup',
+            start_date=datetime(2024, 2, 5),
+            end_date=datetime(2024, 2, 19),
+            status='active'
+            # task_ids, total_tasks, completed_tasks computed automatically
+        )
+        db.session.add(sprint_hotel_1)
+        db.session.flush()
+        
+        # Create Sprint 2 - Planned
+        sprint_hotel_2 = Sprint(
+            project_id=project7.id,
+            name='Sprint 2 - Core Backend',
+            goal='Develop core backend services and database structure',
+            start_date=datetime(2024, 2, 20),
+            end_date=datetime(2024, 3, 5),
+            status='planned'
+            # task_ids, total_tasks, completed_tasks computed automatically
+        )
+        db.session.add(sprint_hotel_2)
+        
+        # ============================================
+        # SPRINT 1 TASKS (Active Sprint)
+        # ============================================
+        
+        # Task 1: Requirements Analysis (Lisa - PM)
+        task_hotel_1 = Task(
+            project_id=project7.id,
+            sprint_id=sprint_hotel_1.id,
+            name='Requirements Analysis & Stakeholder Interviews',
+            title='Requirements Analysis & Stakeholder Interviews',
+            description='Conduct stakeholder interviews, gather functional and non-functional requirements, create user stories',
+            status='In Progress',
+            priority='high',
+            type='task',
+            story_points=8,
+            assignee_id=6,
+            assignee='Lisa Rodriguez',
+            due_date=datetime(2024, 2, 10),
+            completed=False,
+            labels=['analysis', 'planning', 'requirements'],
+            complexity=6,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=40,
+            raci_responsible=[6],
+            raci_accountable=6,
+            raci_consulted=[1, 2, 4],
+            raci_informed=[3, 5],
+            start_date=datetime(2024, 2, 5),
+            end_date=datetime(2024, 2, 6),
+            dependencies=[]
+        )
+        task_hotel_1.calculate_pert_expected()
+        
+        # Task 2: UI/UX Design & Wireframes (Emma - Designer)
+        task_hotel_2 = Task(
+            project_id=project7.id,
+            sprint_id=sprint_hotel_1.id,
+            name='UI/UX Design & Wireframes',
+            title='UI/UX Design & Wireframes',
+            description='Create wireframes, user flows, and high-fidelity mockups for all main screens',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=13,
+            assignee_id=4,
+            assignee='Emma Davis',
+            due_date=datetime(2024, 2, 15),
+            completed=False,
+            labels=['design', 'ui', 'wireframes'],
+            complexity=7,
+            pert_optimistic=24,
+            pert_most_likely=40,
+            pert_pessimistic=64,
+            raci_responsible=[4],
+            raci_accountable=6,
+            raci_consulted=[1, 6],
+            raci_informed=[2, 5],
+            start_date=datetime(2024, 2, 6),
+            end_date=datetime(2024, 2, 7),
+            dependencies=[]
+        )
+        task_hotel_2.calculate_pert_expected()
+        
+        # Task 3: Database Schema Design (Sarah - Backend)
+        task_hotel_3 = Task(
+            project_id=project7.id,
+            sprint_id=sprint_hotel_1.id,
+            name='Database Schema Design',
+            title='Database Schema Design',
+            description='Design PostgreSQL database schema for hotels, rooms, bookings, users, and payments',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=8,
+            assignee_id=2,
+            assignee='Sarah Johnson',
+            due_date=datetime(2024, 2, 12),
+            completed=False,
+            labels=['database', 'architecture', 'backend'],
+            complexity=8,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=40,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[1, 3],
+            start_date=datetime(2024, 2, 6),
+            end_date=datetime(2024, 2, 7),
+            dependencies=[]
+        )
+        task_hotel_3.calculate_pert_expected()
+        
+        # Task 4: DevOps Infrastructure Setup (Mike - DevOps)
+        task_hotel_4 = Task(
+            project_id=project7.id,
+            sprint_id=sprint_hotel_1.id,
+            name='DevOps Infrastructure Setup',
+            title='DevOps Infrastructure Setup',
+            description='Setup CI/CD pipeline, Docker containers, AWS infrastructure, and monitoring',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=13,
+            assignee_id=3,
+            assignee='Mike Wilson',
+            due_date=datetime(2024, 2, 18),
+            completed=False,
+            labels=['devops', 'infrastructure', 'aws', 'docker'],
+            complexity=9,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=72,
+            raci_responsible=[3],
+            raci_accountable=6,
+            raci_consulted=[2, 5],
+            raci_informed=[1],
+            start_date=datetime(2024, 2, 7),
+            end_date=datetime(2024, 2, 9),
+            dependencies=[]
+        )
+        task_hotel_4.calculate_pert_expected()
+        
+        # Task 5: API Architecture Design (Alex - Full Stack)
+        task_hotel_5 = Task(
+            project_id=project7.id,
+            sprint_id=sprint_hotel_1.id,
+            name='API Architecture & Documentation',
+            title='API Architecture & Documentation',
+            description='Design RESTful API architecture, define endpoints, create OpenAPI documentation',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=8,
+            assignee_id=5,
+            assignee='Alex Chen',
+            due_date=datetime(2024, 2, 14),
+            completed=False,
+            labels=['api', 'architecture', 'documentation'],
+            complexity=7,
+            pert_optimistic=16,
+            pert_most_likely=32,
+            pert_pessimistic=48,
+            raci_responsible=[5],
+            raci_accountable=6,
+            raci_consulted=[2],
+            raci_informed=[1, 3],
+            start_date=datetime(2024, 2, 7),
+            end_date=datetime(2024, 2, 8),
+            dependencies=[]
+        )
+        task_hotel_5.calculate_pert_expected()
+        
+        db.session.add_all([task_hotel_1, task_hotel_2, task_hotel_3, task_hotel_4, task_hotel_5])
+        
+        # ============================================
+        # BACKLOG TASKS (Not in Sprint)
+        # ============================================
+        
+        # BACKEND DEVELOPMENT TASKS
+        
+        task_hotel_6 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='User Authentication & Authorization System',
+            title='User Authentication & Authorization System',
+            description='Implement JWT-based authentication with role-based access control (Customer, Hotel Manager, Admin)',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 5),
+            completed=False,
+            labels=['backend', 'security', 'authentication'],
+            complexity=8,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=72,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[1]
+        )
+        task_hotel_6.calculate_pert_expected()
+        
+        task_hotel_7 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Hotel & Room Management API',
+            title='Hotel & Room Management API',
+            description='Create CRUD operations for hotels, rooms, amenities, and pricing management',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 10),
+            completed=False,
+            labels=['backend', 'api', 'hotels'],
+            complexity=8,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=64,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[]
+        )
+        task_hotel_7.calculate_pert_expected()
+        
+        task_hotel_8 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Real-time Availability System',
+            title='Real-time Availability System',
+            description='Implement real-time room availability checking with Redis caching and conflict prevention',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 20),
+            completed=False,
+            labels=['backend', 'realtime', 'redis', 'performance'],
+            complexity=9,
+            pert_optimistic=48,
+            pert_most_likely=72,
+            pert_pessimistic=104,
+            raci_responsible=[5],
+            raci_accountable=6,
+            raci_consulted=[2, 3],
+            raci_informed=[1]
+        )
+        task_hotel_8.calculate_pert_expected()
+        
+        task_hotel_9 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Booking Management System',
+            title='Booking Management System',
+            description='Create booking workflow: search, reserve, confirm, modify, cancel with proper state management',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 25),
+            completed=False,
+            labels=['backend', 'bookings', 'workflow'],
+            complexity=9,
+            pert_optimistic=56,
+            pert_most_likely=80,
+            pert_pessimistic=120,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[1, 4]
+        )
+        task_hotel_9.calculate_pert_expected()
+        
+        task_hotel_10 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Payment Gateway Integration',
+            title='Payment Gateway Integration',
+            description='Integrate Stripe for payments, refunds, and secure payment processing with PCI compliance',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 4, 5),
+            completed=False,
+            labels=['backend', 'payment', 'stripe', 'security'],
+            complexity=9,
+            pert_optimistic=48,
+            pert_most_likely=72,
+            pert_pessimistic=96,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[3, 5],
+            raci_informed=[1]
+        )
+        task_hotel_10.calculate_pert_expected()
+        
+        task_hotel_11 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Email Notification Service',
+            title='Email Notification Service',
+            description='Implement email notifications for booking confirmations, reminders, and cancellations',
+            status='To Do',
+            priority='medium',
+            type='feature',
+            story_points=8,
+            assignee_id=None,
+            due_date=datetime(2024, 4, 10),
+            completed=False,
+            labels=['backend', 'notifications', 'email'],
+            complexity=6,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=40,
+            raci_responsible=[5],
+            raci_accountable=6,
+            raci_consulted=[2],
+            raci_informed=[]
+        )
+        task_hotel_11.calculate_pert_expected()
+        
+        task_hotel_12 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Search & Filter Engine',
+            title='Search & Filter Engine',
+            description='Implement advanced search with filters: location, price range, amenities, ratings, dates',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 4, 15),
+            completed=False,
+            labels=['backend', 'search', 'filters'],
+            complexity=8,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=72,
+            raci_responsible=[5],
+            raci_accountable=6,
+            raci_consulted=[2],
+            raci_informed=[1]
+        )
+        task_hotel_12.calculate_pert_expected()
+        
+        task_hotel_13 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Review & Rating System',
+            title='Review & Rating System',
+            description='Create review and rating system with moderation and verified stays validation',
+            status='To Do',
+            priority='medium',
+            type='feature',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 4, 20),
+            completed=False,
+            labels=['backend', 'reviews', 'ratings'],
+            complexity=7,
+            pert_optimistic=24,
+            pert_most_likely=40,
+            pert_pessimistic=64,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[4]
+        )
+        task_hotel_13.calculate_pert_expected()
+        
+        # FRONTEND DEVELOPMENT TASKS
+        
+        task_hotel_14 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Frontend Project Setup & Architecture',
+            title='Frontend Project Setup & Architecture',
+            description='Setup Vue.js project with TypeScript, Quasar, state management, and routing',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=8,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 5),
+            completed=False,
+            labels=['frontend', 'setup', 'architecture'],
+            complexity=6,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=32,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[4]
+        )
+        task_hotel_14.calculate_pert_expected()
+        
+        task_hotel_15 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='User Authentication UI',
+            title='User Authentication UI',
+            description='Create login, registration, password reset, and profile management screens',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 15),
+            completed=False,
+            labels=['frontend', 'authentication', 'ui'],
+            complexity=7,
+            pert_optimistic=24,
+            pert_most_likely=40,
+            pert_pessimistic=56,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[4],
+            raci_informed=[2]
+        )
+        task_hotel_15.calculate_pert_expected()
+        
+        task_hotel_16 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Hotel Search & Listing UI',
+            title='Hotel Search & Listing UI',
+            description='Create hotel search page with filters, map view, and list view with infinite scroll',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 3, 30),
+            completed=False,
+            labels=['frontend', 'search', 'ui'],
+            complexity=8,
+            pert_optimistic=40,
+            pert_most_likely=64,
+            pert_pessimistic=96,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[4, 5],
+            raci_informed=[]
+        )
+        task_hotel_16.calculate_pert_expected()
+        
+        task_hotel_17 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Hotel Detail Page',
+            title='Hotel Detail Page',
+            description='Create hotel detail page with gallery, amenities, rooms, reviews, and booking widget',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 4, 10),
+            completed=False,
+            labels=['frontend', 'hotel-details', 'ui'],
+            complexity=8,
+            pert_optimistic=48,
+            pert_most_likely=64,
+            pert_pessimistic=88,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[4],
+            raci_informed=[2]
+        )
+        task_hotel_17.calculate_pert_expected()
+        
+        task_hotel_18 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Booking Flow UI',
+            title='Booking Flow UI',
+            description='Create multi-step booking flow: room selection, guest details, payment, confirmation',
+            status='To Do',
+            priority='high',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 4, 25),
+            completed=False,
+            labels=['frontend', 'booking', 'checkout', 'ui'],
+            complexity=9,
+            pert_optimistic=48,
+            pert_most_likely=72,
+            pert_pessimistic=104,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[4, 2],
+            raci_informed=[5]
+        )
+        task_hotel_18.calculate_pert_expected()
+        
+        task_hotel_19 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='User Dashboard & Booking Management',
+            title='User Dashboard & Booking Management',
+            description='Create user dashboard with booking history, upcoming stays, and cancellation management',
+            status='To Do',
+            priority='medium',
+            type='feature',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 5, 5),
+            completed=False,
+            labels=['frontend', 'dashboard', 'ui'],
+            complexity=7,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=64,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[4],
+            raci_informed=[2]
+        )
+        task_hotel_19.calculate_pert_expected()
+        
+        task_hotel_20 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Hotel Manager Dashboard',
+            title='Hotel Manager Dashboard',
+            description='Create hotel manager interface for managing properties, rooms, bookings, and analytics',
+            status='To Do',
+            priority='medium',
+            type='feature',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 5, 20),
+            completed=False,
+            labels=['frontend', 'admin', 'dashboard', 'ui'],
+            complexity=8,
+            pert_optimistic=48,
+            pert_most_likely=72,
+            pert_pessimistic=104,
+            raci_responsible=[5],
+            raci_accountable=6,
+            raci_consulted=[1, 4],
+            raci_informed=[2]
+        )
+        task_hotel_20.calculate_pert_expected()
+        
+        # TESTING TASKS
+        
+        task_hotel_21 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Backend Unit & Integration Tests',
+            title='Backend Unit & Integration Tests',
+            description='Write comprehensive unit and integration tests for all backend services with 80%+ coverage',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 6, 5),
+            completed=False,
+            labels=['testing', 'backend', 'quality'],
+            complexity=8,
+            pert_optimistic=48,
+            pert_most_likely=72,
+            pert_pessimistic=96,
+            raci_responsible=[2, 5],
+            raci_accountable=6,
+            raci_consulted=[],
+            raci_informed=[1, 3]
+        )
+        task_hotel_21.calculate_pert_expected()
+        
+        task_hotel_22 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Frontend Unit & E2E Tests',
+            title='Frontend Unit & E2E Tests',
+            description='Write unit tests and end-to-end tests using Cypress for critical user flows',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 6, 15),
+            completed=False,
+            labels=['testing', 'frontend', 'e2e', 'quality'],
+            complexity=8,
+            pert_optimistic=48,
+            pert_most_likely=64,
+            pert_pessimistic=88,
+            raci_responsible=[1],
+            raci_accountable=6,
+            raci_consulted=[5],
+            raci_informed=[2, 4]
+        )
+        task_hotel_22.calculate_pert_expected()
+        
+        task_hotel_23 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Performance Testing & Optimization',
+            title='Performance Testing & Optimization',
+            description='Conduct load testing, identify bottlenecks, optimize database queries and API response times',
+            status='To Do',
+            priority='medium',
+            type='task',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 6, 25),
+            completed=False,
+            labels=['testing', 'performance', 'optimization'],
+            complexity=8,
+            pert_optimistic=32,
+            pert_most_likely=48,
+            pert_pessimistic=72,
+            raci_responsible=[3, 5],
+            raci_accountable=6,
+            raci_consulted=[2],
+            raci_informed=[1]
+        )
+        task_hotel_23.calculate_pert_expected()
+        
+        task_hotel_24 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Security Audit & Penetration Testing',
+            title='Security Audit & Penetration Testing',
+            description='Conduct security audit, penetration testing, fix vulnerabilities, ensure OWASP compliance',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 7, 5),
+            completed=False,
+            labels=['security', 'testing', 'audit'],
+            complexity=9,
+            pert_optimistic=32,
+            pert_most_likely=56,
+            pert_pessimistic=88,
+            raci_responsible=[3],
+            raci_accountable=6,
+            raci_consulted=[2, 5],
+            raci_informed=[1]
+        )
+        task_hotel_24.calculate_pert_expected()
+        
+        # DEPLOYMENT & PRODUCTION TASKS
+        
+        task_hotel_25 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Staging Environment Setup',
+            title='Staging Environment Setup',
+            description='Setup staging environment identical to production for final testing and client demos',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=8,
+            assignee_id=None,
+            due_date=datetime(2024, 7, 10),
+            completed=False,
+            labels=['devops', 'deployment', 'staging'],
+            complexity=7,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=40,
+            raci_responsible=[3],
+            raci_accountable=6,
+            raci_consulted=[2, 5],
+            raci_informed=[1]
+        )
+        task_hotel_25.calculate_pert_expected()
+        
+        task_hotel_26 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Database Migration Scripts',
+            title='Database Migration Scripts',
+            description='Create and test database migration scripts for production deployment',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=8,
+            assignee_id=None,
+            due_date=datetime(2024, 7, 15),
+            completed=False,
+            labels=['database', 'deployment', 'migration'],
+            complexity=7,
+            pert_optimistic=16,
+            pert_most_likely=24,
+            pert_pessimistic=40,
+            raci_responsible=[2],
+            raci_accountable=6,
+            raci_consulted=[3],
+            raci_informed=[5]
+        )
+        task_hotel_26.calculate_pert_expected()
+        
+        task_hotel_27 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Production Deployment & Monitoring',
+            title='Production Deployment & Monitoring',
+            description='Deploy to production with zero downtime, setup monitoring, alerts, and logging',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 7, 25),
+            completed=False,
+            labels=['devops', 'deployment', 'production', 'monitoring'],
+            complexity=9,
+            pert_optimistic=24,
+            pert_most_likely=40,
+            pert_pessimistic=64,
+            raci_responsible=[3],
+            raci_accountable=6,
+            raci_consulted=[2, 5],
+            raci_informed=[1, 4]
+        )
+        task_hotel_27.calculate_pert_expected()
+        
+        task_hotel_28 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='User Documentation & Training',
+            title='User Documentation & Training',
+            description='Create user documentation, admin guides, video tutorials, and conduct training sessions',
+            status='To Do',
+            priority='medium',
+            type='task',
+            story_points=13,
+            assignee_id=None,
+            due_date=datetime(2024, 8, 5),
+            completed=False,
+            labels=['documentation', 'training'],
+            complexity=6,
+            pert_optimistic=24,
+            pert_most_likely=40,
+            pert_pessimistic=56,
+            raci_responsible=[6, 4],
+            raci_accountable=6,
+            raci_consulted=[1, 2],
+            raci_informed=[3, 5]
+        )
+        task_hotel_28.calculate_pert_expected()
+        
+        task_hotel_29 = Task(
+            project_id=project7.id,
+            sprint_id=None,
+            name='Post-Launch Support & Bug Fixes',
+            title='Post-Launch Support & Bug Fixes',
+            description='Monitor production issues, fix bugs, provide user support for first 2 weeks after launch',
+            status='To Do',
+            priority='high',
+            type='task',
+            story_points=21,
+            assignee_id=None,
+            due_date=datetime(2024, 8, 30),
+            completed=False,
+            labels=['support', 'bugfix', 'production'],
+            complexity=7,
+            pert_optimistic=40,
+            pert_most_likely=64,
+            pert_pessimistic=96,
+            raci_responsible=[1, 2, 3, 5],
+            raci_accountable=6,
+            raci_consulted=[],
+            raci_informed=[4]
+        )
+        task_hotel_29.calculate_pert_expected()
+        
+        # Add all hotel booking tasks
+        db.session.add_all([
+            task_hotel_6, task_hotel_7, task_hotel_8, task_hotel_9, task_hotel_10,
+            task_hotel_11, task_hotel_12, task_hotel_13, task_hotel_14, task_hotel_15,
+            task_hotel_16, task_hotel_17, task_hotel_18, task_hotel_19, task_hotel_20,
+            task_hotel_21, task_hotel_22, task_hotel_23, task_hotel_24, task_hotel_25,
+            task_hotel_26, task_hotel_27, task_hotel_28, task_hotel_29
+        ])
+        
+        # Update project stats
+        project7.total_tasks = 29
+        project7.tasks_completed = 0
+        project7.total_story_points = 413  # Sum of all story points
+    
     db.session.commit()
-    print("✓ Projects seeded")
+    print("[OK] Projects seeded")
 
 
 def seed_all():
     """Seed all data"""
-    print("\n🌱 Starting database seeding...\n")
+    print("\n[*] Starting database seeding...\n")
     
     seed_users()
     seed_team_members()
-    seed_experiments()
     seed_projects()
     
-    print("\n✅ Database seeding completed!\n")
+    print("\n[SUCCESS] Database seeding completed!\n")
 
 
 if __name__ == '__main__':
@@ -468,7 +1366,7 @@ if __name__ == '__main__':
         # Create all tables
         print("Creating database tables...")
         db.create_all()
-        print("✓ Tables created\n")
+        print("[OK] Tables created\n")
         
         # Seed data
         seed_all()

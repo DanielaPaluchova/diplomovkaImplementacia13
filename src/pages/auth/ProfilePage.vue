@@ -261,19 +261,54 @@ function resetForm() {
 }
 
 async function changePassword() {
-  // TODO: Implement password change with backend
-  $q.notify({
-    message: 'Password changed successfully',
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
-  });
-  showChangePassword.value = false;
+  // Validate passwords
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    $q.notify({
+      message: 'New passwords do not match',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+    return;
+  }
 
-  // Reset form
-  passwordForm.currentPassword = '';
-  passwordForm.newPassword = '';
-  passwordForm.confirmPassword = '';
+  if (passwordForm.newPassword.length < 6) {
+    $q.notify({
+      message: 'New password must be at least 6 characters long',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Call API through auth store
+  const success = await authStore.changePassword(
+    passwordForm.currentPassword,
+    passwordForm.newPassword,
+  );
+
+  if (success) {
+    $q.notify({
+      message: 'Password changed successfully',
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+    showChangePassword.value = false;
+
+    // Reset form
+    passwordForm.currentPassword = '';
+    passwordForm.newPassword = '';
+    passwordForm.confirmPassword = '';
+  } else {
+    $q.notify({
+      message: authStore.error || 'Failed to change password',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 function handleLogout() {

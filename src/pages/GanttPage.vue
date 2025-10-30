@@ -49,7 +49,7 @@
               <div class="row items-center no-wrap">
                 <div class="col">
                   <div class="text-h4 text-weight-bold text-primary">
-                    {{ selectedProject.tasks.length }}
+                    {{ selectedProject.tasks?.length || 0 }}
                   </div>
                   <div class="text-caption text-grey-7">Total Tasks</div>
                 </div>
@@ -275,14 +275,7 @@
                     <div class="row items-center">
                       <q-icon name="arrow_right" class="q-mr-sm" />
                       <div class="col">{{ getTaskName(depId) }}</div>
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        icon="close"
-                        size="sm"
-                        @click="removeDependency(selectedTask.id, depId)"
-                      />
+                      <q-btn flat round dense icon="close" size="sm" @click="removeDependency()" />
                     </div>
                   </div>
                 </div>
@@ -380,10 +373,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import { useTeamStore } from 'src/stores/team-store';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { useProjectStore } from 'src/stores/project-store';
+
+const $q = useQuasar();
 
 const teamStore = useTeamStore();
 const projectStore = useProjectStore();
@@ -422,107 +418,40 @@ const zoomLevel = ref(1);
 const selectedTask = ref<GanttTask | null>(null);
 const newDependency = ref<number | null>(null);
 
-const ganttTasks = ref<GanttTask[]>([
-  {
-    id: 1,
-    name: 'Project Planning',
-    duration: 5,
-    startDate: '2024/01/01',
-    endDate: '2024/01/05',
-    progress: 100,
-    assignee: 'Lisa Rodriguez',
-    type: 'task',
-    dependencies: [],
-  },
-  {
-    id: 2,
-    name: 'Requirements Analysis',
-    duration: 8,
-    startDate: '2024/01/06',
-    endDate: '2024/01/13',
-    progress: 100,
-    assignee: 'John Smith',
-    type: 'task',
-    dependencies: [1],
-  },
-  {
-    id: 3,
-    name: 'System Design',
-    duration: 10,
-    startDate: '2024/01/14',
-    endDate: '2024/01/23',
-    progress: 85,
-    assignee: 'Sarah Johnson',
-    type: 'task',
-    dependencies: [2],
-  },
-  {
-    id: 4,
-    name: 'Database Design',
-    duration: 6,
-    startDate: '2024/01/16',
-    endDate: '2024/01/21',
-    progress: 90,
-    assignee: 'Sarah Johnson',
-    type: 'task',
-    dependencies: [2],
-  },
-  {
-    id: 5,
-    name: 'Frontend Development',
-    duration: 15,
-    startDate: '2024/01/24',
-    endDate: '2024/02/07',
-    progress: 60,
-    assignee: 'John Smith',
-    type: 'task',
-    dependencies: [3],
-  },
-  {
-    id: 6,
-    name: 'Backend Development',
-    duration: 18,
-    startDate: '2024/01/22',
-    endDate: '2024/02/08',
-    progress: 45,
-    assignee: 'Alex Chen',
-    type: 'task',
-    dependencies: [4],
-  },
-  {
-    id: 7,
-    name: 'Integration Testing',
-    duration: 7,
-    startDate: '2024/02/09',
-    endDate: '2024/02/15',
-    progress: 0,
-    assignee: 'Mike Wilson',
-    type: 'task',
-    dependencies: [5, 6],
-  },
-  {
-    id: 8,
-    name: 'Deployment',
-    duration: 3,
-    startDate: '2024/02/16',
-    endDate: '2024/02/18',
-    progress: 0,
-    assignee: 'Mike Wilson',
-    type: 'task',
-    dependencies: [7],
-  },
-  {
-    id: 9,
-    name: 'Project Completion',
-    duration: 1,
-    startDate: '2024/02/19',
-    endDate: '2024/02/19',
-    progress: 0,
-    assignee: 'Lisa Rodriguez',
-    type: 'milestone',
-    dependencies: [8],
-  },
-]);
+// Computed Gantt tasks from selected project
+const ganttTasks = computed<GanttTask[]>(() => {
+  if (!selectedProject.value || !selectedProject.value.tasks) return [];
+
+  return selectedProject.value.tasks.map((task) => {
+    // Calculate duration from PERT expected or use default
+    const duration = task.pert.expected ? Math.ceil(task.pert.expected / 8) : 5; // Convert hours to days
+
+    // Calculate progress based on status
+    let progress = 0;
+    if (task.status === 'Done') progress = 100;
+    else if (task.status === 'In Progress') progress = 50;
+
+    // Format dates
+    const startDate = task.startDate
+      ? format(new Date(task.startDate), 'yyyy/MM/dd')
+      : format(new Date(), 'yyyy/MM/dd');
+    const endDate = task.endDate
+      ? format(new Date(task.endDate), 'yyyy/MM/dd')
+      : format(addDays(new Date(startDate), duration), 'yyyy/MM/dd');
+
+    return {
+      id: task.id,
+      name: task.title || task.name,
+      duration,
+      startDate,
+      endDate,
+      progress,
+      assignee: task.assignee || 'Unassigned',
+      type: (task.type as 'task' | 'milestone' | 'summary') || 'task',
+      dependencies: task.dependencies || [],
+    };
+  });
+});
 
 const newTask = reactive({
   name: '',
@@ -560,14 +489,22 @@ const cellWidth = computed(() => {
 });
 
 const timelineHeaders = computed(() => {
-  const headers = [];
-  const startDate = new Date('2024/01/01');
-  const endDate = new Date('2024/03/01');
+  const headers: Array<{ key: string; label: string; sublabel: string }> = [];
+
+  // Calculate dynamic start and end dates from tasks
+  if (ganttTasks.value.length === 0) {
+    return headers;
+  }
+
+  const startDates = ganttTasks.value.map((t) => new Date(t.startDate));
+  const endDates = ganttTasks.value.map((t) => new Date(t.endDate));
+  const startDate = new Date(Math.min(...startDates.map((d) => d.getTime())));
+  const endDate = new Date(Math.max(...endDates.map((d) => d.getTime())));
 
   let current = new Date(startDate);
   let index = 0;
 
-  while (current <= endDate && index < 20) {
+  while (current <= endDate && index < 100) {
     if (viewMode.value === 'days') {
       headers.push({
         key: format(current, 'yyyy-MM-dd'),
@@ -646,12 +583,12 @@ function selectTask(task: GanttTask) {
 }
 
 function saveTaskChanges() {
-  if (!selectedTask.value) return;
-
-  const index = ganttTasks.value.findIndex((t) => t.id === selectedTask.value!.id);
-  if (index !== -1) {
-    ganttTasks.value[index] = { ...selectedTask.value };
-  }
+  $q.notify({
+    message: 'Úprava taskov priamo v Gantt diagrame nie je podporovaná. Upravte tasky v projekte.',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
+  });
   selectedTask.value = null;
 }
 
@@ -661,35 +598,34 @@ function getTaskName(taskId: number): string {
 }
 
 function addDependency() {
-  if (selectedTask.value && newDependency.value) {
-    selectedTask.value.dependencies.push(newDependency.value);
-    newDependency.value = null;
-  }
+  $q.notify({
+    message:
+      'Úprava závislostí priamo v Gantt diagrame nie je podporovaná. Upravte tasky v projekte.',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
+  });
+  newDependency.value = null;
 }
 
-function removeDependency(taskId: number, depId: number) {
-  if (selectedTask.value) {
-    selectedTask.value.dependencies = selectedTask.value.dependencies.filter((id) => id !== depId);
-  }
+function removeDependency() {
+  $q.notify({
+    message:
+      'Úprava závislostí priamo v Gantt diagrame nie je podporovaná. Upravte tasky v projekte.',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
+  });
 }
 
 function addTask() {
-  const newId = Math.max(...ganttTasks.value.map((t) => t.id)) + 1;
-  const startDate = new Date(newTask.startDate);
-  const endDate = addDays(startDate, newTask.duration - 1);
-
-  ganttTasks.value.push({
-    id: newId,
-    name: newTask.name,
-    duration: newTask.duration,
-    startDate: newTask.startDate,
-    endDate: format(endDate, 'yyyy/MM/dd'),
-    progress: 0,
-    assignee: newTask.assignee,
-    type: newTask.type as 'task' | 'milestone' | 'summary',
-    dependencies: [],
+  $q.notify({
+    message:
+      'Pridávanie taskov priamo v Gantt diagrame nie je podporované. Pridajte tasky v projekte.',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
   });
-
   cancelAddTask();
 }
 
@@ -712,8 +648,24 @@ function zoomOut() {
   zoomLevel.value = Math.max(zoomLevel.value / 1.2, 0.5);
 }
 
+// Watch for project selection changes and fetch full details
+watch(selectedProjectId, async (newProjectId) => {
+  if (newProjectId) {
+    // Fetch full project details including tasks
+    await projectStore.getProject(newProjectId);
+  }
+});
+
 onMounted(async () => {
   await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
+
+  // Set default project if available
+  if (projectStore.projects.length > 0 && !selectedProjectId.value) {
+    const firstProject = projectStore.projects[0];
+    if (firstProject) {
+      selectedProjectId.value = firstProject.id;
+    }
+  }
 });
 </script>
 

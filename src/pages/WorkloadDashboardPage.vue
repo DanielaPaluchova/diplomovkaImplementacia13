@@ -28,14 +28,6 @@
         <div class="col-12 col-md-3">
           <q-card class="summary-card">
             <q-card-section>
-              <div class="text-h6 text-weight-bold text-green">{{ availableMembers }}</div>
-              <div class="text-caption text-grey-7">Available Members</div>
-            </q-card-section>
-          </q-card>
-        </div>
-        <div class="col-12 col-md-3">
-          <q-card class="summary-card">
-            <q-card-section>
               <div class="text-h6 text-weight-bold text-orange">{{ overloadedMembers }}</div>
               <div class="text-caption text-grey-7">Overloaded Members (&gt;80%)</div>
             </q-card-section>
@@ -264,6 +256,9 @@
                     <q-space />
                     <span class="text-caption text-weight-medium">
                       {{ project.storyPoints }} SP
+                      <span class="text-grey-6" v-if="project.totalStoryPoints !== project.storyPoints">
+                        ({{ project.totalStoryPoints }} total)
+                      </span>
                     </span>
                   </div>
                   <q-linear-progress
@@ -321,10 +316,6 @@
                 label="View Details"
                 @click="viewMemberDetails(member)"
               />
-              <q-space />
-              <q-btn flat icon="email" color="grey-7" dense @click="contactMember(member)">
-                <q-tooltip>Send Email</q-tooltip>
-              </q-btn>
             </q-card-actions>
           </q-card>
         </div>
@@ -477,7 +468,7 @@ const projectStore = useProjectStore();
 
 // Fetch data from API
 onMounted(async () => {
-  await Promise.all([teamStore.fetchTeamMembers(), projectStore.fetchProjects()]);
+  await Promise.all([teamStore.fetchTeamMembers(), projectStore.fetchProjects(true)]);
 });
 
 // Reactive data
@@ -493,7 +484,8 @@ interface ProjectWorkload {
   id: number;
   name: string;
   icon: string;
-  storyPoints: number;
+  storyPoints: number;        // Current sprint SP
+  totalStoryPoints: number;   // Total project SP
   role: string;
   status: string;
 }
@@ -544,40 +536,69 @@ const projectOptions = computed(() => projectStore.projects);
 
 const membersWithWorkload = computed((): MemberWorkload[] => {
   return teamStore.teamMembers.map((member) => {
-    // Calculate workload across all projects
-    const memberProjects: ProjectWorkload[] = [];
-    let totalStoryPoints = 0;
+    // Use workload and story points from backend API
+    const totalWorkload = member.workload || 0;
+    const totalStoryPoints = member.totalStoryPoints || 0;
+    const maxStoryPoints = member.maxStoryPoints || 40;
 
+    // Calculate project-level breakdown
+    const memberProjects: ProjectWorkload[] = [];
     projectStore.projects.forEach((project) => {
-      if (project.teamMemberIds.includes(member.id)) {
-        const activeSprint = projectStore.getActiveSprint(project.id);
+      if (project.teamMemberIds && project.teamMemberIds.includes(member.id)) {
         const memberRole = projectStore.getMemberRole(project.id, member.id);
 
-        // Mock: calculate story points for this member in active sprint
-        const storyPoints = activeSprint
-          ? Math.floor(activeSprint.totalTasks / project.teamMemberIds.length)
-          : 0;
+        // Get active sprint for this project
+        const activeSprint = projectStore.getActiveSprint(project.id);
 
-        if (storyPoints > 0) {
+        // Calculate story points for CURRENT SPRINT only
+        let sprintStoryPoints = 0;
+        if (project.tasks && activeSprint) {
+          const sprintTasks = project.tasks.filter((task) => {
+            const isInSprint = task.sprintId === activeSprint.id;
+            const isAssigned =
+              task.assigneeId === member.id ||
+              (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
+              task.raci?.accountable === member.id;
+            const isIncomplete = task.status !== 'Done';
+            return isInSprint && isAssigned && isIncomplete;
+          });
+          sprintStoryPoints = sprintTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+        }
+
+        // Calculate TOTAL story points (all incomplete tasks in project)
+        let totalStoryPoints = 0;
+        if (project.tasks) {
+          const allTasks = project.tasks.filter((task) => {
+            const isAssigned =
+              task.assigneeId === member.id ||
+              (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
+              task.raci?.accountable === member.id;
+            const isIncomplete = task.status !== 'Done';
+            return isAssigned && isIncomplete;
+          });
+          totalStoryPoints = allTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+        }
+
+        if (sprintStoryPoints > 0 || totalStoryPoints > 0 || memberRole) {
           memberProjects.push({
             id: project.id,
             name: project.name,
             icon: project.icon,
-            storyPoints,
+            storyPoints: sprintStoryPoints,
+            totalStoryPoints,
             role: memberRole?.role || 'developer',
             status: project.status,
           });
-          totalStoryPoints += storyPoints;
         }
       }
     });
 
-    const maxStoryPoints = member.maxStoryPoints || 40; // Default to 40 if not set
-    const totalWorkload = Math.round((totalStoryPoints / maxStoryPoints) * 100);
-
     // Get active sprints
     const activeSprints = projectStore.projects.filter(
-      (p) => p.teamMemberIds.includes(member.id) && projectStore.getActiveSprint(p.id),
+      (p) =>
+        p.teamMemberIds &&
+        p.teamMemberIds.includes(member.id) &&
+        projectStore.getActiveSprint(p.id),
     );
 
     const sprintDetails: SprintDetail[] = activeSprints
@@ -587,25 +608,31 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
       })
       .filter((s): s is SprintDetail => s !== null);
 
-    // Mock tasks
-    const tasks: TaskDetail[] = [
-      {
-        id: 1,
-        name: 'Implement authentication',
-        projectName: memberProjects[0]?.name || 'Project',
-        sprintName: sprintDetails[0]?.name || 'Sprint',
-        priority: 'High',
-        completed: false,
-      },
-      {
-        id: 2,
-        name: 'Design landing page',
-        projectName: memberProjects[0]?.name || 'Project',
-        sprintName: sprintDetails[0]?.name || 'Sprint',
-        priority: 'Medium',
-        completed: true,
-      },
-    ];
+    // Get all tasks assigned to this member (not just active sprints)
+    const tasks: TaskDetail[] = [];
+    projectStore.projects.forEach((project) => {
+      if (project.tasks && project.teamMemberIds?.includes(member.id)) {
+        const memberTasks = project.tasks.filter((task) => {
+          const isAssigned =
+            task.assigneeId === member.id ||
+            (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
+            task.raci?.accountable === member.id;
+          return isAssigned;
+        });
+
+        memberTasks.forEach((task) => {
+          const sprint = project.sprints?.find((s) => s.id === task.sprintId);
+          tasks.push({
+            id: task.id,
+            name: task.name || task.title,
+            projectName: project.name,
+            sprintName: sprint?.name || 'Backlog',
+            priority: typeof task.priority === 'string' ? task.priority : 'Medium',
+            completed: task.status === 'Done',
+          });
+        });
+      }
+    });
 
     return {
       id: member.id,
@@ -616,7 +643,7 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
       skills: member.skills,
       totalWorkload,
       totalStoryPoints,
-      maxStoryPoints: maxStoryPoints,
+      maxStoryPoints,
       projects: memberProjects,
       activeSprints: activeSprints.length,
       sprintDetails,
@@ -665,10 +692,6 @@ const filteredMembers = computed(() => {
 
 const totalTeamMembers = computed(() => teamStore.teamMembers.length);
 
-const availableMembers = computed(
-  () => membersWithWorkload.value.filter((m) => m.totalWorkload < 60).length,
-);
-
 const overloadedMembers = computed(
   () => membersWithWorkload.value.filter((m) => m.totalWorkload > 80).length,
 );
@@ -703,15 +726,26 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
 
   projectStore.projects.forEach((project) => {
     const activeSprint = projectStore.getActiveSprint(project.id);
-    if (activeSprint) {
+    if (activeSprint && project.teamMemberIds) {
       // Get team members for this sprint
       const teamMembers = project.teamMemberIds
         .map((memberId) => {
           const member = teamStore.teamMembers.find((tm) => tm.id === memberId);
           if (!member) return null;
 
-          // Mock story points calculation
-          const storyPoints = Math.floor(activeSprint.totalTasks / project.teamMemberIds.length);
+          // Calculate story points from actual tasks in this sprint assigned to this member
+          let storyPoints = 0;
+          if (project.tasks) {
+            const memberTasks = project.tasks.filter((task) => {
+              const isInSprint = task.sprintId === activeSprint.id;
+              const isAssigned =
+                task.assigneeId === member.id ||
+                (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
+                task.raci?.accountable === member.id;
+              return isInSprint && isAssigned;
+            });
+            storyPoints = memberTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+          }
 
           return {
             id: member.id,
@@ -789,10 +823,6 @@ function getPriorityColor(priority: string): string {
 function viewMemberDetails(member: MemberWorkload) {
   selectedMember.value = member;
   showDetailsDialog.value = true;
-}
-
-function contactMember(member: MemberWorkload) {
-  window.location.href = `mailto:${member.email}`;
 }
 
 function navigateToProject(projectId: number) {

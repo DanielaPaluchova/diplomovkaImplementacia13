@@ -14,6 +14,7 @@ export interface TeamMember {
   skills: string[];
   availability?: boolean;
   workload: number;
+  totalStoryPoints?: number;
   maxStoryPoints?: number;
 }
 
@@ -140,9 +141,9 @@ export const useTeamStore = defineStore('team', () => {
     addTeamMember,
     updateTeamMember,
     removeTeamMember,
+    deleteTeamMember: removeTeamMember, // Alias for consistency
     getAvailableMembers,
     getMembersByRole,
     updateMemberWorkload,
   };
 });
-

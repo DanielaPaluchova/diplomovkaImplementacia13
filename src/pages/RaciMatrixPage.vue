@@ -399,7 +399,7 @@ function getMemberSkills(memberId: number) {
 
 function getMemberRole(memberId: number) {
   if (!selectedProject.value) return '';
-  const role = selectedProject.value.roles.find((r) => r.memberId === memberId);
+  const role = selectedProject.value.roles?.find((r) => r.memberId === memberId);
   return role?.role || 'member';
 }
 
@@ -414,17 +414,19 @@ function hasRaciRole(task: Task, memberId: number) {
 
 function getMemberResponsibleCount(memberId: number) {
   if (!selectedProject.value) return 0;
-  return selectedProject.value.tasks.filter((t) => t.raci.responsible.includes(memberId)).length;
+  return (
+    selectedProject.value.tasks?.filter((t) => t.raci.responsible.includes(memberId)).length || 0
+  );
 }
 
 function getMemberAccountableCount(memberId: number) {
   if (!selectedProject.value) return 0;
-  return selectedProject.value.tasks.filter((t) => t.raci.accountable === memberId).length;
+  return selectedProject.value.tasks?.filter((t) => t.raci.accountable === memberId).length || 0;
 }
 
 function getMemberTotalTasks(memberId: number) {
   if (!selectedProject.value) return 0;
-  return selectedProject.value.tasks.filter((t) => hasRaciRole(t, memberId)).length;
+  return selectedProject.value.tasks?.filter((t) => hasRaciRole(t, memberId)).length || 0;
 }
 
 // RACI Statistics
@@ -441,7 +443,7 @@ const raciStats = computed(() => {
     total: 0,
   };
 
-  selectedProject.value.tasks.forEach((task) => {
+  selectedProject.value.tasks?.forEach((task) => {
     stats.responsible += task.raci.responsible.length;
     stats.accountable += task.raci.accountable ? 1 : 0;
     stats.consulted += task.raci.consulted.length;

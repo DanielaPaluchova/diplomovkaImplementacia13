@@ -41,6 +41,7 @@ export interface RaciMatrix {
 
 export interface Task {
   id: number;
+  projectId: number;
   name: string;
   title: string;
   description: string;
@@ -57,6 +58,10 @@ export interface Task {
   complexity: number;
   pert: PertEstimate;
   raci: RaciMatrix;
+  // Gantt chart fields
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
+  dependencies?: number[];
 }
 
 export interface Project {
@@ -135,6 +140,12 @@ export const useProjectStore = defineStore('project', () => {
     const project = projects.value.find((p) => p.id === projectId);
     if (project) {
       const permissions = getRolePermissions(role);
+      if (!project.teamMemberIds) {
+        project.teamMemberIds = [];
+      }
+      if (!project.roles) {
+        project.roles = [];
+      }
       project.teamMemberIds.push(memberId);
       project.roles.push({
         memberId,
@@ -146,7 +157,7 @@ export const useProjectStore = defineStore('project', () => {
 
   function updateMemberRole(projectId: number, memberId: number, role: ProjectRole['role']) {
     const project = projects.value.find((p) => p.id === projectId);
-    if (project) {
+    if (project && project.roles) {
       const roleIndex = project.roles.findIndex((r) => r.memberId === memberId);
       if (roleIndex !== -1) {
         project.roles[roleIndex] = {
@@ -161,8 +172,12 @@ export const useProjectStore = defineStore('project', () => {
   function removeMemberFromProject(projectId: number, memberId: number) {
     const project = projects.value.find((p) => p.id === projectId);
     if (project) {
-      project.teamMemberIds = project.teamMemberIds.filter((id) => id !== memberId);
-      project.roles = project.roles.filter((r) => r.memberId !== memberId);
+      if (project.teamMemberIds) {
+        project.teamMemberIds = project.teamMemberIds.filter((id) => id !== memberId);
+      }
+      if (project.roles) {
+        project.roles = project.roles.filter((r) => r.memberId !== memberId);
+      }
     }
   }
 
@@ -229,6 +244,9 @@ export const useProjectStore = defineStore('project', () => {
       const data = await api.post<Sprint>(`/projects/${projectId}/sprints`, sprint);
       const project = projects.value.find((p) => p.id === projectId);
       if (project) {
+        if (!project.sprints) {
+          project.sprints = [];
+        }
         project.sprints.push(data);
       }
       return data.id;
@@ -247,7 +265,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       const data = await api.put<Sprint>(`/projects/${projectId}/sprints/${sprintId}`, updates);
       const project = projects.value.find((p) => p.id === projectId);
-      if (project) {
+      if (project && project.sprints) {
         const index = project.sprints.findIndex((s) => s.id === sprintId);
         if (index !== -1) {
           project.sprints[index] = data;
@@ -268,7 +286,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       await api.delete(`/projects/${projectId}/sprints/${sprintId}`);
       const project = projects.value.find((p) => p.id === projectId);
-      if (project) {
+      if (project && project.sprints) {
         const index = project.sprints.findIndex((s) => s.id === sprintId);
         if (index !== -1) {
           project.sprints.splice(index, 1);
@@ -285,13 +303,84 @@ export const useProjectStore = defineStore('project', () => {
 
   function getActiveSprint(projectId: number): Sprint | undefined {
     const project = projects.value.find((p) => p.id === projectId);
-    return project?.sprints.find((s) => s.status === 'active');
+    return project?.sprints?.find((s) => s.status === 'active');
+  }
+
+  // Task management
+  async function createTask(projectId: number, taskData: Partial<Task>) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const data = await api.post<Task>('/tasks', taskData);
+      // Add task to local state
+      const project = projects.value.find((p) => p.id === projectId);
+      if (project) {
+        if (!project.tasks) {
+          project.tasks = [];
+        }
+        project.tasks.push(data);
+      }
+      return data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create task';
+      console.error('Failed to create task:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateTask(taskId: number, updates: Partial<Task>) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const data = await api.put<Task>(`/tasks/${taskId}`, updates);
+      // Update task in local state
+      for (const project of projects.value) {
+        const taskIndex = project.tasks?.findIndex((t) => t.id === taskId);
+        if (taskIndex !== undefined && taskIndex !== -1 && project.tasks) {
+          project.tasks[taskIndex] = data;
+          break;
+        }
+      }
+      return data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update task';
+      console.error('Failed to update task:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteTask(taskId: number) {
+    loading.value = true;
+    error.value = null;
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      // Remove task from local state
+      for (const project of projects.value) {
+        if (project.tasks) {
+          const taskIndex = project.tasks.findIndex((t) => t.id === taskId);
+          if (taskIndex !== -1) {
+            project.tasks.splice(taskIndex, 1);
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to delete task';
+      console.error('Failed to delete task:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
   }
 
   // Local getters (no API calls)
   function getMemberRole(projectId: number, memberId: number): ProjectRole | undefined {
     const project = projects.value.find((p) => p.id === projectId);
-    return project?.roles.find((r) => r.memberId === memberId);
+    return project?.roles?.find((r) => r.memberId === memberId);
   }
 
   function getRolePermissions(role: ProjectRole['role']): ProjectRole['permissions'] {
@@ -341,6 +430,9 @@ export const useProjectStore = defineStore('project', () => {
     updateSprint,
     deleteSprint,
     getActiveSprint,
+    createTask,
+    updateTask,
+    deleteTask,
     getMemberRole,
     getRolePermissions,
     addMemberToProject,

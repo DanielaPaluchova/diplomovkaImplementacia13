@@ -4,10 +4,47 @@ Teams API endpoints
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.team_member import TeamMember
+from app.models.project import Project
+from app.models.task import Task
 from app.utils.auth import token_required
 from datetime import datetime
+from sqlalchemy import or_, func
 
 teams_bp = Blueprint('teams', __name__)
+
+
+def calculate_member_metrics(member_id):
+    """Calculate active projects, workload, and story points for a team member"""
+    # Calculate active projects
+    # Get all projects and check if member is in team_member_ids array
+    all_projects = Project.query.all()
+    projects_as_member = sum(1 for p in all_projects if p.team_member_ids and member_id in p.team_member_ids)
+    
+    # Count projects where member has assigned tasks
+    projects_with_tasks = db.session.query(func.count(func.distinct(Task.project_id))).filter(
+        Task.assignee_id == member_id
+    ).scalar() or 0
+    
+    # Use the max to avoid double counting
+    active_projects = max(projects_as_member, projects_with_tasks)
+    
+    # Calculate workload based on incomplete tasks
+    # Sum story points from all tasks that are not Done
+    incomplete_tasks = Task.query.filter(
+        Task.assignee_id == member_id,
+        Task.status != 'Done'
+    ).all()
+    
+    total_story_points = sum(task.story_points or 0 for task in incomplete_tasks)
+    
+    # Get member's max capacity
+    member = TeamMember.query.get(member_id)
+    max_capacity = member.max_story_points if member else 40
+    
+    # Calculate workload as percentage based on member's max capacity
+    workload = min(100, int((total_story_points / max_capacity) * 100))
+    
+    return active_projects, workload, total_story_points
 
 
 @teams_bp.route('/', methods=['GET'])
@@ -16,7 +53,11 @@ def get_teams():
     """Get all team members"""
     try:
         team_members = TeamMember.query.all()
-        return jsonify([member.to_dict() for member in team_members]), 200
+        result = []
+        for member in team_members:
+            active_projects, workload, total_story_points = calculate_member_metrics(member.id)
+            result.append(member.to_dict(active_projects=active_projects, workload=workload, total_story_points=total_story_points))
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get team members', 'message': str(e)}), 500
 
@@ -29,7 +70,8 @@ def get_team_member(member_id):
         member = TeamMember.query.get(member_id)
         if not member:
             return jsonify({'error': 'Team member not found'}), 404
-        return jsonify(member.to_dict()), 200
+        active_projects, workload, total_story_points = calculate_member_metrics(member.id)
+        return jsonify(member.to_dict(active_projects=active_projects, workload=workload, total_story_points=total_story_points)), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get team member', 'message': str(e)}), 500
 
@@ -56,14 +98,16 @@ def create_team_member():
             system_role=data.get('systemRole'),
             avatar=data.get('avatar', 'https://cdn.quasar.dev/img/avatar.png'),
             status=data.get('status', 'offline'),
-            workload=data.get('workload', 0),
-            skills=data.get('skills', [])
+            skills=data.get('skills', []),
+            max_story_points=data.get('maxStoryPoints', 40)
         )
         
         db.session.add(member)
         db.session.commit()
         
-        return jsonify(member.to_dict()), 201
+        # Calculate metrics for the new member
+        active_projects, workload, total_story_points = calculate_member_metrics(member.id)
+        return jsonify(member.to_dict(active_projects=active_projects, workload=workload, total_story_points=total_story_points)), 201
         
     except Exception as e:
         db.session.rollback()
@@ -94,17 +138,17 @@ def update_team_member(member_id):
             member.avatar = data['avatar']
         if 'status' in data:
             member.status = data['status']
-        if 'workload' in data:
-            member.workload = data['workload']
         if 'skills' in data:
             member.skills = data['skills']
-        if 'activeProjects' in data:
-            member.active_projects = data['activeProjects']
+        if 'maxStoryPoints' in data:
+            member.max_story_points = data['maxStoryPoints']
         
         member.updated_at = datetime.utcnow()
         db.session.commit()
         
-        return jsonify(member.to_dict()), 200
+        # Calculate metrics for the updated member
+        active_projects, workload, total_story_points = calculate_member_metrics(member.id)
+        return jsonify(member.to_dict(active_projects=active_projects, workload=workload, total_story_points=total_story_points)), 200
         
     except Exception as e:
         db.session.rollback()

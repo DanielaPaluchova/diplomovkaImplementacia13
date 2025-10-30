@@ -104,8 +104,7 @@ def update_project(project_id):
             project.template = data['template']
         if 'icon' in data:
             project.icon = data['icon']
-        if 'progress' in data:
-            project.progress = data['progress']
+        # progress is computed automatically from tasks_completed / total_tasks
         if 'status' in data:
             project.status = data['status']
         if 'dueDate' in data:
@@ -203,12 +202,7 @@ def update_sprint(project_id, sprint_id):
             sprint.end_date = datetime.fromisoformat(data['endDate'])
         if 'status' in data:
             sprint.status = data['status']
-        if 'totalTasks' in data:
-            sprint.total_tasks = data['totalTasks']
-        if 'completedTasks' in data:
-            sprint.completed_tasks = data['completedTasks']
-        if 'taskIds' in data:
-            sprint.task_ids = data['taskIds']
+        # totalTasks, completedTasks, and taskIds are computed automatically from tasks relationship
         
         sprint.updated_at = datetime.utcnow()
         db.session.commit()

@@ -25,12 +25,20 @@ class ApiClient {
     this.client.interceptors.request.use(
       (config) => {
         const authStore = useAuthStore();
+        console.log('🔐 [API Request] URL:', config.url);
+        console.log('🔐 [API Request] Token from store:', authStore.token ? 'EXISTS' : 'MISSING');
+
         if (authStore.token) {
           config.headers.Authorization = `Bearer ${authStore.token}`;
+          console.log('✅ [API Request] Authorization header added');
+        } else {
+          console.warn('⚠️ [API Request] NO TOKEN IN STORE!');
         }
+
         return config;
       },
       (error) => {
+        console.error('❌ [API Request] Error:', error);
         return Promise.reject(error);
       },
     );
@@ -38,24 +46,44 @@ class ApiClient {
     // Response interceptor - handle errors
     this.client.interceptors.response.use(
       (response) => {
+        console.log('✅ [API Response] Success:', response.config.url, 'Status:', response.status);
         return response;
       },
       (error: AxiosError) => {
+        console.error(
+          '❌ [API Response] Error:',
+          error.config?.url,
+          'Status:',
+          error.response?.status,
+        );
+
         // Handle 401 Unauthorized
         if (error.response?.status === 401) {
-          const authStore = useAuthStore();
-          authStore.clearAuth();
-          window.location.href = '/login';
+          const url = error.config?.url || '';
+
+          // Don't clear auth for login/register requests (they might fail for valid reasons)
+          if (!url.includes('/auth/login') && !url.includes('/auth/register')) {
+            console.error('❌ 401 Unauthorized - Clearing auth and redirecting to login');
+            const authStore = useAuthStore();
+            authStore.clearAuth();
+
+            // Only redirect if not already on login page
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/login';
+            }
+          } else {
+            console.error('❌ 401 Unauthorized on auth endpoint (wrong credentials)');
+          }
         }
 
         // Handle 403 Forbidden
         if (error.response?.status === 403) {
-          console.error('Access denied');
+          console.error('❌ 403 Forbidden - Access denied');
         }
 
         // Handle 500 Server Error
         if (error.response?.status === 500) {
-          console.error('Server error');
+          console.error('❌ 500 Server Error');
         }
 
         return Promise.reject(error);

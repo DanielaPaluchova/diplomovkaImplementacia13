@@ -37,6 +37,11 @@ class Task(db.Model):
     raci_consulted = db.Column(db.JSON, nullable=True)  # Array of IDs
     raci_informed = db.Column(db.JSON, nullable=True)  # Array of IDs
     
+    # Gantt chart fields
+    start_date = db.Column(db.DateTime, nullable=True)  # Task start date
+    end_date = db.Column(db.DateTime, nullable=True)  # Task end date
+    dependencies = db.Column(db.JSON, nullable=True)  # Array of task IDs that this task depends on
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -75,7 +80,10 @@ class Task(db.Model):
                 'accountable': self.raci_accountable,
                 'consulted': self.raci_consulted or [],
                 'informed': self.raci_informed or []
-            }
+            },
+            'startDate': self.start_date.isoformat() if self.start_date else None,
+            'endDate': self.end_date.isoformat() if self.end_date else None,
+            'dependencies': self.dependencies or []
         }
     
     def __repr__(self):

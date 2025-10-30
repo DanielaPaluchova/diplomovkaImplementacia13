@@ -58,6 +58,7 @@
         <q-tab name="kanban" icon="view_kanban" label="Kanban Board" />
         <q-tab name="backlog" icon="inbox" label="Backlog & Sprints" />
         <q-tab name="sprints" icon="event_note" label="Sprint Management" />
+        <q-tab name="completed" icon="check_circle" label="Completed Tasks" />
         <q-tab name="team" icon="group" label="Team" />
         <q-tab name="analytics" icon="analytics" label="Analytics" />
       </q-tabs>
@@ -91,7 +92,7 @@
                     <q-card-section>
                       <div class="text-caption text-grey-7">Total Tasks</div>
                       <div class="text-h5 text-weight-bold text-blue">
-                        {{ project.tasks.length }}
+                        {{ project.tasks?.length || 0 }}
                       </div>
                       <div class="text-caption text-grey-6 q-mt-xs">
                         {{ taskStats.done }} completed
@@ -320,7 +321,35 @@
 
         <!-- Kanban Board Tab -->
         <q-tab-panel name="kanban">
-          <div class="row q-col-gutter-md kanban-container">
+          <!-- Active Sprint Info -->
+          <div v-if="activeSprint" class="q-mb-md">
+            <q-banner class="bg-blue-1 text-blue-9">
+              <template v-slot:avatar>
+                <q-icon name="view_kanban" color="blue" />
+              </template>
+              <div class="text-weight-medium">Kanban Board: {{ activeSprint.name }}</div>
+              <div class="text-caption">
+                {{ formatDate(activeSprint.startDate) }} - {{ formatDate(activeSprint.endDate) }}
+              </div>
+            </q-banner>
+          </div>
+
+          <!-- No Active Sprint Message -->
+          <div v-if="!activeSprint" class="text-center q-pa-xl">
+            <q-icon name="event_busy" size="64px" class="text-grey-5 q-mb-md" />
+            <div class="text-h6 text-grey-7 q-mb-sm">No Active Sprint</div>
+            <div class="text-caption text-grey-6 q-mb-md">
+              Start a sprint to use the Kanban board
+            </div>
+            <q-btn
+              color="primary"
+              icon="play_arrow"
+              label="Go to Sprint Management"
+              @click="activeTab = 'sprints'"
+            />
+          </div>
+
+          <div v-if="activeSprint" class="row q-col-gutter-md kanban-container">
             <!-- To Do Column -->
             <div class="col-12 col-md-4">
               <q-card
@@ -350,8 +379,21 @@
                       @click="openEditTaskDialog(task)"
                     >
                       <q-card-section class="q-pa-sm">
-                        <div class="text-subtitle2 text-weight-medium q-mb-xs">
-                          {{ task.title }}
+                        <div class="row items-start justify-between q-mb-xs">
+                          <div class="text-subtitle2 text-weight-medium">
+                            {{ task.title }}
+                          </div>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            size="xs"
+                            color="negative"
+                            @click.stop="confirmDeleteTask(task)"
+                          >
+                            <q-tooltip>Delete task</q-tooltip>
+                          </q-btn>
                         </div>
                         <div class="text-caption text-grey-7 q-mb-sm">
                           {{ task.description }}
@@ -412,8 +454,21 @@
                       @click="openEditTaskDialog(task)"
                     >
                       <q-card-section class="q-pa-sm">
-                        <div class="text-subtitle2 text-weight-medium q-mb-xs">
-                          {{ task.title }}
+                        <div class="row items-start justify-between q-mb-xs">
+                          <div class="text-subtitle2 text-weight-medium">
+                            {{ task.title }}
+                          </div>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            size="xs"
+                            color="negative"
+                            @click.stop="confirmDeleteTask(task)"
+                          >
+                            <q-tooltip>Delete task</q-tooltip>
+                          </q-btn>
                         </div>
                         <div class="text-caption text-grey-7 q-mb-sm">
                           {{ task.description }}
@@ -575,14 +630,27 @@
                           <div class="col">
                             <div class="text-subtitle2 text-weight-medium">{{ task.title }}</div>
                           </div>
-                          <q-chip
-                            :color="getPriorityColor(task.priority)"
-                            text-color="white"
-                            size="sm"
-                            dense
-                          >
-                            {{ task.priority }}
-                          </q-chip>
+                          <div class="row q-gutter-xs">
+                            <q-chip
+                              :color="getPriorityColor(task.priority)"
+                              text-color="white"
+                              size="sm"
+                              dense
+                            >
+                              {{ task.priority }}
+                            </q-chip>
+                            <q-btn
+                              flat
+                              round
+                              dense
+                              icon="delete"
+                              size="sm"
+                              color="negative"
+                              @click.stop="confirmDeleteTask(task)"
+                            >
+                              <q-tooltip>Delete task</q-tooltip>
+                            </q-btn>
+                          </div>
                         </div>
                         <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
                         <div class="row items-center justify-between">
@@ -690,6 +758,17 @@
                               @click.stop="removeFromSprint(task.id)"
                             >
                               <q-tooltip>Remove from sprint</q-tooltip>
+                            </q-btn>
+                            <q-btn
+                              flat
+                              round
+                              dense
+                              icon="delete"
+                              size="sm"
+                              color="negative"
+                              @click.stop="confirmDeleteTask(task)"
+                            >
+                              <q-tooltip>Delete task</q-tooltip>
                             </q-btn>
                           </div>
                         </div>
@@ -826,6 +905,13 @@
                     label="Complete"
                     @click="completeSprint(activeSprint)"
                   />
+                  <q-btn
+                    flat
+                    color="negative"
+                    icon="delete"
+                    label="Delete"
+                    @click="confirmDeleteSprint(activeSprint)"
+                  />
                 </div>
               </q-card-section>
             </q-card>
@@ -874,9 +960,9 @@
                           size="sm"
                           dense
                           color="red"
-                          @click="deleteSprint(sprint)"
+                          @click="confirmDeleteSprint(sprint)"
                         >
-                          <q-tooltip>Delete</q-tooltip>
+                          <q-tooltip>Delete Sprint</q-tooltip>
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -911,18 +997,30 @@
                       </q-item-label>
                     </q-item-section>
                     <q-item-section side>
-                      <div class="text-caption text-weight-medium">
-                        {{ sprint.completedTasks }}/{{ sprint.totalTasks }} tasks
+                      <div class="column items-end">
+                        <div class="text-caption text-weight-medium q-mb-xs">
+                          {{ sprint.completedTasks }}/{{ sprint.totalTasks }} tasks
+                        </div>
+                        <q-linear-progress
+                          :value="
+                            sprint.totalTasks > 0 ? sprint.completedTasks / sprint.totalTasks : 0
+                          "
+                          color="green"
+                          size="4px"
+                          class="q-mb-sm"
+                          style="width: 80px"
+                        />
+                        <q-btn
+                          flat
+                          icon="delete"
+                          size="sm"
+                          dense
+                          color="red"
+                          @click="confirmDeleteSprint(sprint)"
+                        >
+                          <q-tooltip>Delete Sprint</q-tooltip>
+                        </q-btn>
                       </div>
-                      <q-linear-progress
-                        :value="
-                          sprint.totalTasks > 0 ? sprint.completedTasks / sprint.totalTasks : 0
-                        "
-                        color="green"
-                        size="4px"
-                        class="q-mt-xs"
-                        style="width: 80px"
-                      />
                     </q-item-section>
                   </q-item>
                   <q-item v-if="completedSprints.length === 0">
@@ -934,6 +1032,84 @@
               </q-card>
             </div>
           </div>
+        </q-tab-panel>
+
+        <!-- Completed Tasks Tab -->
+        <q-tab-panel name="completed">
+          <div class="text-h6 text-weight-bold q-mb-lg">Completed Tasks</div>
+
+          <q-card>
+            <q-card-section>
+              <div v-if="completedTasks.length === 0" class="text-center text-grey-7 q-pa-lg">
+                <q-icon name="check_circle" size="64px" class="q-mb-md" />
+                <div class="text-h6">No completed tasks yet</div>
+                <div class="text-body2 q-mt-sm">
+                  Completed tasks will appear here with their sprint information
+                </div>
+              </div>
+
+              <q-list v-else separator>
+                <q-item
+                  v-for="task in completedTasks"
+                  :key="task.id"
+                  class="q-pa-md"
+                  clickable
+                  @click="openEditTaskDialog(task)"
+                >
+                  <q-item-section avatar>
+                    <q-icon name="check_circle" color="positive" size="32px" />
+                  </q-item-section>
+
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ task.title }}</q-item-label>
+                    <q-item-label caption class="q-mt-xs">
+                      {{ task.description }}
+                    </q-item-label>
+                    <div class="row q-gutter-sm q-mt-sm">
+                      <q-chip
+                        size="sm"
+                        dense
+                        color="positive"
+                        text-color="white"
+                        icon="check_circle"
+                      >
+                        Done
+                      </q-chip>
+                      <q-chip
+                        v-if="getSprintName(task.sprintId)"
+                        size="sm"
+                        dense
+                        color="blue"
+                        text-color="white"
+                        icon="event_note"
+                      >
+                        {{ getSprintName(task.sprintId) }}
+                      </q-chip>
+                      <q-chip v-else size="sm" dense color="grey" text-color="white" icon="inbox">
+                        Backlog
+                      </q-chip>
+                      <q-chip
+                        :color="getPriorityColor(task.priority)"
+                        text-color="white"
+                        size="sm"
+                        dense
+                      >
+                        {{ task.priority }}
+                      </q-chip>
+                      <q-chip size="sm" dense icon="functions"> {{ task.storyPoints }} SP </q-chip>
+                      <q-chip v-if="task.assignee" size="sm" dense icon="person">
+                        {{ task.assignee }}
+                      </q-chip>
+                    </div>
+                  </q-item-section>
+
+                  <q-item-section side>
+                    <div class="text-caption text-grey-7">Task ID: #{{ task.id }}</div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card-section>
+          </q-card>
         </q-tab-panel>
 
         <!-- Team Tab -->
@@ -1516,7 +1692,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { format } from 'date-fns';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
@@ -1538,6 +1714,17 @@ onMounted(async () => {
     await projectStore.getProject(id);
   }
 });
+
+// Watch for route changes to reload project data
+watch(
+  () => route.params.id,
+  async (newId) => {
+    if (newId) {
+      const id = parseInt(newId as string);
+      await projectStore.getProject(id);
+    }
+  },
+);
 
 const activeTab = ref('overview');
 const showNewTaskDialog = ref(false);
@@ -1588,19 +1775,24 @@ const project = computed(() => {
   return p;
 });
 
-// Get team members for this project from mock data store
+// Get team members for this project from team store
 const projectTeamMembers = computed(() => {
-  return teamStore.teamMembers.filter((member) => project.value.teamMemberIds.includes(member.id));
+  return teamStore.teamMembers.filter((member) => project.value.teamMemberIds?.includes(member.id));
 });
 
 // Get tasks from project
 const backlogTasks = computed(() => {
-  return project.value.tasks.filter((task) => task.sprintId === null);
+  if (!project.value || !project.value.tasks) return [];
+  return project.value.tasks.filter(
+    (task) => task.projectId === project.value.id && task.sprintId === null,
+  );
 });
 
 const sprintTasks = computed(() => {
-  if (!activeSprint.value) return [];
-  return project.value.tasks.filter((task) => task.sprintId === activeSprint.value!.id);
+  if (!activeSprint.value || !project.value || !project.value.tasks) return [];
+  return project.value.tasks.filter(
+    (task) => task.projectId === project.value.id && task.sprintId === activeSprint.value!.id,
+  );
 });
 
 const remainingSprintTasks = computed(() => {
@@ -1608,24 +1800,34 @@ const remainingSprintTasks = computed(() => {
 });
 
 // Sprint management
-const activeSprint = computed(() => project.value.sprints.find((s) => s.status === 'active'));
-const plannedSprints = computed(() => project.value.sprints.filter((s) => s.status === 'planned'));
-const completedSprints = computed(() =>
-  project.value.sprints.filter((s) => s.status === 'completed'),
+const activeSprint = computed(() => project.value.sprints?.find((s) => s.status === 'active'));
+const plannedSprints = computed(
+  () => project.value.sprints?.filter((s) => s.status === 'planned') || [],
+);
+const completedSprints = computed(
+  () => project.value.sprints?.filter((s) => s.status === 'completed') || [],
 );
 
-// Task stats
-const taskStats = computed(() => ({
-  todo: project.value.tasks.filter((t) => t.status === 'To Do').length,
-  inProgress: project.value.tasks.filter((t) => t.status === 'In Progress').length,
-  done: project.value.tasks.filter((t) => t.status === 'Done').length,
-}));
+// Task stats - filter by current project ID
+const taskStats = computed(() => {
+  if (!project.value || !project.value.tasks) return { todo: 0, inProgress: 0, done: 0 };
+  const projectTasks = project.value.tasks.filter((t) => t.projectId === project.value.id);
+  return {
+    todo: projectTasks.filter((t) => t.status === 'To Do').length,
+    inProgress: projectTasks.filter((t) => t.status === 'In Progress').length,
+    done: projectTasks.filter((t) => t.status === 'Done').length,
+  };
+});
 
-const priorityStats = computed(() => ({
-  high: project.value.tasks.filter((t) => t.priority.toLowerCase() === 'high').length,
-  medium: project.value.tasks.filter((t) => t.priority.toLowerCase() === 'medium').length,
-  low: project.value.tasks.filter((t) => t.priority.toLowerCase() === 'low').length,
-}));
+const priorityStats = computed(() => {
+  if (!project.value || !project.value.tasks) return { high: 0, medium: 0, low: 0 };
+  const projectTasks = project.value.tasks.filter((t) => t.projectId === project.value.id);
+  return {
+    high: projectTasks.filter((t) => t.priority.toLowerCase() === 'high').length,
+    medium: projectTasks.filter((t) => t.priority.toLowerCase() === 'medium').length,
+    low: projectTasks.filter((t) => t.priority.toLowerCase() === 'low').length,
+  };
+});
 
 const completedSprintTasks = computed(() => {
   if (!activeSprint.value) return 0;
@@ -1641,26 +1843,56 @@ const teamMembersOptions = computed(() => {
 
 // Available team members to add
 const availableMembersToAdd = computed(() => {
-  const currentMemberIds = project.value.teamMemberIds;
+  const currentMemberIds = project.value.teamMemberIds || [];
   return teamStore.teamMembers.filter((m) => !currentMemberIds.includes(m.id));
 });
 
-// Kanban board tasks
+// Kanban board tasks - show only tasks from active sprint
 const todoTasks = computed(() => {
-  return project.value.tasks.filter((t) => t.status === 'To Do');
+  if (!activeSprint.value || !project.value || !project.value.tasks) return [];
+  return project.value.tasks.filter(
+    (t) =>
+      t.projectId === project.value.id &&
+      t.sprintId === activeSprint.value!.id &&
+      t.status === 'To Do',
+  );
 });
 
 const inProgressTasks = computed(() => {
-  return project.value.tasks.filter((t) => t.status === 'In Progress');
+  if (!activeSprint.value || !project.value || !project.value.tasks) return [];
+  return project.value.tasks.filter(
+    (t) =>
+      t.projectId === project.value.id &&
+      t.sprintId === activeSprint.value!.id &&
+      t.status === 'In Progress',
+  );
 });
 
 const doneTasks = computed(() => {
-  return project.value.tasks.filter((t) => t.status === 'Done');
+  if (!activeSprint.value || !project.value || !project.value.tasks) return [];
+  return project.value.tasks.filter(
+    (t) =>
+      t.projectId === project.value.id &&
+      t.sprintId === activeSprint.value!.id &&
+      t.status === 'Done',
+  );
 });
 
-// Recent tasks for overview
+// Recent tasks for overview - filter by current project ID to ensure correctness
 const recentTasks = computed(() => {
-  return project.value.tasks.slice(0, 5);
+  if (!project.value || !project.value.tasks) return [];
+  return project.value.tasks
+    .filter((t) => t.projectId === project.value.id) // Explicit filter by project ID
+    .slice(0, 5);
+});
+
+// Completed tasks - all tasks with status Done, sorted by most recent (by ID)
+const completedTasks = computed(() => {
+  if (!project.value || !project.value.tasks) return [];
+  return project.value.tasks
+    .filter((t) => t.projectId === project.value.id) // Explicit filter by project ID
+    .filter((t) => t.status === 'Done' || t.completed)
+    .sort((a, b) => b.id - a.id); // Most recent first (higher ID = newer)
 });
 
 // New task form
@@ -1724,7 +1956,7 @@ const isSprintFormValid = computed(() => {
 
 // Helper to get member's project role
 function getMemberProjectRole(memberId: number): string {
-  const projectRole = project.value.roles.find((r) => r.memberId === memberId);
+  const projectRole = project.value.roles?.find((r) => r.memberId === memberId);
   return projectRole?.role || 'developer';
 }
 
@@ -1767,6 +1999,12 @@ function formatDate(date: string | Date): string {
   return format(d, 'MMM dd, yyyy');
 }
 
+function getSprintName(sprintId: number | null): string | null {
+  if (!sprintId) return null;
+  const sprint = project.value.sprints?.find((s) => s.id === sprintId);
+  return sprint ? sprint.name : null;
+}
+
 // Drag and drop functions
 function onDragStart(task: Task) {
   draggedTask.value = task;
@@ -1785,7 +2023,7 @@ function onDragLeave() {
   isDragOver.value = false;
 }
 
-function onDrop() {
+async function onDrop() {
   isDragOver.value = false;
 
   if (!draggedTask.value) return;
@@ -1813,51 +2051,126 @@ function onDrop() {
   }
 
   // Find the task in the project
-  const task = project.value.tasks.find((t) => t.id === draggedTask.value!.id);
+  const task = project.value.tasks?.find((t) => t.id === draggedTask.value!.id);
   if (task && task.sprintId === null) {
+    const oldSprintId = task.sprintId;
     task.sprintId = activeSprint.value.id;
 
-    // Update sprint task counts
-    projectStore.updateSprint(projectId.value, activeSprint.value.id, {
-      totalTasks: sprintTasks.value.length,
-    });
+    // Save to backend
+    try {
+      await projectStore.updateTask(task.id, {
+        sprintId: activeSprint.value.id,
+      });
 
-    $q.notify({
-      message: `Added "${task.title}" to ${activeSprint.value.name}`,
-      color: 'positive',
-      icon: 'check',
-      position: 'top',
-      timeout: 1000,
-    });
+      // Reload project to get updated sprint stats
+      await projectStore.getProject(projectId.value);
+
+      $q.notify({
+        message: `Added "${task.title}" to ${activeSprint.value.name}`,
+        color: 'positive',
+        icon: 'check',
+        position: 'top',
+        timeout: 1000,
+      });
+    } catch {
+      // Revert on error
+      task.sprintId = oldSprintId;
+      $q.notify({
+        message: 'Failed to add task to sprint',
+        color: 'negative',
+        icon: 'error',
+        position: 'top',
+      });
+    }
   }
 
   draggedTask.value = null;
 }
 
-function removeFromSprint(taskId: number) {
-  const task = project.value.tasks.find((t) => t.id === taskId);
+async function removeFromSprint(taskId: number) {
+  const task = project.value.tasks?.find((t) => t.id === taskId);
   if (task) {
+    const oldSprintId = task.sprintId;
     task.sprintId = null;
 
-    // Update sprint task counts
-    if (activeSprint.value) {
-      projectStore.updateSprint(projectId.value, activeSprint.value.id, {
-        totalTasks: sprintTasks.value.length,
-        completedTasks: completedSprintTasks.value,
+    try {
+      await projectStore.updateTask(task.id, {
+        sprintId: null,
+      });
+
+      // Reload project to get updated sprint stats
+      await projectStore.getProject(projectId.value);
+
+      $q.notify({
+        message: `Removed "${task.title}" from sprint`,
+        color: 'info',
+        icon: 'remove_circle',
+        position: 'top',
+        timeout: 1000,
+      });
+    } catch {
+      // Revert on error
+      task.sprintId = oldSprintId;
+      $q.notify({
+        message: 'Failed to remove task from sprint',
+        color: 'negative',
+        icon: 'error',
+        position: 'top',
       });
     }
+  }
+}
+
+function confirmDeleteTask(task: Task) {
+  $q.dialog({
+    title: 'Delete Task',
+    message: `Are you sure you want to delete "${task.title}"? This action cannot be undone.`,
+    persistent: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative',
+      flat: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true,
+    },
+  }).onOk(async () => {
+    await deleteTask(task.id);
+  });
+}
+
+async function deleteTask(taskId: number) {
+  const task = project.value.tasks?.find((t) => t.id === taskId);
+  if (!task) return;
+
+  try {
+    await projectStore.deleteTask(taskId);
+
+    // Reload project to get updated stats
+    await projectStore.getProject(projectId.value);
 
     $q.notify({
-      message: `Removed "${task.title}" from sprint`,
-      color: 'info',
-      icon: 'remove_circle',
+      message: `Task "${task.title}" deleted successfully`,
+      color: 'positive',
+      icon: 'delete',
       position: 'top',
-      timeout: 1000,
+    });
+  } catch {
+    $q.notify({
+      message: 'Failed to delete task',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
     });
   }
 }
 
-function toggleTaskStatus(task: Task) {
+async function toggleTaskStatus(task: Task) {
+  const oldStatus = task.status;
+  const oldCompleted = task.completed;
+
   if (task.status === 'Done') {
     task.status = 'To Do';
     task.completed = false;
@@ -1866,24 +2179,37 @@ function toggleTaskStatus(task: Task) {
     task.completed = true;
   }
 
-  // Update sprint completed tasks count
-  if (activeSprint.value) {
-    projectStore.updateSprint(projectId.value, activeSprint.value.id, {
-      completedTasks: completedSprintTasks.value,
+  try {
+    await projectStore.updateTask(task.id, {
+      status: task.status,
+      completed: task.completed,
+    });
+
+    // Reload project to get updated stats
+    await projectStore.getProject(projectId.value);
+
+    $q.notify({
+      message: `Task ${task.status === 'Done' ? 'completed' : 'reopened'}`,
+      color: 'positive',
+      icon: task.status === 'Done' ? 'check_circle' : 'replay',
+      position: 'top',
+      timeout: 1000,
+    });
+  } catch {
+    // Revert on error
+    task.status = oldStatus;
+    task.completed = oldCompleted;
+    $q.notify({
+      message: 'Failed to update task status',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
     });
   }
-
-  $q.notify({
-    message: `Task ${task.status === 'Done' ? 'completed' : 'reopened'}`,
-    color: 'positive',
-    icon: task.status === 'Done' ? 'check_circle' : 'replay',
-    position: 'top',
-    timeout: 1000,
-  });
 }
 
 // Task management
-function createTask() {
+async function createTask() {
   if (!newTask.value.title) {
     $q.notify({
       message: 'Please provide a task title',
@@ -1901,18 +2227,18 @@ function createTask() {
       newTask.value.pert.pessimistic) /
     6;
 
-  const task: Task = {
-    id: Math.max(...project.value.tasks.map((t) => t.id), 0) + 1,
+  const taskData: Partial<Task> = {
+    projectId: project.value.id,
     name: newTask.value.title,
     title: newTask.value.title,
     description: newTask.value.description,
-    status: 'To Do',
+    status: 'To Do' as 'To Do' | 'In Progress' | 'Done',
     priority: newTask.value.priority,
     type: newTask.value.type,
     storyPoints: newTask.value.storyPoints,
     assigneeId: null,
     sprintId: null,
-    dueDate: new Date(),
+    dueDate: new Date().toISOString(),
     completed: false,
     labels: newTask.value.labels,
     complexity: newTask.value.complexity,
@@ -1930,17 +2256,29 @@ function createTask() {
     },
   };
 
-  project.value.tasks.push(task);
+  try {
+    await projectStore.createTask(project.value.id, taskData);
 
-  $q.notify({
-    message: `Task "${task.title}" created successfully`,
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
-  });
+    // Reload project to get updated data
+    await projectStore.getProject(projectId.value);
 
-  cancelNewTask();
-  showNewTaskDialog.value = false;
+    $q.notify({
+      message: `Task "${newTask.value.title}" created successfully`,
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+
+    cancelNewTask();
+    showNewTaskDialog.value = false;
+  } catch {
+    $q.notify({
+      message: 'Failed to create task',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 function cancelNewTask() {
@@ -1994,7 +2332,7 @@ function openEditTaskDialog(task: Task) {
   showEditTaskDialog.value = true;
 }
 
-function saveEditTask() {
+async function saveEditTask() {
   if (!editTask.value.title) {
     $q.notify({
       message: 'Please provide a task title',
@@ -2005,70 +2343,64 @@ function saveEditTask() {
     return;
   }
 
-  const task = project.value.tasks.find((t) => t.id === editTask.value.id);
+  const task = project.value.tasks?.find((t) => t.id === editTask.value.id);
   if (task) {
-    task.title = editTask.value.title;
-    task.name = editTask.value.title;
-    task.description = editTask.value.description;
-    task.priority = editTask.value.priority;
-    task.type = editTask.value.type;
-    task.status = editTask.value.status;
-    task.storyPoints = editTask.value.storyPoints;
-    task.complexity = editTask.value.complexity;
-    task.labels = editTask.value.labels;
-    task.assigneeId = editTask.value.assigneeId;
-
-    // Update PERT estimates
+    // Calculate PERT expected
     const pertExpected =
       (editTask.value.pert.optimistic +
         4 * editTask.value.pert.mostLikely +
         editTask.value.pert.pessimistic) /
       6;
-    task.pert = {
-      optimistic: editTask.value.pert.optimistic,
-      mostLikely: editTask.value.pert.mostLikely,
-      pessimistic: editTask.value.pert.pessimistic,
-      expected: Number(pertExpected.toFixed(1)),
-    };
 
-    // Update RACI matrix
-    task.raci = {
-      responsible: editTask.value.raci.responsible,
-      accountable: editTask.value.raci.accountable,
-      consulted: editTask.value.raci.consulted,
-      informed: editTask.value.raci.informed,
-    };
+    try {
+      // Save to backend
+      await projectStore.updateTask(task.id, {
+        title: editTask.value.title,
+        name: editTask.value.title,
+        description: editTask.value.description,
+        priority: editTask.value.priority,
+        type: editTask.value.type,
+        status: editTask.value.status,
+        storyPoints: editTask.value.storyPoints,
+        complexity: editTask.value.complexity,
+        labels: editTask.value.labels,
+        assigneeId: editTask.value.assigneeId,
+        completed: editTask.value.status === 'Done',
+        pert: {
+          optimistic: editTask.value.pert.optimistic,
+          mostLikely: editTask.value.pert.mostLikely,
+          pessimistic: editTask.value.pert.pessimistic,
+          expected: Number(pertExpected.toFixed(1)),
+        },
+        raci: {
+          responsible: editTask.value.raci.responsible,
+          accountable: editTask.value.raci.accountable,
+          consulted: editTask.value.raci.consulted,
+          informed: editTask.value.raci.informed,
+        },
+      });
 
-    // Update assignee name
-    if (task.assigneeId) {
-      const assignee = teamStore.teamMembers.find((m) => m.id === task.assigneeId);
-      if (assignee) {
-        task.assignee = assignee.name;
-      }
-    } else {
-      delete task.assignee;
-    }
+      // Reload project to get updated data
+      await projectStore.getProject(projectId.value);
 
-    // Update completed status
-    task.completed = task.status === 'Done';
+      $q.notify({
+        message: `Task "${editTask.value.title}" updated successfully`,
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top',
+      });
 
-    // Update sprint completed tasks count if task is in a sprint
-    if (task.sprintId && activeSprint.value) {
-      projectStore.updateSprint(projectId.value, activeSprint.value.id, {
-        completedTasks: completedSprintTasks.value,
+      showEditTaskDialog.value = false;
+      cancelEditTask();
+    } catch {
+      $q.notify({
+        message: 'Failed to update task',
+        color: 'negative',
+        icon: 'error',
+        position: 'top',
       });
     }
-
-    $q.notify({
-      message: `Task "${task.title}" updated successfully`,
-      color: 'positive',
-      icon: 'check_circle',
-      position: 'top',
-    });
   }
-
-  showEditTaskDialog.value = false;
-  cancelEditTask();
 }
 
 function cancelEditTask() {
@@ -2133,28 +2465,106 @@ function startSprint(sprint: Sprint) {
   });
 }
 
-function completeSprint(sprint: Sprint) {
-  projectStore.updateSprint(projectId.value, sprint.id, {
-    status: 'completed',
-  });
+async function completeSprint(sprint: Sprint) {
+  // Find incomplete tasks in this sprint
+  const incompleteTasks =
+    project.value.tasks?.filter((t) => t.sprintId === sprint.id && t.status !== 'Done') || [];
 
-  $q.notify({
-    message: `Sprint "${sprint.name}" completed`,
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
+  try {
+    // Automatically move incomplete tasks to backlog
+    if (incompleteTasks.length > 0) {
+      for (const task of incompleteTasks) {
+        await projectStore.updateTask(task.id, {
+          sprintId: null, // Move to backlog
+        });
+      }
+    }
+
+    // Complete the sprint
+    await projectStore.updateSprint(projectId.value, sprint.id, {
+      status: 'completed',
+    });
+
+    // Reload project
+    await projectStore.getProject(projectId.value);
+
+    const message =
+      incompleteTasks.length > 0
+        ? `Sprint completed. ${incompleteTasks.length} incomplete tasks moved to backlog`
+        : `Sprint "${sprint.name}" completed`;
+
+    $q.notify({
+      message: message,
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+  } catch {
+    $q.notify({
+      message: 'Failed to complete sprint',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
+}
+
+function confirmDeleteSprint(sprint: Sprint) {
+  const isActive = sprint.status === 'active';
+  const hasActiveTasks = sprint.totalTasks > 0 && sprint.completedTasks < sprint.totalTasks;
+
+  let warningMessage = `Are you sure you want to delete "${sprint.name}"?`;
+
+  if (isActive) {
+    warningMessage += ` This is the active sprint.`;
+  }
+
+  if (hasActiveTasks) {
+    warningMessage += ` All tasks in this sprint will be moved to backlog.`;
+  }
+
+  warningMessage += ' This action cannot be undone.';
+
+  $q.dialog({
+    title: 'Delete Sprint',
+    message: warningMessage,
+    persistent: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative',
+      flat: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true,
+    },
+  }).onOk(async () => {
+    await deleteSprint(sprint);
   });
 }
 
-function deleteSprint(sprint: Sprint) {
-  projectStore.deleteSprint(projectId.value, sprint.id);
+async function deleteSprint(sprint: Sprint) {
+  try {
+    await projectStore.deleteSprint(projectId.value, sprint.id);
 
-  $q.notify({
-    message: 'Sprint deleted',
-    color: 'positive',
-    icon: 'delete',
-    position: 'top',
-  });
+    // Reload project to get updated data
+    await projectStore.getProject(projectId.value);
+
+    $q.notify({
+      message: `Sprint "${sprint.name}" deleted successfully`,
+      color: 'positive',
+      icon: 'delete',
+      position: 'top',
+    });
+  } catch {
+    $q.notify({
+      message: 'Failed to delete sprint',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 function createSprint() {
@@ -2170,7 +2580,7 @@ function createSprint() {
 
   if (editingSprintId.value) {
     // Update existing sprint
-    const sprint = project.value.sprints.find((s) => s.id === editingSprintId.value);
+    const sprint = project.value.sprints?.find((s) => s.id === editingSprintId.value);
     if (sprint) {
       projectStore.updateSprint(projectId.value, sprint.id, {
         name: sprintForm.value.name,
@@ -2322,30 +2732,46 @@ function onKanbanDragLeave() {
   dragOverColumn.value = null;
 }
 
-function onKanbanDrop(newStatus: string) {
+async function onKanbanDrop(newStatus: string) {
   dragOverColumn.value = null;
 
   if (!kanbanDraggedTask.value) return;
 
-  const task = project.value.tasks.find((t) => t.id === kanbanDraggedTask.value!.id);
+  const task = project.value.tasks?.find((t) => t.id === kanbanDraggedTask.value!.id);
   if (task && task.status !== newStatus) {
+    const oldStatus = task.status;
+    const oldCompleted = task.completed;
+
     task.status = newStatus as 'To Do' | 'In Progress' | 'Done';
     task.completed = newStatus === 'Done';
 
-    // Update sprint completed tasks count if task is in a sprint
-    if (task.sprintId && activeSprint.value) {
-      projectStore.updateSprint(projectId.value, activeSprint.value.id, {
-        completedTasks: completedSprintTasks.value,
+    try {
+      await projectStore.updateTask(task.id, {
+        status: task.status,
+        completed: task.completed,
+      });
+
+      // Reload project to get updated stats
+      await projectStore.getProject(projectId.value);
+
+      $q.notify({
+        message: `Task moved to ${newStatus}`,
+        color: 'positive',
+        icon: 'check',
+        position: 'top',
+        timeout: 1000,
+      });
+    } catch {
+      // Revert on error
+      task.status = oldStatus;
+      task.completed = oldCompleted;
+      $q.notify({
+        message: 'Failed to move task',
+        color: 'negative',
+        icon: 'error',
+        position: 'top',
       });
     }
-
-    $q.notify({
-      message: `Task moved to ${newStatus}`,
-      color: 'positive',
-      icon: 'check',
-      position: 'top',
-      timeout: 1000,
-    });
   }
 
   kanbanDraggedTask.value = null;
@@ -2354,7 +2780,7 @@ function onKanbanDrop(newStatus: string) {
 // Workload functions for Overview
 function getProjectWorkload(memberId: number): number {
   // Calculate workload percentage for this project based on tasks assigned
-  const memberTasks = project.value.tasks.filter((t) => t.assigneeId === memberId);
+  const memberTasks = project.value.tasks?.filter((t) => t.assigneeId === memberId) || [];
   const totalSP = memberTasks.reduce((sum, t) => sum + t.storyPoints, 0);
 
   // Assume 20 SP = 100% workload for one project

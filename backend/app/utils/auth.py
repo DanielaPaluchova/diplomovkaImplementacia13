@@ -21,8 +21,8 @@ def token_required(fn):
 
 def get_current_user():
     """Get current user from JWT token"""
-    user_id = get_jwt_identity()
-    return User.query.get(user_id)
+    user_id = get_jwt_identity()  # This is a string now
+    return User.query.get(int(user_id))  # Convert back to int for DB query
 
 
 def admin_required(fn):

@@ -366,14 +366,14 @@
                             <!-- Accountable Members -->
                             <div
                               class="col-12 col-md-6 col-lg-3"
-                              v-if="props.row.raciMembers.accountable.length > 0"
+                              v-if="props.row.raciMembers.accountable !== null"
                             >
                               <div class="text-subtitle2 text-weight-medium q-mb-sm text-blue">
                                 Accountable (A)
                               </div>
                               <div
-                                v-for="memberId in props.row.raciMembers.accountable"
-                                :key="`A-${memberId}`"
+                                v-if="props.row.raciMembers.accountable"
+                                :key="`A-${props.row.raciMembers.accountable}`"
                               >
                                 <q-card class="member-detail-card">
                                   <q-card-section class="q-pa-sm">
@@ -383,13 +383,19 @@
                                       </q-avatar>
                                       <div class="col">
                                         <div class="text-weight-medium">
-                                          {{ getMemberName(memberId) }}
+                                          {{ getMemberName(props.row.raciMembers.accountable) }}
                                         </div>
                                         <div class="text-caption text-grey-7">
-                                          ID: {{ memberId }}
+                                          ID: {{ props.row.raciMembers.accountable }}
                                         </div>
                                         <div class="text-caption text-primary">
-                                          Total: {{ getMemberTotalStoryPoints(memberId) }} SP
+                                          Total:
+                                          {{
+                                            getMemberTotalStoryPoints(
+                                              props.row.raciMembers.accountable,
+                                            )
+                                          }}
+                                          SP
                                         </div>
                                       </div>
                                       <div class="col-auto">
@@ -397,28 +403,40 @@
                                           flat
                                           round
                                           :icon="
-                                            getMemberExpanded(memberId)
+                                            getMemberExpanded(props.row.raciMembers.accountable)
                                               ? 'expand_less'
                                               : 'expand_more'
                                           "
-                                          @click="toggleMemberExpansion(memberId)"
+                                          @click="
+                                            toggleMemberExpansion(props.row.raciMembers.accountable)
+                                          "
                                           size="sm"
                                         />
                                       </div>
                                     </div>
 
                                     <!-- Member's tasks -->
-                                    <div v-if="getMemberExpanded(memberId)" class="q-mt-sm">
+                                    <div
+                                      v-if="getMemberExpanded(props.row.raciMembers.accountable)"
+                                      class="q-mt-sm"
+                                    >
                                       <div class="text-caption text-weight-medium q-mb-xs">
                                         All Tasks:
                                       </div>
                                       <div
-                                        v-for="task in getMemberTasks(memberId)"
+                                        v-for="task in getMemberTasks(
+                                          props.row.raciMembers.accountable,
+                                        )"
                                         :key="task.id"
                                         class="q-mb-xs"
                                       >
                                         <q-chip
-                                          :color="getTaskRoleColor(task.id, memberId)"
+                                          :color="
+                                            getTaskRoleColor(
+                                              task.id,
+                                              props.row.raciMembers.accountable,
+                                            )
+                                          "
                                           text-color="white"
                                           size="xs"
                                           :label="`${task.name} (${task.storyPoints}SP)`"
@@ -770,9 +788,11 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
+import { useTeamStore } from 'src/stores/team-store';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
+const teamStore = useTeamStore();
 
 // Project Selection
 const selectedProjectId = ref<number | null>(null);
@@ -802,7 +822,7 @@ interface Task {
   adjustedDuration: number;
   raciMembers: {
     responsible: number[];
-    accountable: number[];
+    accountable: number | null; // Single value or null (RACI standard)
     consulted: number[];
     informed: number[];
   };
@@ -825,7 +845,7 @@ interface TaskForm {
   pessimistic: number;
   raciMembers: {
     responsible: number[];
-    accountable: number[];
+    accountable: number | null; // Single value or null (RACI standard)
     consulted: number[];
     informed: number[];
   };
@@ -847,108 +867,50 @@ const raciWeights = ref<RaciWeights>({
 // Maximum story points per person (fixed at 20)
 const maxStoryPointsPerPerson = 20;
 
-// Team members
-const teamMembers = [
-  { id: 1, name: 'John Smith' },
-  { id: 2, name: 'Sarah Johnson' },
-  { id: 3, name: 'Mike Wilson' },
-  { id: 4, name: 'Emma Davis' },
-  { id: 5, name: 'David Brown' },
-  { id: 6, name: 'Lisa Anderson' },
-];
+// Team members from store
+const teamMembers = computed(() => {
+  return teamStore.teamMembers.map((member) => ({
+    id: member.id,
+    name: member.name,
+  }));
+});
 
-const tasks = ref<Task[]>([
-  {
-    id: 1,
-    name: 'Requirements Analysis',
-    description: 'Gather and analyze project requirements',
-    storyPoints: 5,
-    optimistic: 2,
-    mostLikely: 3,
-    pessimistic: 5,
-    pertDuration: 0,
-    adjustedDuration: 0,
-    raciMembers: {
-      responsible: [1, 2],
-      accountable: [6],
-      consulted: [3, 4, 5],
-      informed: [1, 2, 3, 4],
-    },
-    overload: 0,
-  },
-  {
-    id: 2,
-    name: 'System Design',
-    description: 'Create system architecture and design documents',
-    storyPoints: 8,
-    optimistic: 3,
-    mostLikely: 5,
-    pessimistic: 8,
-    pertDuration: 0,
-    adjustedDuration: 0,
-    raciMembers: {
-      responsible: [1],
-      accountable: [2],
-      consulted: [3, 4],
-      informed: [5, 6, 1],
-    },
-    overload: 0,
-  },
-  {
-    id: 3,
-    name: 'Frontend Development',
-    description: 'Develop user interface components',
-    storyPoints: 13,
-    optimistic: 5,
-    mostLikely: 8,
-    pessimistic: 12,
-    pertDuration: 0,
-    adjustedDuration: 0,
-    raciMembers: {
-      responsible: [1, 4],
-      accountable: [2],
-      consulted: [3],
-      informed: [5, 6],
-    },
-    overload: 0,
-  },
-  {
-    id: 4,
-    name: 'Backend Development',
-    description: 'Implement server-side logic and APIs',
-    storyPoints: 15,
-    optimistic: 8,
-    mostLikely: 12,
-    pessimistic: 18,
-    pertDuration: 0,
-    adjustedDuration: 0,
-    raciMembers: {
-      responsible: [1, 2, 5],
-      accountable: [3],
-      consulted: [4, 6],
-      informed: [1, 2, 3, 4],
-    },
-    overload: 0,
-  },
-  {
-    id: 5,
-    name: 'Testing & QA',
-    description: 'Perform comprehensive testing and quality assurance',
-    storyPoints: 8,
-    optimistic: 3,
-    mostLikely: 5,
-    pessimistic: 8,
-    pertDuration: 0,
-    adjustedDuration: 0,
-    raciMembers: {
-      responsible: [1, 2],
-      accountable: [6],
-      consulted: [3],
-      informed: [4, 5, 1],
-    },
-    overload: 0,
-  },
-]);
+// Computed tasks from selected project
+const tasks = computed<Task[]>(() => {
+  if (!selectedProject.value) return [];
+
+  return selectedProject.value.tasks.map((task) => {
+    const pertDuration = calculatePertDuration(
+      task.pert.optimistic || 0,
+      task.pert.mostLikely || 0,
+      task.pert.pessimistic || 0,
+    );
+
+    const raciMembers = {
+      responsible: task.raci.responsible || [],
+      accountable: task.raci.accountable, // Already single value or null
+      consulted: task.raci.consulted || [],
+      informed: task.raci.informed || [],
+    };
+
+    const taskObj: Task = {
+      id: task.id,
+      name: task.title || task.name,
+      description: task.description || '',
+      storyPoints: task.storyPoints,
+      optimistic: task.pert.optimistic || 0,
+      mostLikely: task.pert.mostLikely || 0,
+      pessimistic: task.pert.pessimistic || 0,
+      pertDuration,
+      adjustedDuration: 0, // Will be calculated
+      raciMembers,
+      overload: calculateRaciOverload(raciMembers),
+    };
+
+    taskObj.adjustedDuration = calculateAdjustedDuration(taskObj);
+    return taskObj;
+  });
+});
 
 const taskForm = reactive<TaskForm>({
   name: '',
@@ -959,7 +921,7 @@ const taskForm = reactive<TaskForm>({
   pessimistic: 4,
   raciMembers: {
     responsible: [],
-    accountable: [],
+    accountable: null, // Single value or null (RACI standard)
     consulted: [],
     informed: [],
   },
@@ -1019,7 +981,10 @@ const tasksWithRaciRoles = computed(() => {
     ...task,
     raciRoles: [
       { type: 'R', members: task.raciMembers.responsible },
-      { type: 'A', members: task.raciMembers.accountable },
+      {
+        type: 'A',
+        members: task.raciMembers.accountable !== null ? [task.raciMembers.accountable] : [],
+      },
       { type: 'C', members: task.raciMembers.consulted },
       { type: 'I', members: task.raciMembers.informed },
     ].filter((role) => role.members.length > 0),
@@ -1051,7 +1016,7 @@ function calculatePertDuration(
 function calculateRaciOverload(raciMembers: Task['raciMembers']): number {
   const totalRaciCount =
     raciMembers.responsible.length +
-    raciMembers.accountable.length +
+    (raciMembers.accountable !== null ? 1 : 0) + // Single value or null
     raciMembers.consulted.length +
     raciMembers.informed.length;
   return totalRaciCount / maxStoryPointsPerPerson;
@@ -1064,20 +1029,14 @@ function calculateAdjustedDuration(task: Task): number {
     raciWeights.value.responsible *
       (task.raciMembers.responsible.length / maxStoryPointsPerPerson) +
     raciWeights.value.accountable *
-      (task.raciMembers.accountable.length / maxStoryPointsPerPerson) +
+      ((task.raciMembers.accountable !== null ? 1 : 0) / maxStoryPointsPerPerson) + // Single value or null
     raciWeights.value.consulted * (task.raciMembers.consulted.length / maxStoryPointsPerPerson) +
     raciWeights.value.informed * (task.raciMembers.informed.length / maxStoryPointsPerPerson);
 
   return pertDuration * (1 + raciAdjustment);
 }
 
-function recalculateTaskDurations() {
-  tasks.value.forEach((task) => {
-    task.pertDuration = calculatePertDuration(task.optimistic, task.mostLikely, task.pessimistic);
-    task.overload = calculateRaciOverload(task.raciMembers);
-    task.adjustedDuration = calculateAdjustedDuration(task);
-  });
-}
+// Tasks are now computed, so recalculation happens automatically when dependencies change
 
 function applyWeights() {
   // Validate weights
@@ -1101,9 +1060,7 @@ function applyWeights() {
     return;
   }
 
-  // Apply weights and recalculate
-  recalculateTaskDurations();
-
+  // Tasks are computed, so they will recalculate automatically with new weights
   $q.notify({
     message: `Váhy aplikované: R=${weights.responsible}, A=${weights.accountable}, C=${weights.consulted}, I=${weights.informed}`,
     color: 'positive',
@@ -1119,7 +1076,7 @@ function resetWeights() {
     consulted: 0.3,
     informed: 0.05,
   };
-  recalculateTaskDurations();
+  // Tasks are computed, so they will recalculate automatically with new weights
 
   $q.notify({
     message: 'Váhy resetované na predvolené hodnoty',
@@ -1157,91 +1114,37 @@ function getDurationChange(task: Task): string {
   return `${sign}${increase.toFixed(1)}%`;
 }
 
-function editTask(task: Task) {
-  editingTask.value = task;
-  Object.assign(taskForm, {
-    name: task.name,
-    description: task.description,
-    storyPoints: task.storyPoints,
-    optimistic: task.optimistic,
-    mostLikely: task.mostLikely,
-    pessimistic: task.pessimistic,
-    raciMembers: { ...task.raciMembers },
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function editTask(_task: Task) {
+  $q.notify({
+    message:
+      'Úprava taskov priamo v PERT+RACI optimalizácii nie je podporovaná. Upravte task v projekte.',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
   });
-  showAddTaskDialog.value = true;
 }
 
-function deleteTask(taskId: number) {
-  $q.dialog({
-    title: 'Confirm Delete',
-    message: 'Are you sure you want to delete this task?',
-    cancel: true,
-    persistent: true,
-  }).onOk(() => {
-    const index = tasks.value.findIndex((t) => t.id === taskId);
-    if (index !== -1) {
-      tasks.value.splice(index, 1);
-      $q.notify({
-        message: 'Task deleted successfully',
-        color: 'positive',
-        icon: 'check',
-        position: 'top',
-      });
-    }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function deleteTask(_taskId: number) {
+  $q.notify({
+    message:
+      'Mazanie taskov priamo v PERT+RACI optimalizácii nie je podporované. Upravte tasky v projekte.',
+    color: 'info',
+    icon: 'info',
+    position: 'top',
   });
 }
 
 function saveTask() {
-  if (!taskForm.name) return;
-
-  const pertDuration = calculatePertDuration(
-    taskForm.optimistic,
-    taskForm.mostLikely,
-    taskForm.pessimistic,
-  );
-  const overload = calculateRaciOverload(taskForm.raciMembers);
-
-  if (editingTask.value) {
-    // Update existing task
-    const task = editingTask.value;
-    Object.assign(task, {
-      name: taskForm.name,
-      description: taskForm.description,
-      storyPoints: taskForm.storyPoints,
-      optimistic: taskForm.optimistic,
-      mostLikely: taskForm.mostLikely,
-      pessimistic: taskForm.pessimistic,
-      raciMembers: { ...taskForm.raciMembers },
-      pertDuration,
-      overload,
-    });
-    task.adjustedDuration = calculateAdjustedDuration(task);
-  } else {
-    // Add new task
-    const newTask: Task = {
-      id: Math.max(...tasks.value.map((t) => t.id)) + 1,
-      name: taskForm.name,
-      description: taskForm.description,
-      storyPoints: taskForm.storyPoints,
-      optimistic: taskForm.optimistic,
-      mostLikely: taskForm.mostLikely,
-      pessimistic: taskForm.pessimistic,
-      pertDuration,
-      adjustedDuration: 0,
-      raciMembers: { ...taskForm.raciMembers },
-      overload,
-    };
-    newTask.adjustedDuration = calculateAdjustedDuration(newTask);
-    tasks.value.push(newTask);
-  }
-
-  cancelTaskDialog();
   $q.notify({
-    message: editingTask.value ? 'Task updated successfully' : 'Task added successfully',
-    color: 'positive',
-    icon: 'check',
+    message:
+      'Pridávanie taskov priamo v PERT+RACI optimalizácii nie je podporované. Pridajte tasky v projekte.',
+    color: 'info',
+    icon: 'info',
     position: 'top',
   });
+  cancelTaskDialog();
 }
 
 function cancelTaskDialog() {
@@ -1256,7 +1159,7 @@ function cancelTaskDialog() {
     pessimistic: 4,
     raciMembers: {
       responsible: [],
-      accountable: [],
+      accountable: null,
       consulted: [],
       informed: [],
     },
@@ -1264,10 +1167,10 @@ function cancelTaskDialog() {
 }
 
 function recalculateAll() {
-  recalculateTaskDurations();
+  // Tasks are computed, so they recalculate automatically
   $q.notify({
-    message: 'All task durations recalculated successfully!',
-    color: 'positive',
+    message: 'Výpočty sa aktualizujú automaticky pri zmene váh alebo dát projektu',
+    color: 'info',
     icon: 'calculate',
     position: 'top',
   });
@@ -1275,47 +1178,18 @@ function recalculateAll() {
 
 function optimizeTasks() {
   $q.notify({
-    message: 'Optimizing task assignments based on RACI analysis...',
+    message:
+      'Optimalizácia RACI priradení bude dostupná v budúcej verzii. Teraz zobrazujeme reálne dáta z projektu.',
     color: 'info',
     icon: 'tune',
     position: 'top',
   });
-
-  // Simulate optimization
-  setTimeout(() => {
-    // Adjust RACI members to reduce complexity
-    tasks.value.forEach((task) => {
-      const totalMembers =
-        task.raciMembers.responsible.length +
-        task.raciMembers.accountable.length +
-        task.raciMembers.consulted.length +
-        task.raciMembers.informed.length;
-
-      if (totalMembers > 8) {
-        // Reduce some RACI members to optimize
-        if (task.raciMembers.consulted.length > 0) {
-          task.raciMembers.consulted.pop();
-        }
-        if (task.raciMembers.informed.length > 0) {
-          task.raciMembers.informed.pop();
-        }
-      }
-    });
-
-    recalculateTaskDurations();
-    $q.notify({
-      message: 'Task optimization completed successfully!',
-      color: 'positive',
-      icon: 'check_circle',
-      position: 'top',
-    });
-  }, 2000);
 }
 
 // Team member functions
 
 function getMemberName(memberId: number): string {
-  const member = teamMembers.find((m) => m.id === memberId);
+  const member = teamMembers.value.find((m: { id: number; name: string }) => m.id === memberId);
   return member ? member.name : `Member ${memberId}`;
 }
 
@@ -1333,7 +1207,7 @@ function getMemberTotalStoryPoints(memberId: number): number {
   tasks.value.forEach((task) => {
     if (
       task.raciMembers.responsible.includes(memberId) ||
-      task.raciMembers.accountable.includes(memberId) ||
+      task.raciMembers.accountable === memberId ||
       task.raciMembers.consulted.includes(memberId) ||
       task.raciMembers.informed.includes(memberId)
     ) {
@@ -1347,7 +1221,7 @@ function getMemberTasks(memberId: number): Task[] {
   return tasks.value.filter(
     (task) =>
       task.raciMembers.responsible.includes(memberId) ||
-      task.raciMembers.accountable.includes(memberId) ||
+      task.raciMembers.accountable === memberId ||
       task.raciMembers.consulted.includes(memberId) ||
       task.raciMembers.informed.includes(memberId),
   );
@@ -1358,7 +1232,7 @@ function getTaskRoleColor(taskId: number, memberId: number): string {
   if (!task) return 'grey';
 
   if (task.raciMembers.responsible.includes(memberId)) return 'red';
-  if (task.raciMembers.accountable.includes(memberId)) return 'blue';
+  if (task.raciMembers.accountable === memberId) return 'blue';
   if (task.raciMembers.consulted.includes(memberId)) return 'orange';
   if (task.raciMembers.informed.includes(memberId)) return 'green';
   return 'grey';
@@ -1406,8 +1280,16 @@ function exportData() {
   });
 }
 
-onMounted(() => {
-  recalculateTaskDurations();
+onMounted(async () => {
+  await Promise.all([projectStore.fetchProjects(true), teamStore.fetchTeamMembers()]);
+
+  // Set default project if available
+  if (projectStore.projects.length > 0 && !selectedProjectId.value) {
+    const firstProject = projectStore.projects[0];
+    if (firstProject) {
+      selectedProjectId.value = firstProject.id;
+    }
+  }
 });
 </script>
 

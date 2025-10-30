@@ -52,17 +52,29 @@ export const useAuthStore = defineStore('auth', () => {
    * Initialize auth state from localStorage
    */
   function initializeAuth() {
+    console.log('🔄 [Auth Init] Starting...');
+    console.log('🔍 [Auth Init] Checking localStorage...');
+
     const storedToken = localStorage.getItem('auth_token');
     const storedUser = localStorage.getItem('auth_user');
+
+    console.log('🔍 [Auth Init] Token in localStorage:', storedToken ? 'EXISTS' : 'MISSING');
+    console.log('🔍 [Auth Init] User in localStorage:', storedUser ? 'EXISTS' : 'MISSING');
 
     if (storedToken && storedUser) {
       try {
         token.value = storedToken;
         user.value = JSON.parse(storedUser);
+        console.log('✅ [Auth Init] Success! User:', user.value?.email);
+        console.log('🔐 [Auth Init] Token restored to store');
+        console.log('🔐 [Auth Init] Current token in store:', token.value ? 'SET' : 'NOT SET');
       } catch (err) {
-        console.error('Failed to parse stored user:', err);
+        console.error('❌ [Auth Init] Failed to parse:', err);
         clearAuth();
       }
+    } else {
+      console.log('⚠️ [Auth Init] No token found in localStorage');
+      console.log('📊 [Auth Init] localStorage keys:', Object.keys(localStorage));
     }
   }
 
@@ -83,12 +95,22 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.user;
       token.value = response.token;
 
-      if (credentials.rememberMe && token.value) {
+      console.log('✅ Login successful - Token received:', token.value ? 'YES' : 'NO');
+      console.log('👤 User:', user.value);
+
+      // Always save to localStorage (simpler and more reliable)
+      if (token.value) {
         localStorage.setItem('auth_token', token.value);
         localStorage.setItem('auth_user', JSON.stringify(user.value));
-      } else if (token.value) {
-        sessionStorage.setItem('auth_token', token.value);
-        sessionStorage.setItem('auth_user', JSON.stringify(user.value));
+        console.log('💾 Token saved to localStorage');
+
+        // Verify it was actually saved
+        const savedToken = localStorage.getItem('auth_token');
+        if (savedToken === token.value) {
+          console.log('✅ Token verified in localStorage!');
+        } else {
+          console.error('❌ Token NOT in localStorage after save!');
+        }
       }
 
       return true;
@@ -119,9 +141,11 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.user;
       token.value = response.token;
 
+      // Always save to localStorage
       if (token.value) {
         localStorage.setItem('auth_token', token.value);
         localStorage.setItem('auth_user', JSON.stringify(user.value));
+        console.log('💾 [Register] Token saved to localStorage');
       }
 
       return true;
@@ -158,8 +182,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('auth_user');
+    console.log('🗑️ [Auth] Cleared localStorage');
   }
 
   /**
@@ -185,6 +208,34 @@ export const useAuthStore = defineStore('auth', () => {
       return true;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Update failed';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Change user password
+   */
+  async function changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      if (!user.value) {
+        error.value = 'Not authenticated';
+        return false;
+      }
+
+      // REAL API CALL
+      await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+
+      return true;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Password change failed';
       return false;
     } finally {
       isLoading.value = false;
@@ -235,6 +286,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     clearAuth,
     updateProfile,
+    changePassword,
     hasRole,
     hasPermission,
   };

@@ -7,134 +7,12 @@
           <h4 class="text-h4 text-weight-bold text-primary q-ma-none">
             Welcome back, {{ authStore.userName }}! 👋
           </h4>
-          <p class="text-grey-7 q-ma-none q-mt-sm">
-            Here's your PERT+RACI research and project management overview
-          </p>
-        </div>
-        <div class="col-auto">
-          <q-btn-group>
-            <q-btn
-              color="primary"
-              icon="auto_awesome"
-              label="PERT+RACI"
-              unelevated
-              @click="navigateTo('/pert-raci-optimization')"
-            />
-            <q-btn
-              color="secondary"
-              icon="science"
-              label="Experiments"
-              unelevated
-              @click="navigateTo('/experiments')"
-            />
-          </q-btn-group>
+          <p class="text-grey-7 q-ma-none q-mt-sm">Here's your project management overview</p>
         </div>
       </div>
     </div>
 
     <div class="q-pa-lg">
-      <!-- PERT+RACI Research Status -->
-      <div class="q-mb-md">
-        <div class="text-h6 text-weight-bold text-primary q-mb-sm">
-          <q-icon name="auto_awesome" class="q-mr-sm" />
-          PERT+RACI Integration Status
-        </div>
-        <q-separator class="q-mb-md" />
-      </div>
-
-      <div class="row q-gutter-md q-mb-lg">
-        <div class="col-12 col-md-3">
-          <q-card class="kpi-card bg-primary-1">
-            <q-card-section class="q-pb-none">
-              <div class="row items-center no-wrap">
-                <div class="col">
-                  <div class="text-h4 text-weight-bold text-primary">92%</div>
-                  <div class="text-caption text-grey-7">PERT Accuracy</div>
-                </div>
-                <div class="col-auto">
-                  <q-icon name="account_tree" size="32px" class="text-primary" />
-                </div>
-              </div>
-            </q-card-section>
-            <q-card-section class="q-pt-none">
-              <div class="row items-center">
-                <q-icon name="trending_up" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">+15%</span>
-                <span class="text-caption text-grey-7 q-ml-xs">vs traditional</span>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-md-3">
-          <q-card class="kpi-card bg-green-1">
-            <q-card-section class="q-pb-none">
-              <div class="row items-center no-wrap">
-                <div class="col">
-                  <div class="text-h4 text-weight-bold text-green">+28%</div>
-                  <div class="text-caption text-grey-7">Avg. Improvement</div>
-                </div>
-                <div class="col-auto">
-                  <q-icon name="trending_up" size="32px" class="text-green" />
-                </div>
-              </div>
-            </q-card-section>
-            <q-card-section class="q-pt-none">
-              <div class="row items-center">
-                <q-icon name="verified" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">93%</span>
-                <span class="text-caption text-grey-7 q-ml-xs">confidence</span>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-md-3">
-          <q-card class="kpi-card bg-blue-1">
-            <q-card-section class="q-pb-none">
-              <div class="row items-center no-wrap">
-                <div class="col">
-                  <div class="text-h4 text-weight-bold text-blue">&lt;5s</div>
-                  <div class="text-caption text-grey-7">Adaptation Time</div>
-                </div>
-                <div class="col-auto">
-                  <q-icon name="sync_alt" size="32px" class="text-blue" />
-                </div>
-              </div>
-            </q-card-section>
-            <q-card-section class="q-pt-none">
-              <div class="row items-center">
-                <q-icon name="speed" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">99%</span>
-                <span class="text-caption text-grey-7 q-ml-xs">faster</span>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-md-3">
-          <q-card class="kpi-card bg-orange-1">
-            <q-card-section class="q-pb-none">
-              <div class="row items-center no-wrap">
-                <div class="col">
-                  <div class="text-h4 text-weight-bold text-orange">5/5</div>
-                  <div class="text-caption text-grey-7">Experiments</div>
-                </div>
-                <div class="col-auto">
-                  <q-icon name="science" size="32px" class="text-orange" />
-                </div>
-              </div>
-            </q-card-section>
-            <q-card-section class="q-pt-none">
-              <div class="row items-center">
-                <q-icon name="check_circle" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">4 completed</span>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-      </div>
-
       <!-- Project Management Overview -->
       <div class="q-mb-md">
         <div class="text-h6 text-weight-bold text-primary q-mb-sm">
@@ -150,8 +28,8 @@
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
                 <div class="col">
-                  <div class="text-h4 text-weight-bold text-purple">12</div>
-                  <div class="text-caption text-grey-7">Active Projects</div>
+                  <div class="text-h4 text-weight-bold text-purple">{{ totalProjects }}</div>
+                  <div class="text-caption text-grey-7">Total Projects</div>
                 </div>
                 <div class="col-auto">
                   <q-icon name="work" size="32px" class="text-purple" />
@@ -160,9 +38,9 @@
             </q-card-section>
             <q-card-section class="q-pt-none">
               <div class="row items-center">
-                <q-icon name="trending_up" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">+2</span>
-                <span class="text-caption text-grey-7 q-ml-xs">this month</span>
+                <q-icon name="check_circle" class="text-green" size="16px" />
+                <span class="text-caption q-ml-xs text-green">{{ projectsOnTrack }}</span>
+                <span class="text-caption text-grey-7 q-ml-xs">on track</span>
               </div>
             </q-card-section>
           </q-card>
@@ -173,8 +51,8 @@
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
                 <div class="col">
-                  <div class="text-h4 text-weight-bold text-cyan">89%</div>
-                  <div class="text-caption text-grey-7">On-Time Delivery</div>
+                  <div class="text-h4 text-weight-bold text-cyan">{{ averageProgress }}%</div>
+                  <div class="text-caption text-grey-7">Average Progress</div>
                 </div>
                 <div class="col-auto">
                   <q-icon name="schedule" size="32px" class="text-cyan" />
@@ -183,9 +61,8 @@
             </q-card-section>
             <q-card-section class="q-pt-none">
               <div class="row items-center">
-                <q-icon name="trending_up" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">+8%</span>
-                <span class="text-caption text-grey-7 q-ml-xs">improvement</span>
+                <q-icon name="insights" class="text-blue" size="16px" />
+                <span class="text-caption q-ml-xs text-grey-7">across all projects</span>
               </div>
             </q-card-section>
           </q-card>
@@ -196,7 +73,7 @@
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
                 <div class="col">
-                  <div class="text-h4 text-weight-bold text-indigo">8</div>
+                  <div class="text-h4 text-weight-bold text-indigo">{{ totalTeamMembers }}</div>
                   <div class="text-caption text-grey-7">Team Members</div>
                 </div>
                 <div class="col-auto">
@@ -206,9 +83,9 @@
             </q-card-section>
             <q-card-section class="q-pt-none">
               <div class="row items-center">
-                <q-icon name="sentiment_satisfied" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">8.5/10</span>
-                <span class="text-caption text-grey-7 q-ml-xs">satisfaction</span>
+                <q-icon name="percent" class="text-blue" size="16px" />
+                <span class="text-caption q-ml-xs text-blue">{{ averageWorkload }}%</span>
+                <span class="text-caption text-grey-7 q-ml-xs">avg workload</span>
               </div>
             </q-card-section>
           </q-card>
@@ -219,18 +96,19 @@
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
                 <div class="col">
-                  <div class="text-h4 text-weight-bold text-teal">85%</div>
-                  <div class="text-caption text-grey-7">Efficiency</div>
+                  <div class="text-h4 text-weight-bold text-teal">{{ totalTasks }}</div>
+                  <div class="text-caption text-grey-7">Total Tasks</div>
                 </div>
                 <div class="col-auto">
-                  <q-icon name="speed" size="32px" class="text-teal" />
+                  <q-icon name="assignment" size="32px" class="text-teal" />
                 </div>
               </div>
             </q-card-section>
             <q-card-section class="q-pt-none">
               <div class="row items-center">
                 <q-icon name="check" class="text-green" size="16px" />
-                <span class="text-caption q-ml-xs text-green">On track</span>
+                <span class="text-caption q-ml-xs text-green">{{ completedTasks }}</span>
+                <span class="text-caption text-grey-7 q-ml-xs">completed</span>
               </div>
             </q-card-section>
           </q-card>
@@ -238,45 +116,8 @@
       </div>
 
       <div class="row q-gutter-lg q-mb-lg">
-        <!-- Recent Experiments -->
-        <div class="col-12 col-lg-6">
-          <q-card>
-            <q-card-section>
-              <div class="row items-center q-mb-md">
-                <div class="text-h6 text-weight-bold">
-                  <q-icon name="science" class="q-mr-sm" />
-                  Recent Experiments
-                </div>
-                <q-space />
-                <q-btn flat dense icon="arrow_forward" @click="navigateTo('/experiments')" />
-              </div>
-
-              <q-list separator>
-                <q-item v-for="experiment in recentExperiments" :key="experiment.id">
-                  <q-item-section avatar>
-                    <q-icon
-                      :name="experiment.status === 'Completed' ? 'check_circle' : 'hourglass_empty'"
-                      :color="experiment.status === 'Completed' ? 'green' : 'orange'"
-                      size="sm"
-                    />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ experiment.name }}</q-item-label>
-                    <q-item-label caption>{{ experiment.status }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side v-if="experiment.improvement">
-                    <q-chip color="green" text-color="white" size="sm">
-                      +{{ experiment.improvement }}%
-                    </q-chip>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-card-section>
-          </q-card>
-        </div>
-
         <!-- Active Projects -->
-        <div class="col-12 col-lg-6">
+        <div class="col-12">
           <q-card>
             <q-card-section>
               <div class="row items-center q-mb-md">
@@ -328,7 +169,31 @@
           </div>
 
           <div class="row q-gutter-md">
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-btn
+                flat
+                class="full-width q-pa-md action-btn"
+                @click="navigateTo('/pert-analysis')"
+              >
+                <div class="column items-center">
+                  <q-icon name="account_tree" color="purple" size="48px" class="q-mb-sm" />
+                  <div class="text-weight-bold text-purple">PERT Analysis</div>
+                  <div class="text-caption text-grey-7">Task estimation</div>
+                </div>
+              </q-btn>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-btn flat class="full-width q-pa-md action-btn" @click="navigateTo('/raci-matrix')">
+                <div class="column items-center">
+                  <q-icon name="assignment_ind" color="blue" size="48px" class="q-mb-sm" />
+                  <div class="text-weight-bold text-blue">RACI Matrix</div>
+                  <div class="text-caption text-grey-7">Role assignment</div>
+                </div>
+              </q-btn>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-4">
               <q-btn
                 flat
                 class="full-width q-pa-md action-btn"
@@ -341,40 +206,6 @@
                 </div>
               </q-btn>
             </div>
-
-            <div class="col-12 col-sm-6 col-md-3">
-              <q-btn
-                flat
-                class="full-width q-pa-md action-btn"
-                @click="navigateTo('/requirement-changes')"
-              >
-                <div class="column items-center">
-                  <q-icon name="sync_alt" color="blue" size="48px" class="q-mb-sm" />
-                  <div class="text-weight-bold text-blue">Req. Changes</div>
-                  <div class="text-caption text-grey-7">Simulate adaptation</div>
-                </div>
-              </q-btn>
-            </div>
-
-            <div class="col-12 col-sm-6 col-md-3">
-              <q-btn flat class="full-width q-pa-md action-btn" @click="navigateTo('/experiments')">
-                <div class="column items-center">
-                  <q-icon name="science" color="green" size="48px" class="q-mb-sm" />
-                  <div class="text-weight-bold text-green">Experiments</div>
-                  <div class="text-caption text-grey-7">View research</div>
-                </div>
-              </q-btn>
-            </div>
-
-            <div class="col-12 col-sm-6 col-md-3">
-              <q-btn flat class="full-width q-pa-md action-btn" @click="navigateTo('/analytics')">
-                <div class="column items-center">
-                  <q-icon name="analytics" color="orange" size="48px" class="q-mb-sm" />
-                  <div class="text-weight-bold text-orange">Analytics</div>
-                  <div class="text-caption text-grey-7">Performance metrics</div>
-                </div>
-              </q-btn>
-            </div>
           </div>
         </q-card-section>
       </q-card>
@@ -383,18 +214,22 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
+import { useProjectStore } from 'src/stores/project-store';
+import { useTeamStore } from 'src/stores/team-store';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
 const authStore = useAuthStore();
+const projectStore = useProjectStore();
+const teamStore = useTeamStore();
 
-// Check for access denied message
-onMounted(() => {
+// Check for access denied message and fetch data
+onMounted(async () => {
   if (route.query.accessDenied === 'true') {
     $q.notify({
       message: 'Access Denied: You need Manager or Admin privileges to access that page.',
@@ -406,52 +241,69 @@ onMounted(() => {
     // Clear the query parameter
     router.replace({ query: {} });
   }
+
+  // Fetch projects and team data
+  await Promise.all([
+    projectStore.fetchProjects(true), // Include details
+    teamStore.fetchTeamMembers(),
+  ]);
 });
 
-// Recent Experiments
-const recentExperiments = [
-  { id: 1, name: 'PERT+RACI vs Traditional', status: 'Completed', improvement: 28 },
-  { id: 2, name: 'Workload Rebalancing', status: 'Completed', improvement: 42 },
-  { id: 3, name: 'Requirement Adaptation', status: 'Completed', improvement: 99 },
-  { id: 4, name: 'Risk-Based Optimization', status: 'Completed', improvement: 43 },
-  { id: 5, name: 'Multi-Project RACI', status: 'In Progress', improvement: null },
-];
+// Computed statistics from real data
+const totalProjects = computed(() => projectStore.projects.length);
 
-// Active Projects
-const activeProjects = [
-  {
-    id: 1,
-    name: 'E-commerce Platform',
-    icon: 'shopping_cart',
-    color: 'primary',
-    progress: 75,
-    status: 'On Track',
-  },
-  {
-    id: 2,
-    name: 'Mobile App',
-    icon: 'phone_android',
-    color: 'green',
-    progress: 45,
-    status: 'In Progress',
-  },
-  {
-    id: 3,
-    name: 'Data Migration',
-    icon: 'storage',
-    color: 'orange',
-    progress: 30,
-    status: 'At Risk',
-  },
-  {
-    id: 4,
-    name: 'API Integration',
-    icon: 'api',
-    color: 'blue',
-    progress: 60,
-    status: 'On Track',
-  },
-];
+const projectsOnTrack = computed(() => {
+  return projectStore.projects.filter((p) => p.status === 'On Track').length;
+});
+
+const averageProgress = computed(() => {
+  if (projectStore.projects.length === 0) return 0;
+  const total = projectStore.projects.reduce((sum, p) => sum + (p.progress || 0), 0);
+  return Math.round(total / projectStore.projects.length);
+});
+
+const totalTeamMembers = computed(() => teamStore.teamMembers.length);
+
+const averageWorkload = computed(() => {
+  if (teamStore.teamMembers.length === 0) return 0;
+  const total = teamStore.teamMembers.reduce((sum, m) => sum + (m.workload || 0), 0);
+  return Math.round(total / teamStore.teamMembers.length);
+});
+
+const totalTasks = computed(() => {
+  return projectStore.projects.reduce((sum, p) => sum + (p.totalTasks || 0), 0);
+});
+
+const completedTasks = computed(() => {
+  return projectStore.projects.reduce((sum, p) => sum + (p.tasksCompleted || 0), 0);
+});
+
+// Active Projects - Get real data from project store
+const activeProjects = computed(() => {
+  return projectStore.projects
+    .slice(0, 6) // Show max 6 projects
+    .map((project) => ({
+      id: project.id,
+      name: project.name,
+      icon: project.icon || 'work',
+      color: getProjectColor(project.status),
+      progress: project.progress || 0,
+      status: project.status || 'In Progress',
+    }));
+});
+
+function getProjectColor(status: string): string {
+  switch (status) {
+    case 'On Track':
+      return 'green';
+    case 'At Risk':
+      return 'orange';
+    case 'Delayed':
+      return 'red';
+    default:
+      return 'primary';
+  }
+}
 
 // Helper functions
 function navigateTo(path: string) {

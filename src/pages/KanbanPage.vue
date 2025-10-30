@@ -344,64 +344,8 @@ const kanbanColumns = ref<KanbanColumn[]>([
   { id: 'done', title: 'Done', color: 'green', icon: 'check_circle', order: 4 },
 ]);
 
-const kanbanTasks = ref<KanbanTask[]>([
-  {
-    id: 1,
-    title: 'User Authentication System',
-    description: 'Implement JWT-based authentication with refresh tokens',
-    storyPoints: 8,
-    priority: 'high',
-    type: 'feature',
-    assignee: 'John Smith',
-    labels: ['backend', 'security'],
-    status: 'in_progress',
-    projectId: 1,
-  },
-  {
-    id: 2,
-    title: 'Dashboard Analytics Widget',
-    description: 'Create interactive charts for project metrics',
-    storyPoints: 5,
-    priority: 'medium',
-    type: 'feature',
-    labels: ['frontend', 'charts'],
-    status: 'todo',
-    projectId: 1,
-  },
-  {
-    id: 3,
-    title: 'Fix Mobile Responsive Issues',
-    description: 'Resolve layout problems on mobile devices',
-    storyPoints: 3,
-    priority: 'high',
-    type: 'bug',
-    labels: ['frontend', 'mobile'],
-    status: 'review',
-    projectId: 2,
-  },
-  {
-    id: 4,
-    title: 'API Rate Limiting',
-    description: 'Implement rate limiting for API endpoints',
-    storyPoints: 5,
-    priority: 'medium',
-    type: 'feature',
-    labels: ['backend', 'security'],
-    status: 'todo',
-    projectId: 1,
-  },
-  {
-    id: 5,
-    title: 'Database Optimization',
-    description: 'Optimize database queries for better performance',
-    storyPoints: 8,
-    priority: 'low',
-    type: 'task',
-    labels: ['database', 'performance'],
-    status: 'done',
-    projectId: 3,
-  },
-]);
+// Initialize with empty tasks - users can add tasks via the UI
+const kanbanTasks = ref<KanbanTask[]>([]);
 
 const newTask = reactive({
   title: '',
@@ -421,7 +365,10 @@ const newColumn = reactive({
 });
 
 // Options
-const projectOptions = ['All Projects', 'E-commerce Platform', 'Mobile App', 'Data Migration'];
+const projectOptions = computed(() => {
+  const projects = projectStore.projects.map((p) => p.name);
+  return ['All Projects', ...projects];
+});
 const taskTypes = ['feature', 'bug', 'task'];
 const priorityOptions = ['high', 'medium', 'low'];
 const colorOptions = ['blue', 'green', 'orange', 'red', 'purple', 'teal'];

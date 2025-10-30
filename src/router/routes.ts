@@ -53,27 +53,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/RequirementChangePage.vue'),
         meta: { requiresManager: true },
       },
-      // Research & Analytics routes (Manager/Admin only)
-      {
-        path: 'experiments',
-        component: () => import('pages/ExperimentsPage.vue'),
-        meta: { requiresManager: true },
-      },
-      {
-        path: 'analytics',
-        component: () => import('pages/AnalyticsPage.vue'),
-        meta: { requiresManager: true },
-      },
-      {
-        path: 'comparisons',
-        component: () => import('pages/ComparisonsPage.vue'),
-        meta: { requiresManager: true },
-      },
-      {
-        path: 'reports',
-        component: () => import('pages/ReportsPage.vue'),
-        meta: { requiresManager: true },
-      },
       // Profile
       {
         path: 'profile',

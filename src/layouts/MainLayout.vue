@@ -170,42 +170,6 @@
 
             <q-separator class="q-my-md" />
           </template>
-
-          <!-- Research & Analytics (Manager/Admin only) -->
-          <template v-if="authStore.isManager">
-            <q-item-label header class="text-weight-bold text-primary text-uppercase">
-              Research & Analytics
-            </q-item-label>
-
-            <q-item
-              v-for="item in researchNavigation"
-              :key="item.title"
-              clickable
-              v-ripple
-              :to="item.route"
-              class="navigation-item q-mb-xs"
-              active-class="bg-primary text-white"
-            >
-              <q-item-section avatar>
-                <q-icon :name="item.icon" size="24px" />
-              </q-item-section>
-
-              <q-item-section>
-                <q-item-label class="text-weight-medium">{{ item.title }}</q-item-label>
-                <q-item-label caption v-if="item.caption">{{ item.caption }}</q-item-label>
-              </q-item-section>
-
-              <q-item-section side v-if="item.badge">
-                <q-badge
-                  :color="
-                    item.badge === 'New' ? 'green' : item.badge === 'Beta' ? 'orange' : 'primary'
-                  "
-                  :label="item.badge"
-                  rounded
-                />
-              </q-item-section>
-            </q-item>
-          </template>
         </q-list>
       </q-scroll-area>
     </q-drawer>
@@ -276,7 +240,6 @@ const mainNavigation: NavigationItemProps[] = [
     caption: 'Cross-project workload',
     icon: 'assessment',
     route: '/workload',
-    badge: 'New',
   },
 ];
 
@@ -304,42 +267,15 @@ const projectNavigation: NavigationItemProps[] = [
     caption: 'Combined project analysis',
     icon: 'auto_awesome',
     route: '/pert-raci-optimization',
-    badge: 'New',
   },
-  {
-    title: 'Requirement Changes',
-    caption: 'Auto-adaptation simulator',
-    icon: 'sync_alt',
-    route: '/requirement-changes',
-    badge: 'New',
-  },
-];
-
-const researchNavigation: NavigationItemProps[] = [
-  {
-    title: 'Experiments',
-    caption: 'PERT+RACI experiments',
-    icon: 'science',
-    route: '/experiments',
-  },
-  {
-    title: 'Analytics',
-    caption: 'Performance & metrics',
-    icon: 'analytics',
-    route: '/analytics',
-  },
-  {
-    title: 'Comparisons',
-    caption: 'Methodology comparison',
-    icon: 'compare',
-    route: '/comparisons',
-  },
-  {
-    title: 'Reports',
-    caption: 'Export & documentation',
-    icon: 'assessment',
-    route: '/reports',
-  },
+  // Hidden temporarily
+  // {
+  //   title: 'Requirement Changes',
+  //   caption: 'Auto-adaptation simulator',
+  //   icon: 'sync_alt',
+  //   route: '/requirement-changes',
+  //   badge: 'New',
+  // },
 ];
 
 const leftDrawerOpen = ref(false);

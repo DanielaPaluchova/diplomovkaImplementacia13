@@ -5,7 +5,9 @@
       <div class="row items-center">
         <q-btn flat round icon="arrow_back" @click="navigateBack" class="q-mr-md" />
         <div class="col">
-          <div class="text-h5 text-weight-bold text-primary">{{ project.name }} - Kanban Board</div>
+          <div class="text-h5 text-weight-bold text-primary">
+            {{ project?.name || 'Project' }} - Kanban Board
+          </div>
           <div class="text-caption text-grey-7">
             <span v-if="activeSprint">{{ activeSprint.name }} - {{ activeSprint.goal }}</span>
             <span v-else>No active sprint</span>
@@ -257,7 +259,7 @@
           </div>
           <q-select
             v-model="newTask.assignee"
-            :options="project.teamMembers"
+            :options="projectTeamMembers"
             option-label="name"
             label="Assignee"
             filled
@@ -274,138 +276,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { format } from 'date-fns';
 import draggable from 'vuedraggable';
+import { useProjectStore, type Task } from 'src/stores/project-store';
+import { useTeamStore, type TeamMember } from 'src/stores/team-store';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
+const projectStore = useProjectStore();
+const teamStore = useTeamStore();
 
 const showNewTaskDialog = ref(false);
 
-interface TeamMember {
-  id: number;
-  name: string;
-  role: string;
-  avatar: string;
-}
+// Load data from stores
+const projectId = Number(route.params.id);
 
-interface Task {
-  id: number;
-  name: string;
-  description: string;
-  status: 'To Do' | 'In Progress' | 'Done';
-  priority: 'High' | 'Medium' | 'Low';
-  storyPoints: number;
-  assignee: string;
-  assigneeAvatar: string;
-  sprintId: number | null;
-}
-
-interface Sprint {
-  id: number;
-  name: string;
-  goal: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'planned' | 'active' | 'completed';
-}
-
-interface Project {
-  id: number;
-  name: string;
-  teamMembers: TeamMember[];
-}
-
-// Mock data
-const project = ref<Project>({
-  id: Number(route.params.id) || 1,
-  name: 'E-commerce Platform Redesign',
-  teamMembers: [
-    {
-      id: 1,
-      name: 'John Smith',
-      role: 'Frontend Developer',
-      avatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-    },
-    {
-      id: 3,
-      name: 'Mike Wilson',
-      role: 'UI/UX Designer',
-      avatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-    },
-  ],
+// Get project from store
+const project = computed(() => {
+  const p = projectStore.projects.find((p) => p.id === projectId);
+  return p || null;
 });
 
-const activeSprint = ref<Sprint>({
-  id: 2,
-  name: 'Sprint 2',
-  goal: 'Product catalog and shopping cart',
-  startDate: new Date('2024-01-23'),
-  endDate: new Date('2024-02-06'),
-  status: 'active',
+// Get active sprint from project
+const activeSprint = computed(() => {
+  if (!project.value || !project.value.sprints) return null;
+  return project.value.sprints.find((s) => s.status === 'active') || null;
 });
 
-const allTasks = ref<Task[]>([
-  {
-    id: 1,
-    name: 'Design landing page',
-    description: 'Create modern landing page design',
-    status: 'Done',
-    priority: 'High',
-    storyPoints: 8,
-    assignee: 'Mike Wilson',
-    assigneeAvatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-    sprintId: 2,
-  },
-  {
-    id: 2,
-    name: 'Implement authentication',
-    description: 'Build login and registration flow',
-    status: 'In Progress',
-    priority: 'High',
-    storyPoints: 13,
-    assignee: 'John Smith',
-    assigneeAvatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-    sprintId: 2,
-  },
-  {
-    id: 3,
-    name: 'Setup CI/CD pipeline',
-    description: 'Configure automated deployment',
-    status: 'To Do',
-    priority: 'Medium',
-    storyPoints: 5,
-    assignee: 'John Smith',
-    assigneeAvatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-    sprintId: 2,
-  },
-  {
-    id: 4,
-    name: 'Product catalog page',
-    description: 'Build product listing with filters',
-    status: 'In Progress',
-    priority: 'High',
-    storyPoints: 21,
-    assignee: 'John Smith',
-    assigneeAvatar: 'https://cdn.quasar.dev/img/avatar1.jpg',
-    sprintId: 2,
-  },
-  {
-    id: 5,
-    name: 'Shopping cart functionality',
-    description: 'Add/remove items, update quantities',
-    status: 'To Do',
-    priority: 'High',
-    storyPoints: 13,
-    assignee: 'Mike Wilson',
-    assigneeAvatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-    sprintId: 2,
-  },
-]);
+// Get all tasks from project
+const allTasks = computed(() => {
+  if (!project.value || !project.value.tasks) return [];
+  return project.value.tasks;
+});
+
+// Load project data on mount
+onMounted(async () => {
+  if (projectStore.projects.length === 0) {
+    await projectStore.fetchProjects();
+  }
+  if (teamStore.teamMembers.length === 0) {
+    await teamStore.fetchTeamMembers();
+  }
+});
 
 const newTask = ref({
   name: '',
@@ -415,16 +331,17 @@ const newTask = ref({
   assignee: null as TeamMember | null,
 });
 
-// Computed - filter tasks by status
+// Computed - filter tasks by status with two-way binding for drag-and-drop
 const todoTasks = computed({
   get: () =>
     allTasks.value.filter((t) => t.status === 'To Do' && t.sprintId === activeSprint.value?.id),
-  set: (value) => {
-    // Update allTasks array
-    allTasks.value = allTasks.value.filter(
-      (t) => t.status !== 'To Do' || t.sprintId !== activeSprint.value?.id,
-    );
-    allTasks.value.push(...value);
+  set: async (value: Task[]) => {
+    // Update task statuses through the store
+    for (const task of value) {
+      if (task.status !== 'To Do') {
+        await projectStore.updateTask(task.id, { status: 'To Do' });
+      }
+    }
   },
 });
 
@@ -433,22 +350,24 @@ const inProgressTasks = computed({
     allTasks.value.filter(
       (t) => t.status === 'In Progress' && t.sprintId === activeSprint.value?.id,
     ),
-  set: (value) => {
-    allTasks.value = allTasks.value.filter(
-      (t) => t.status !== 'In Progress' || t.sprintId !== activeSprint.value?.id,
-    );
-    allTasks.value.push(...value);
+  set: async (value: Task[]) => {
+    for (const task of value) {
+      if (task.status !== 'In Progress') {
+        await projectStore.updateTask(task.id, { status: 'In Progress' });
+      }
+    }
   },
 });
 
 const doneTasks = computed({
   get: () =>
     allTasks.value.filter((t) => t.status === 'Done' && t.sprintId === activeSprint.value?.id),
-  set: (value) => {
-    allTasks.value = allTasks.value.filter(
-      (t) => t.status !== 'Done' || t.sprintId !== activeSprint.value?.id,
-    );
-    allTasks.value.push(...value);
+  set: async (value: Task[]) => {
+    for (const task of value) {
+      if (task.status !== 'Done') {
+        await projectStore.updateTask(task.id, { status: 'Done' });
+      }
+    }
   },
 });
 
@@ -461,9 +380,18 @@ const completedStoryPoints = computed(() => {
   return doneTasks.value.reduce((sum, t) => sum + t.storyPoints, 0);
 });
 
+// Get team members for this project
+const projectTeamMembers = computed(() => {
+  if (!project.value) return [];
+  return teamStore.teamMembers.filter((member) =>
+    project.value!.teamMemberIds?.includes(member.id),
+  );
+});
+
 // Methods
-function formatDate(date: Date): string {
-  return format(date, 'MMM d, yyyy');
+function formatDate(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return format(dateObj, 'MMM d, yyyy');
 }
 function onTaskDrop(_event: unknown, newStatus: 'To Do' | 'In Progress' | 'Done') {
   // Task status is already updated by v-model in draggable component
@@ -493,7 +421,7 @@ function editTask(task: Task) {
   console.log('Edit task:', task);
 }
 
-function createTask() {
+async function createTask() {
   if (!newTask.value.assignee) {
     $q.notify({
       message: 'Please select an assignee',
@@ -504,43 +432,65 @@ function createTask() {
     return;
   }
 
-  const task: Task = {
-    id: Math.max(...allTasks.value.map((t) => t.id), 0) + 1,
-    name: newTask.value.name,
-    description: newTask.value.description,
-    status: 'To Do',
-    priority: newTask.value.priority,
-    storyPoints: newTask.value.storyPoints,
-    assignee: newTask.value.assignee.name,
-    assigneeAvatar: newTask.value.assignee.avatar,
-    sprintId: activeSprint.value?.id || null,
-  };
+  if (!project.value) {
+    $q.notify({
+      message: 'No project selected',
+      color: 'negative',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
 
-  allTasks.value.push(task);
+  try {
+    await projectStore.createTask(project.value.id, {
+      title: newTask.value.name,
+      description: newTask.value.description,
+      status: 'To Do',
+      priority: newTask.value.priority,
+      storyPoints: newTask.value.storyPoints,
+      assignee: newTask.value.assignee.name,
+      sprintId: activeSprint.value?.id || null,
+    });
 
-  $q.notify({
-    message: 'Task created successfully',
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
-  });
+    $q.notify({
+      message: 'Task created successfully',
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
 
-  showNewTaskDialog.value = false;
-  newTask.value = {
-    name: '',
-    description: '',
-    priority: 'Medium',
-    storyPoints: 5,
-    assignee: null,
-  };
+    showNewTaskDialog.value = false;
+    newTask.value = {
+      name: '',
+      description: '',
+      priority: 'Medium',
+      storyPoints: 5,
+      assignee: null,
+    };
+  } catch (err) {
+    console.error('Failed to create task:', err);
+    $q.notify({
+      message: 'Failed to create task',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 function navigateBack() {
-  router.push(`/projects/${project.value.id}`);
+  if (project.value) {
+    router.push(`/projects/${project.value.id}`);
+  } else {
+    router.push('/projects');
+  }
 }
 
 function goToSprints() {
-  router.push(`/projects/${project.value.id}?tab=sprints`);
+  if (project.value) {
+    router.push(`/projects/${project.value.id}?tab=sprints`);
+  }
 }
 </script>
 

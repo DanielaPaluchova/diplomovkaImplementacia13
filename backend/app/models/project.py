@@ -13,7 +13,7 @@ class Project(db.Model):
     description = db.Column(db.Text, nullable=True)
     template = db.Column(db.String(100), nullable=True)
     icon = db.Column(db.String(50), nullable=True)
-    progress = db.Column(db.Integer, nullable=False, default=0)  # 0-100
+    # progress is computed from tasks_completed / total_tasks
     tasks_completed = db.Column(db.Integer, nullable=False, default=0)
     total_tasks = db.Column(db.Integer, nullable=False, default=0)
     status = db.Column(db.String(50), nullable=False, default='In Progress')
@@ -31,13 +31,18 @@ class Project(db.Model):
     
     def to_dict(self, include_details=False):
         """Convert project to dictionary"""
+        # Calculate progress dynamically
+        progress = 0
+        if self.total_tasks > 0:
+            progress = int((self.tasks_completed / self.total_tasks) * 100)
+        
         result = {
             'id': self.id,
             'name': self.name,
             'description': self.description,
             'template': self.template,
             'icon': self.icon,
-            'progress': self.progress,
+            'progress': progress,  # Computed from tasks_completed / total_tasks
             'tasksCompleted': self.tasks_completed,
             'totalTasks': self.total_tasks,
             'status': self.status,

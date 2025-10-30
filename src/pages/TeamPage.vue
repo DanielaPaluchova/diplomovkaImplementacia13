@@ -192,6 +192,15 @@
               <q-btn flat color="secondary" icon="person" @click="viewMemberProfile(member)">
                 <q-tooltip>View profile</q-tooltip>
               </q-btn>
+              <q-btn
+                v-if="authStore.isManager"
+                flat
+                color="negative"
+                icon="delete"
+                @click="confirmDeleteMember(member)"
+              >
+                <q-tooltip>Delete member</q-tooltip>
+              </q-btn>
             </q-card-actions>
           </q-card>
         </div>
@@ -424,20 +433,34 @@
             hint="Type and press Enter to add custom skills"
           />
 
-          <div class="q-mb-sm">
-            <div class="text-caption text-grey-7">Workload: {{ editMember.workload }}%</div>
-            <q-slider
-              v-model="editMember.workload"
-              :min="0"
-              :max="100"
-              :step="5"
-              label
-              color="primary"
+          <!-- Workload display only (read-only) -->
+          <div v-if="editMember.workload !== undefined" class="q-mb-md">
+            <div class="text-caption text-grey-7">Current Workload</div>
+            <div class="text-h6">{{ editMember.workload }}%</div>
+            <q-linear-progress
+              :value="editMember.workload / 100"
+              :color="
+                editMember.workload > 100 ? 'red' : editMember.workload > 80 ? 'orange' : 'green'
+              "
+              size="8px"
+              class="q-mt-xs"
             />
+            <div class="text-caption text-grey-7 q-mt-xs">
+              Workload is calculated automatically based on task assignments
+            </div>
           </div>
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="between">
+          <q-btn
+            v-if="authStore.isManager"
+            flat
+            color="negative"
+            icon="delete"
+            label="Delete"
+            @click="confirmDeleteMember(selectedMember)"
+          />
+          <q-space />
           <q-btn
             flat
             label="Cancel"
@@ -457,15 +480,17 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { useTeamStore, type TeamMember } from 'src/stores/team-store';
 import { useAuthStore } from 'src/stores/auth-store';
+import { useProjectStore } from 'src/stores/project-store';
 import { useQuasar } from 'quasar';
 
 const teamStore = useTeamStore();
 const authStore = useAuthStore();
+const projectStore = useProjectStore();
 const $q = useQuasar();
 
-// Fetch team members from API
+// Fetch team members and projects from API
 onMounted(async () => {
-  await teamStore.fetchTeamMembers();
+  await Promise.all([teamStore.fetchTeamMembers(), projectStore.fetchProjects()]);
 });
 
 // Reactive data
@@ -604,9 +629,11 @@ const averageWorkload = computed(() => {
   return Math.round(total / teamMembers.value.length);
 });
 
-const totalActiveProjects = computed(() =>
-  teamMembers.value.reduce((sum, m) => sum + (m.activeProjects || 0), 0),
-);
+const totalActiveProjects = computed(() => {
+  // Count actual active projects from project store
+  return projectStore.projects.filter((p) => p.status === 'In Progress' || p.status === 'On Track')
+    .length;
+});
 
 const topSkills = computed(() => {
   const skillCounts: Record<string, number> = {};
@@ -910,9 +937,44 @@ function getSystemRoleLabel(role: string): string {
   }
 }
 
-onMounted(async () => {
-  await Promise.all([teamStore.fetchTeamMembers()]);
-});
+function confirmDeleteMember(member: TeamMember | null) {
+  if (!member) return;
+
+  $q.dialog({
+    title: 'Delete Team Member',
+    message: `Are you sure you want to delete ${member.name}? This action cannot be undone.`,
+    cancel: true,
+    persistent: true,
+    color: 'negative',
+  }).onOk(async () => {
+    await deleteMember(member.id);
+  });
+}
+
+async function deleteMember(memberId: number) {
+  try {
+    await teamStore.removeTeamMember(memberId);
+
+    $q.notify({
+      message: 'Team member deleted successfully!',
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+
+    // Close dialogs if open
+    showMemberProfile.value = false;
+    showEditMemberDialog.value = false;
+  } catch (err) {
+    console.error('Delete team member error:', err);
+    $q.notify({
+      message: 'Failed to delete team member',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
+}
 </script>
 
 <style scoped>

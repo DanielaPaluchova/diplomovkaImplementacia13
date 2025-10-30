@@ -304,20 +304,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore, type Task, type Sprint } from 'src/stores/project-store';
-
-interface TeamMember {
-  id: number;
-  name: string;
-  avatar: string;
-  capacity: number;
-  workload: number;
-}
+import { useTeamStore } from 'src/stores/team-store';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
+const teamStore = useTeamStore();
 
 // Reactive data
 const isDragOver = ref(false);
@@ -388,37 +382,22 @@ function formatDateForDisplay(dateString: string): string {
   return date.toLocaleDateString('en-US', options);
 }
 
-// Mock data
-const teamMembers: TeamMember[] = [
-  {
-    id: 1,
-    name: 'John Smith',
-    avatar: 'https://cdn.quasar.dev/img/avatar2.jpg',
-    capacity: 40,
-    workload: 85,
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    avatar: 'https://cdn.quasar.dev/img/avatar3.jpg',
-    capacity: 40,
-    workload: 75,
-  },
-  {
-    id: 3,
-    name: 'Mike Wilson',
-    avatar: 'https://cdn.quasar.dev/img/avatar4.jpg',
-    capacity: 35,
-    workload: 90,
-  },
-  {
-    id: 4,
-    name: 'Emma Davis',
-    avatar: 'https://cdn.quasar.dev/img/avatar5.jpg',
-    capacity: 30,
-    workload: 60,
-  },
-];
+// Team members from store
+const teamMembers = computed(() => {
+  return teamStore.teamMembers.map((member) => ({
+    id: member.id,
+    name: member.name,
+    avatar: member.avatar,
+    capacity: member.maxStoryPoints || 40, // Default capacity
+    workload: member.workload,
+  }));
+});
+
+// Load data on mount
+onMounted(async () => {
+  await teamStore.fetchTeamMembers();
+  await projectStore.fetchProjects(true);
+});
 
 // Get tasks from the selected project
 const backlogTasks = computed(() => {
