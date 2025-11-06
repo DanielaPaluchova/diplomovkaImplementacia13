@@ -1377,6 +1377,31 @@
             map-options
             class="q-mb-md"
           />
+
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Task Dependencies</div>
+          <q-select
+            v-model="newTask.dependencies"
+            :options="availableTasksForDependencies"
+            label="Tasks that must be completed first"
+            filled
+            multiple
+            use-chips
+            emit-value
+            map-options
+            hint="Select tasks that need to be finished before this task can start"
+          >
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                  <q-item-label caption
+                    >{{ scope.opt.status }} - {{ scope.opt.storyPoints }} SP</q-item-label
+                  >
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
         </q-card-section>
 
         <q-card-actions align="right">
@@ -1552,6 +1577,31 @@
             map-options
             class="q-mb-md"
           />
+
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Task Dependencies</div>
+          <q-select
+            v-model="editTask.dependencies"
+            :options="availableTasksForEditDependencies"
+            label="Tasks that must be completed first"
+            filled
+            multiple
+            use-chips
+            emit-value
+            map-options
+            hint="Select tasks that need to be finished before this task can start"
+          >
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                  <q-item-label caption
+                    >{{ scope.opt.status }} - {{ scope.opt.storyPoints }} SP</q-item-label
+                  >
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
         </q-card-section>
 
         <q-card-actions align="right">
@@ -1841,6 +1891,28 @@ const teamMembersOptions = computed(() => {
   }));
 });
 
+// Available tasks for dependencies (existing tasks in the project)
+const availableTasksForDependencies = computed(() => {
+  return project.value.tasks.map((task) => ({
+    label: task.title || task.name,
+    value: task.id,
+    status: task.status,
+    storyPoints: task.storyPoints,
+  }));
+});
+
+// Available tasks for dependencies in edit mode (exclude current task)
+const availableTasksForEditDependencies = computed(() => {
+  return project.value.tasks
+    .filter((task) => task.id !== editTask.value.id)
+    .map((task) => ({
+      label: task.title || task.name,
+      value: task.id,
+      status: task.status,
+      storyPoints: task.storyPoints,
+    }));
+});
+
 // Available team members to add
 const availableMembersToAdd = computed(() => {
   const currentMemberIds = project.value.teamMemberIds || [];
@@ -1904,6 +1976,7 @@ const newTask = ref({
   storyPoints: 5,
   complexity: 5,
   labels: [] as string[],
+  dependencies: [] as number[],
   pert: {
     optimistic: 8,
     mostLikely: 16,
@@ -1928,6 +2001,7 @@ const editTask = ref({
   storyPoints: 5,
   complexity: 5,
   labels: [] as string[],
+  dependencies: [] as number[],
   assigneeId: null as number | null,
   pert: {
     optimistic: 8,
@@ -2242,11 +2316,12 @@ async function createTask() {
     completed: false,
     labels: newTask.value.labels,
     complexity: newTask.value.complexity,
+    dependencies: newTask.value.dependencies,
     pert: {
       optimistic: newTask.value.pert.optimistic,
       mostLikely: newTask.value.pert.mostLikely,
       pessimistic: newTask.value.pert.pessimistic,
-      expected: Number(pertExpected.toFixed(1)),
+      expected: Number(pertExpected.toFixed(2)),
     },
     raci: {
       responsible: newTask.value.raci.responsible,
@@ -2290,6 +2365,7 @@ function cancelNewTask() {
     storyPoints: 5,
     complexity: 5,
     labels: [],
+    dependencies: [],
     pert: {
       optimistic: 8,
       mostLikely: 16,
@@ -2316,6 +2392,7 @@ function openEditTaskDialog(task: Task) {
     storyPoints: task.storyPoints,
     complexity: task.complexity,
     labels: [...task.labels],
+    dependencies: task.dependencies ? [...task.dependencies] : [],
     assigneeId: task.assigneeId,
     pert: {
       optimistic: task.pert?.optimistic || 8,
@@ -2364,13 +2441,14 @@ async function saveEditTask() {
         storyPoints: editTask.value.storyPoints,
         complexity: editTask.value.complexity,
         labels: editTask.value.labels,
+        dependencies: editTask.value.dependencies,
         assigneeId: editTask.value.assigneeId,
         completed: editTask.value.status === 'Done',
         pert: {
           optimistic: editTask.value.pert.optimistic,
           mostLikely: editTask.value.pert.mostLikely,
           pessimistic: editTask.value.pert.pessimistic,
-          expected: Number(pertExpected.toFixed(1)),
+          expected: Number(pertExpected.toFixed(2)),
         },
         raci: {
           responsible: editTask.value.raci.responsible,
@@ -2414,6 +2492,7 @@ function cancelEditTask() {
     storyPoints: 5,
     complexity: 5,
     labels: [],
+    dependencies: [],
     assigneeId: null,
     pert: {
       optimistic: 8,

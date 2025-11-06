@@ -11,6 +11,94 @@ from datetime import datetime
 tasks_bp = Blueprint('tasks', __name__)
 
 
+def validate_team_members(project, assignee_id=None, raci_data=None):
+    """
+    Validate that team members are assigned to the project.
+    
+    Args:
+        project: Project object
+        assignee_id: Optional assignee ID to validate
+        raci_data: Optional dictionary with RACI role assignments
+        
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None)
+    """
+    project_member_ids = project.team_member_ids or []
+    
+    # Check assignee
+    if assignee_id is not None and assignee_id not in project_member_ids:
+        return False, f'Team member with ID {assignee_id} is not assigned to this project'
+    
+    # Check RACI roles
+    if raci_data:
+        # Check accountable (single value)
+        if 'accountable' in raci_data and raci_data['accountable'] is not None:
+            if raci_data['accountable'] not in project_member_ids:
+                return False, f'Team member with ID {raci_data["accountable"]} is not assigned to this project'
+        
+        # Check responsible, consulted, informed (arrays)
+        for role in ['responsible', 'consulted', 'informed']:
+            if role in raci_data and raci_data[role]:
+                for member_id in raci_data[role]:
+                    if member_id not in project_member_ids:
+                        return False, f'Team member with ID {member_id} is not assigned to this project'
+    
+    return True, None
+
+
+def has_circular_dependency(task_id, dependencies, project_id):
+    """
+    Check if adding dependencies would create a circular dependency.
+    Uses DFS to detect cycles in the dependency graph.
+    
+    Args:
+        task_id: ID of the task being updated/created
+        dependencies: List of task IDs that this task depends on
+        project_id: ID of the project
+        
+    Returns:
+        tuple: (has_cycle: bool, error_message: str or None)
+    """
+    if not dependencies:
+        return False, None
+    
+    # Build dependency graph for all tasks in the project
+    all_tasks = Task.query.filter_by(project_id=project_id).all()
+    dependency_graph = {}
+    
+    for task in all_tasks:
+        if task.id == task_id:
+            # Use the new dependencies for the current task
+            dependency_graph[task.id] = dependencies or []
+        else:
+            dependency_graph[task.id] = task.dependencies or []
+    
+    # DFS to detect cycles
+    visited = set()
+    rec_stack = set()
+    
+    def has_cycle_dfs(node):
+        visited.add(node)
+        rec_stack.add(node)
+        
+        # Visit all dependencies
+        for dependency in dependency_graph.get(node, []):
+            if dependency not in visited:
+                if has_cycle_dfs(dependency):
+                    return True
+            elif dependency in rec_stack:
+                return True
+        
+        rec_stack.remove(node)
+        return False
+    
+    # Check for cycles starting from the current task
+    if has_cycle_dfs(task_id):
+        return True, 'Circular dependency detected. A task cannot depend on itself directly or indirectly.'
+    
+    return False, None
+
+
 @tasks_bp.route('/', methods=['GET'])
 @token_required
 def get_tasks():
@@ -57,6 +145,15 @@ def create_task():
         if not project:
             return jsonify({'error': 'Project not found'}), 404
         
+        # Validate team member assignments
+        assignee_id = data.get('assigneeId')
+        raci_data = data.get('raci', {})
+        
+        is_valid, error_message = validate_team_members(project, assignee_id, raci_data)
+        if not is_valid:
+            return jsonify({'error': error_message}), 400
+        
+        # Create task first to get an ID (we'll validate dependencies after)
         task = Task(
             project_id=data['projectId'],
             sprint_id=data.get('sprintId'),
@@ -91,6 +188,16 @@ def create_task():
             task.raci_informed = raci.get('informed', [])
         
         db.session.add(task)
+        db.session.flush()  # Get task ID before validating dependencies
+        
+        # Dependencies (validate after task has ID)
+        if 'dependencies' in data and data.get('dependencies'):
+            dependencies = data['dependencies']
+            has_cycle, cycle_error = has_circular_dependency(task.id, dependencies, project.id)
+            if has_cycle:
+                db.session.rollback()
+                return jsonify({'error': cycle_error}), 400
+            task.dependencies = dependencies
         
         # Update project stats
         project.total_tasks += 1
@@ -120,6 +227,16 @@ def update_task(task_id):
         data = request.get_json()
         old_status = task.status
         old_story_points = task.story_points
+        
+        # Validate team member assignments if they're being updated
+        project = task.project
+        assignee_id = data.get('assigneeId') if 'assigneeId' in data else None
+        raci_data = data.get('raci') if 'raci' in data else None
+        
+        if assignee_id is not None or raci_data is not None:
+            is_valid, error_message = validate_team_members(project, assignee_id, raci_data)
+            if not is_valid:
+                return jsonify({'error': error_message}), 400
         
         # Update basic fields
         if 'name' in data:
@@ -151,6 +268,12 @@ def update_task(task_id):
         if 'completed' in data:
             task.completed = data['completed']
         
+        # Update diagram position
+        if 'diagramPositionX' in data:
+            task.diagram_position_x = data['diagramPositionX']
+        if 'diagramPositionY' in data:
+            task.diagram_position_y = data['diagramPositionY']
+        
         # Update PERT data
         if 'pert' in data:
             pert = data['pert']
@@ -161,6 +284,15 @@ def update_task(task_id):
             if 'pessimistic' in pert:
                 task.pert_pessimistic = pert['pessimistic']
             task.calculate_pert_expected()
+        
+        # Update dependencies (with circular dependency validation)
+        if 'dependencies' in data:
+            dependencies = data['dependencies']
+            if dependencies:
+                has_cycle, cycle_error = has_circular_dependency(task.id, dependencies, task.project_id)
+                if has_cycle:
+                    return jsonify({'error': cycle_error}), 400
+            task.dependencies = dependencies
         
         # Update RACI data
         if 'raci' in data:
@@ -244,6 +376,14 @@ def bulk_update_tasks():
             task = Task.query.get(task_id)
             if not task:
                 continue
+            
+            # Validate team member assignments if RACI is being updated
+            if 'raci' in task_data:
+                project = task.project
+                is_valid, error_message = validate_team_members(project, None, task_data['raci'])
+                if not is_valid:
+                    db.session.rollback()
+                    return jsonify({'error': f'Task {task_id}: {error_message}'}), 400
             
             # Update PERT if provided
             if 'pert' in task_data:

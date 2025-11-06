@@ -7,7 +7,6 @@
           <h4 class="text-h4 text-weight-bold text-primary q-ma-none">PERT Analysis</h4>
           <p class="text-grey-7 q-ma-none q-mt-sm">Critical path analysis with time estimation</p>
         </div>
-        <q-btn color="primary" icon="calculate" label="Recalculate" @click="recalculatePert" />
       </div>
 
       <!-- Project Selection -->
@@ -72,48 +71,37 @@
           <div class="row items-center justify-between q-mb-md">
             <div class="text-h6 text-weight-bold">
               <q-icon name="account_tree" color="primary" class="q-mr-sm" />
-              PERT Network Diagram Editor
+              PERT Network Diagram
             </div>
             <div class="row q-gutter-sm items-center">
-              <q-chip color="red" text-color="white" icon="warning">
-                Critical Path: {{ customCriticalNodes.length }} Tasks
+              <q-chip color="blue" text-color="white" icon="info">
+                Dependent: {{ customNodes.length }} Tasks
               </q-chip>
+              <q-chip color="purple" text-color="white" icon="info">
+                Independent: {{ independentNodes.length }} Tasks
+              </q-chip>
+              <q-separator vertical inset />
               <q-btn
                 color="primary"
-                icon="add"
-                label="Add Task"
+                icon="refresh"
+                label="Refresh"
                 size="sm"
-                @click="showAddNodeDialog = true"
+                @click="refreshDiagram"
               />
-              <q-btn
-                :color="connectionMode ? 'orange' : 'grey'"
-                :icon="connectionMode ? 'link' : 'link_off'"
-                :label="connectionMode ? 'Connecting...' : 'Connect'"
-                size="sm"
-                @click="toggleConnectionMode"
-              />
-              <q-separator vertical inset />
               <q-btn flat icon="zoom_in" size="sm" @click="zoomIn" />
               <q-btn flat icon="zoom_out" size="sm" @click="zoomOut" />
               <q-btn flat icon="center_focus_strong" size="sm" @click="resetZoom" />
             </div>
           </div>
           <div class="row q-gutter-xs q-mb-sm items-center">
-            <q-chip size="sm" color="red" text-color="white" icon="circle">Critical Path</q-chip>
-            <q-chip size="sm" color="grey-5" text-color="white" icon="circle">Normal Path</q-chip>
-            <q-separator vertical inset />
-            <div class="text-caption text-grey-7">
-              {{
-                connectionMode
-                  ? 'Click nodes to connect them with arrows'
-                  : 'Click nodes to select, drag to move'
-              }}
-            </div>
+            <q-chip size="sm" color="blue" text-color="white" icon="circle">Dependent Tasks</q-chip>
+            <q-chip size="sm" color="blue" text-color="white" icon="arrow_forward">Dependencies</q-chip>
+            <q-chip size="sm" color="purple" text-color="white" icon="workspaces">Independent Tasks</q-chip>
           </div>
         </q-card-section>
         <q-separator />
         <q-card-section class="q-pa-none">
-          <div class="pert-diagram-container" @wheel.prevent="handleWheel" @click="onCanvasClick">
+          <div class="pert-diagram-container" @wheel.prevent="handleWheel">
             <svg
               ref="pertSvg"
               class="pert-diagram"
@@ -136,17 +124,7 @@
                   refY="5"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 5, 0 10" fill="#bdbdbd" />
-                </marker>
-                <marker
-                  id="arrowhead-critical"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="5"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 10 5, 0 10" fill="#f44336" />
+                  <path d="M 2 2 L 8 5 L 2 8" fill="none" stroke="#2196f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </marker>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
@@ -157,66 +135,63 @@
                   v-for="(edge, index) in customEdges"
                   :key="`${edge.from}-${edge.to}-${index}`"
                   class="edge-group"
-                  @click.stop="selectEdge(edge, index)"
                 >
                   <line
                     :x1="(nodePositions[edge.from]?.x ?? 0) + 60"
                     :y1="(nodePositions[edge.from]?.y ?? 0) + 40"
                     :x2="nodePositions[edge.to]?.x ?? 0"
                     :y2="(nodePositions[edge.to]?.y ?? 0) + 40"
-                    :stroke="edge.isCritical ? '#f44336' : '#bdbdbd'"
-                    :stroke-width="edge.isCritical ? 3 : 2"
-                    :marker-end="edge.isCritical ? 'url(#arrowhead-critical)' : 'url(#arrowhead)'"
+                    stroke="#2196f3"
+                    stroke-width="2.5"
+                    marker-end="url(#arrowhead)"
                     class="edge-line"
-                  />
-                  <!-- Invisible wider line for easier clicking -->
-                  <line
-                    :x1="(nodePositions[edge.from]?.x ?? 0) + 60"
-                    :y1="(nodePositions[edge.from]?.y ?? 0) + 40"
-                    :x2="nodePositions[edge.to]?.x ?? 0"
-                    :y2="(nodePositions[edge.to]?.y ?? 0) + 40"
-                    stroke="transparent"
-                    stroke-width="15"
-                    class="edge-hitbox"
                   />
                 </g>
               </g>
 
-              <!-- Temporary connection line -->
-              <line
-                v-if="connectionMode && connectionStart !== null && tempConnectionEnd"
-                :x1="(nodePositions[connectionStart]?.x ?? 0) + 60"
-                :y1="(nodePositions[connectionStart]?.y ?? 0) + 40"
-                :x2="tempConnectionEnd.x"
-                :y2="tempConnectionEnd.y"
-                stroke="#ff9800"
-                stroke-width="2"
-                stroke-dasharray="5,5"
+              <!-- Independent Tasks Section Background -->
+              <rect
+                v-if="independentNodes.length > 0"
                 :transform="transform"
+                x="0"
+                y="580"
+                :width="diagramWidth"
+                height="300"
+                fill="#f5f5f5"
+                stroke="#9c27b0"
+                stroke-width="2"
+                stroke-dasharray="10,5"
+                opacity="0.3"
               />
 
-              <!-- Nodes -->
+              <!-- Independent Section Label -->
+              <text
+                v-if="independentNodes.length > 0"
+                :transform="transform"
+                x="10"
+                y="600"
+                class="section-label"
+                fill="#9c27b0"
+                font-size="14"
+                font-weight="bold"
+              >
+                Independent Tasks (No Dependencies)
+              </text>
+
+              <!-- Dependent Nodes -->
               <g class="nodes" :transform="transform">
                 <g
                   v-for="node in customNodes"
                   :key="node.id"
                   :transform="`translate(${nodePositions[node.id]?.x ?? 0}, ${nodePositions[node.id]?.y ?? 0})`"
                   class="pert-node"
-                  :class="{
-                    critical: node.isCritical,
-                    dragging: draggedNode === node.id,
-                    selected: selectedNodeId === node.id,
-                    'connection-start': connectionStart === node.id,
-                  }"
-                  @mousedown.stop="onNodeMouseDown(node.id, $event)"
-                  @click.stop="onNodeClick(node.id)"
                 >
                   <rect
                     width="120"
                     height="80"
                     rx="8"
-                    :fill="node.isCritical ? '#ffebee' : '#e3f2fd'"
-                    :stroke="node.isCritical ? '#f44336' : '#2196f3'"
+                    fill="#e3f2fd"
+                    stroke="#2196f3"
                     stroke-width="2"
                   />
                   <text x="60" y="25" text-anchor="middle" class="node-title">
@@ -228,72 +203,38 @@
                   <text x="60" y="65" text-anchor="middle" class="node-type">
                     {{ node.type }}
                   </text>
-                  <!-- Delete button -->
-                  <g class="delete-btn" @click.stop="deleteNode(node.id)">
-                    <circle cx="110" cy="10" r="8" fill="#f44336" />
-                    <text x="110" y="14" text-anchor="middle" class="delete-icon">×</text>
-                  </g>
+                </g>
+
+                <!-- Independent Nodes -->
+                <g
+                  v-for="node in independentNodes"
+                  :key="node.id"
+                  :transform="`translate(${nodePositions[node.id]?.x ?? 0}, ${nodePositions[node.id]?.y ?? 0})`"
+                  class="pert-node independent-node"
+                >
+                  <rect
+                    width="120"
+                    height="80"
+                    rx="8"
+                    fill="#f3e5f5"
+                    stroke="#9c27b0"
+                    stroke-width="2"
+                  />
+                  <text x="60" y="25" text-anchor="middle" class="node-title">
+                    {{ truncateText(node.title, 12) }}
+                  </text>
+                  <text x="60" y="45" text-anchor="middle" class="node-duration">
+                    {{ node.expected }}h
+                  </text>
+                  <text x="60" y="65" text-anchor="middle" class="node-type">
+                    {{ node.type }}
+                  </text>
                 </g>
               </g>
             </svg>
           </div>
         </q-card-section>
       </q-card>
-
-      <!-- Add/Edit Node Dialog -->
-      <q-dialog v-model="showAddNodeDialog">
-        <q-card style="min-width: 400px">
-          <q-card-section>
-            <div class="text-h6">{{ editingNodeId ? 'Edit Task' : 'Add New Task' }}</div>
-          </q-card-section>
-
-          <q-card-section class="q-pt-none">
-            <q-input v-model="nodeForm.title" label="Task Name" filled class="q-mb-md" />
-            <q-input
-              v-model.number="nodeForm.expected"
-              label="Expected Duration (hours)"
-              type="number"
-              filled
-              class="q-mb-md"
-            />
-            <q-select
-              v-model="nodeForm.type"
-              :options="['feature', 'bug', 'task']"
-              label="Type"
-              filled
-              class="q-mb-md"
-            />
-            <q-checkbox v-model="nodeForm.isCritical" label="Mark as Critical Path" />
-          </q-card-section>
-
-          <q-card-actions align="right">
-            <q-btn flat label="Cancel" @click="cancelNodeDialog" />
-            <q-btn color="primary" :label="editingNodeId ? 'Save' : 'Add'" @click="saveNode" />
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
-
-      <!-- Edge Context Menu Dialog -->
-      <q-dialog v-model="showEdgeDialog">
-        <q-card style="min-width: 300px">
-          <q-card-section>
-            <div class="text-h6">Connection Options</div>
-          </q-card-section>
-
-          <q-card-section class="q-pt-none">
-            <q-checkbox
-              v-model="selectedEdge.isCritical"
-              label="Mark as Critical Path"
-              @update:model-value="updateEdgeCritical"
-            />
-          </q-card-section>
-
-          <q-card-actions align="right">
-            <q-btn flat label="Delete Connection" color="negative" @click="deleteSelectedEdge" />
-            <q-btn flat label="Close" @click="showEdgeDialog = false" />
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
 
       <div class="row q-gutter-lg">
         <!-- PERT Tasks Table -->
@@ -477,49 +418,32 @@ const pertSvg = ref<SVGElement>();
 const zoomLevel = ref(1);
 const panX = ref(0);
 const panY = ref(0);
-const draggedNode = ref<number | null>(null);
-const dragOffset = ref({ x: 0, y: 0 });
 const isPanning = ref(false);
 const panStart = ref({ x: 0, y: 0 });
 const diagramWidth = ref(1400);
 const diagramHeight = ref(600);
 
-// Node positions (can be dragged)
+// Node positions
 const nodePositions = ref<Record<number, { x: number; y: number }>>({});
 
-// Custom nodes and edges (user-modifiable)
-const customNodes = ref<
-  Array<{ id: number; title: string; type: string; expected: number; isCritical: boolean }>
->([]);
-const customEdges = ref<Array<{ from: number; to: number; isCritical: boolean }>>([]);
-let nextNodeId = 1000; // Start custom IDs from 1000
+// Node and edge types
+interface DiagramNode {
+  id: number;
+  title: string;
+  type: string;
+  expected: number;
+  isIndependent: boolean;
+}
 
-// Connection mode
-const connectionMode = ref(false);
-const connectionStart = ref<number | null>(null);
-const tempConnectionEnd = ref<{ x: number; y: number } | null>(null);
+interface DiagramEdge {
+  from: number;
+  to: number;
+}
 
-// Node dialog
-const showAddNodeDialog = ref(false);
-const editingNodeId = ref<number | null>(null);
-const nodeForm = ref({
-  title: '',
-  expected: 8,
-  type: 'task',
-  isCritical: false,
-});
-
-// Edge dialog
-const showEdgeDialog = ref(false);
-const selectedEdge = ref<{ from: number; to: number; isCritical: boolean }>({
-  from: 0,
-  to: 0,
-  isCritical: false,
-});
-const selectedEdgeIndex = ref<number | null>(null);
-
-// Selected node
-const selectedNodeId = ref<number | null>(null);
+// Nodes and edges (read-only from database)
+const customNodes = ref<DiagramNode[]>([]);
+const customEdges = ref<DiagramEdge[]>([]);
+const independentNodes = ref<DiagramNode[]>([]);
 
 // PERT Columns
 const pertColumns = [
@@ -562,62 +486,73 @@ const pertColumns = [
 
 // Task estimates from selected project
 const taskEstimates = computed(() => {
-  if (!selectedProject.value) return [];
+  if (!selectedProject.value || !selectedProject.value.tasks) return [];
 
   return selectedProject.value.tasks.map((task) => ({
     id: task.id,
     title: task.title,
     type: task.type,
-    optimistic: task.pert.optimistic,
-    mostLikely: task.pert.mostLikely,
-    pessimistic: task.pert.pessimistic,
-    expected: task.pert.expected || 0,
+    optimistic: Number((task.pert.optimistic || 0).toFixed(2)),
+    mostLikely: Number((task.pert.mostLikely || 0).toFixed(2)),
+    pessimistic: Number((task.pert.pessimistic || 0).toFixed(2)),
+    expected: Number((task.pert.expected || 0).toFixed(2)),
     status: task.status,
   }));
 });
 
 // Computed properties
 const totalTasks = computed(() => {
-  return selectedProject.value?.tasks.length || 0;
+  if (!selectedProject.value?.tasks) return 0;
+  return selectedProject.value.tasks.length;
 });
 
 const criticalPathDuration = computed(() => {
-  if (!selectedProject.value) return 0;
-  return selectedProject.value.tasks
-    .reduce((sum, task) => {
-      return sum + (task.pert.expected || 0);
-    }, 0)
-    .toFixed(1);
+  if (!selectedProject.value?.tasks) return 0;
+  return Number(
+    selectedProject.value.tasks
+      .reduce((sum, task) => {
+        return sum + (task.pert?.expected || 0);
+      }, 0)
+      .toFixed(2),
+  );
 });
 
 const optimisticDuration = computed(() => {
-  if (!selectedProject.value) return 0;
-  return selectedProject.value.tasks.reduce((sum, task) => {
-    return sum + task.pert.optimistic;
-  }, 0);
+  if (!selectedProject.value?.tasks) return 0;
+  return Number(
+    selectedProject.value.tasks
+      .reduce((sum, task) => {
+        return sum + (task.pert?.optimistic || 0);
+      }, 0)
+      .toFixed(2),
+  );
 });
 
 const pessimisticDuration = computed(() => {
-  if (!selectedProject.value) return 0;
-  return selectedProject.value.tasks.reduce((sum, task) => {
-    return sum + task.pert.pessimistic;
-  }, 0);
+  if (!selectedProject.value?.tasks) return 0;
+  return Number(
+    selectedProject.value.tasks
+      .reduce((sum, task) => {
+        return sum + (task.pert?.pessimistic || 0);
+      }, 0)
+      .toFixed(2),
+  );
 });
 
 const optimisticPercentage = computed(() => {
-  const pessimistic = Number(pessimisticDuration.value);
+  const pessimistic = pessimisticDuration.value;
   if (pessimistic === 0) return 0;
-  return Number(optimisticDuration.value) / pessimistic;
+  return optimisticDuration.value / pessimistic;
 });
 
 const expectedPercentage = computed(() => {
-  const pessimistic = Number(pessimisticDuration.value);
+  const pessimistic = pessimisticDuration.value;
   if (pessimistic === 0) return 0;
-  return Number(criticalPathDuration.value) / pessimistic;
+  return criticalPathDuration.value / pessimistic;
 });
 
 const statusBreakdown = computed(() => {
-  if (!selectedProject.value) return [];
+  if (!selectedProject.value?.tasks) return [];
 
   const breakdown: Record<string, { status: string; count: number; hours: number; color: string }> =
     {
@@ -636,23 +571,8 @@ const statusBreakdown = computed(() => {
 
   return Object.values(breakdown).map((item) => ({
     ...item,
-    hours: item.hours.toFixed(1),
+    hours: item.hours.toFixed(2),
   }));
-});
-
-// Custom critical nodes
-const customCriticalNodes = computed(() => {
-  return customNodes.value.filter((node) => node.isCritical);
-});
-
-// Critical Path Tasks - top 5 longest tasks (for initialization)
-const criticalPathTaskIds = computed(() => {
-  if (!selectedProject.value) return [];
-
-  return [...selectedProject.value.tasks]
-    .sort((a, b) => (b.pert.expected || 0) - (a.pert.expected || 0))
-    .slice(0, 5)
-    .map((task) => task.id);
 });
 
 const transform = computed(() => {
@@ -660,300 +580,202 @@ const transform = computed(() => {
 });
 
 // Methods
-function recalculatePert() {
-  $q.notify({
-    message: 'PERT analysis recalculated successfully!',
-    color: 'positive',
-    icon: 'calculate',
-    position: 'top',
-  });
-}
-
 function truncateText(text: string, maxLength: number) {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
 }
 
-// Initialize custom nodes from project tasks
-function initializeCustomNodesFromProject() {
-  if (!selectedProject.value) return;
+// Initialize nodes from project tasks
+async function initializeCustomNodesFromProject() {
+  if (!selectedProject.value || !selectedProject.value.tasks) return;
 
   const tasks = selectedProject.value.tasks;
-  const criticalIds = criticalPathTaskIds.value;
 
-  // Create custom nodes from project tasks
-  customNodes.value = tasks.map((task) => ({
+  // Build dependency edges from database
+  const databaseEdges: DiagramEdge[] = [];
+  const allTaskIds = new Set(tasks.map((t) => t.id));
+
+  for (const task of tasks) {
+    if (task.dependencies && task.dependencies.length > 0) {
+      for (const depId of task.dependencies) {
+        // Only add edge if both tasks exist in project
+        if (allTaskIds.has(depId)) {
+          databaseEdges.push({
+            from: depId,
+            to: task.id,
+          });
+        }
+      }
+    }
+  }
+
+  customEdges.value = databaseEdges;
+
+  // Identify independent tasks (no dependencies and no dependents)
+  const tasksWithDeps = new Set<number>();
+  for (const edge of databaseEdges) {
+    tasksWithDeps.add(edge.from);
+    tasksWithDeps.add(edge.to);
+  }
+
+  // Create nodes
+  const allNodes: DiagramNode[] = tasks.map((task) => ({
     id: task.id,
     title: task.title,
     type: task.type,
-    expected: task.pert.expected || 0,
-    isCritical: criticalIds.includes(task.id),
+    expected: Number((task.pert.expected || 0).toFixed(2)),
+    isIndependent: !tasksWithDeps.has(task.id),
   }));
 
-  // Create edges based on task order
-  customEdges.value = [];
-  for (let i = 0; i < tasks.length - 1; i++) {
-    const fromTask = tasks[i];
-    const toTask = tasks[i + 1];
-
-    if (fromTask && toTask) {
-      customEdges.value.push({
-        from: fromTask.id,
-        to: toTask.id,
-        isCritical: criticalIds.includes(fromTask.id) && criticalIds.includes(toTask.id),
-      });
-    }
-  }
+  // Separate independent and dependent nodes
+  independentNodes.value = allNodes.filter((node) => node.isIndependent);
+  customNodes.value = allNodes.filter((node) => !node.isIndependent);
 
   initializeNodePositions();
 }
 
-// Initialize node positions
+// Initialize node positions using automatic layout
 function initializeNodePositions() {
-  const nodes = customNodes.value;
-  if (nodes.length === 0) return;
+  if (!selectedProject.value) return;
 
   const positions: Record<number, { x: number; y: number }> = {};
 
-  // Layout in a grid pattern
-  const nodesPerRow = Math.ceil(Math.sqrt(nodes.length));
-  const horizontalSpacing = 180;
-  const verticalSpacing = 140;
-
-  nodes.forEach((node, index) => {
-    const row = Math.floor(index / nodesPerRow);
-    const col = index % nodesPerRow;
-
-    positions[node.id] = {
-      x: 100 + col * horizontalSpacing,
-      y: 100 + row * verticalSpacing,
-    };
-  });
+  // Always use automatic layout
+  calculateAutoLayout(positions);
 
   nodePositions.value = positions;
 
-  // Update diagram size
-  const maxX = Math.max(...Object.values(positions).map((p) => p.x)) + 200;
-  const maxY = Math.max(...Object.values(positions).map((p) => p.y)) + 200;
-  diagramWidth.value = Math.max(1400, maxX);
-  diagramHeight.value = Math.max(600, maxY);
+  updateDiagramSize();
 }
 
-// Node management
-function saveNode() {
-  if (!nodeForm.value.title.trim()) {
-    $q.notify({ type: 'negative', message: 'Task name is required' });
-    return;
-  }
+// Calculate auto-layout using hierarchical (Sugiyama-style) algorithm
+function calculateAutoLayout(existingPositions: Record<number, { x: number; y: number }>) {
+  const dependentNodes = customNodes.value;
+  const independent = independentNodes.value;
 
-  if (editingNodeId.value !== null) {
-    // Edit existing node
-    const node = customNodes.value.find((n) => n.id === editingNodeId.value);
-    if (node) {
-      node.title = nodeForm.value.title;
-      node.expected = nodeForm.value.expected;
-      node.type = nodeForm.value.type;
-      node.isCritical = nodeForm.value.isCritical;
+  if (dependentNodes.length === 0 && independent.length === 0) return;
+
+  const horizontalSpacing = 250;
+  const verticalSpacing = 180;
+  const independentSectionY = 600; // Y position for independent section
+
+  // Layout dependent nodes hierarchically
+  if (dependentNodes.length > 0) {
+    // Build dependency graph
+    const inDegree: Record<number, number> = {};
+    const outEdges: Record<number, number[]> = {};
+
+    for (const node of dependentNodes) {
+      inDegree[node.id] = 0;
+      outEdges[node.id] = [];
     }
-    $q.notify({ type: 'positive', message: 'Task updated' });
-  } else {
-    // Add new node
-    const newNode = {
-      id: nextNodeId++,
-      title: nodeForm.value.title,
-      expected: nodeForm.value.expected,
-      type: nodeForm.value.type,
-      isCritical: nodeForm.value.isCritical,
-    };
-    customNodes.value.push(newNode);
 
-    // Add position for new node
-    nodePositions.value[newNode.id] = {
-      x: 200 + (customNodes.value.length % 5) * 180,
-      y: 200 + Math.floor(customNodes.value.length / 5) * 140,
-    };
+    for (const edge of customEdges.value) {
+      if (inDegree[edge.to] !== undefined) {
+        const currentDegree = inDegree[edge.to];
+        if (currentDegree !== undefined) {
+          inDegree[edge.to] = currentDegree + 1;
+        }
+      }
+      if (outEdges[edge.from]) {
+        outEdges[edge.from]?.push(edge.to);
+      }
+    }
 
-    $q.notify({ type: 'positive', message: 'Task added' });
+    // Topological sort to assign layers
+    const layers: number[][] = [];
+    const nodeLayer: Record<number, number> = {};
+    const queue: number[] = [];
+
+    // Start with nodes that have no dependencies
+    for (const node of dependentNodes) {
+      if (inDegree[node.id] === 0) {
+        queue.push(node.id);
+        nodeLayer[node.id] = 0;
+      }
+    }
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const layer = nodeLayer[currentId];
+
+      if (layer !== undefined) {
+        if (!layers[layer]) {
+          layers[layer] = [];
+        }
+        layers[layer]?.push(currentId);
+
+        for (const nextId of outEdges[currentId] || []) {
+          if (inDegree[nextId] !== undefined) {
+            inDegree[nextId]--;
+            if (inDegree[nextId] === 0 && layer !== undefined) {
+              nodeLayer[nextId] = layer + 1;
+              queue.push(nextId);
+            }
+          }
+        }
+      }
+    }
+
+    // Handle any remaining nodes (cycles or disconnected)
+    for (const node of dependentNodes) {
+      if (nodeLayer[node.id] === undefined) {
+        const lastLayerIndex = layers.length;
+        nodeLayer[node.id] = lastLayerIndex;
+        if (!layers[lastLayerIndex]) {
+          layers[lastLayerIndex] = [];
+        }
+        layers[lastLayerIndex]?.push(node.id);
+      }
+    }
+
+    // Position nodes by layer (horizontal layout: left-to-right)
+    layers.forEach((layerNodes, layerIndex) => {
+      if (!layerNodes) return;
+      layerNodes.forEach((nodeId, indexInLayer) => {
+        const x = 100 + layerIndex * horizontalSpacing;    // layers go right →
+        const y = 100 + indexInLayer * verticalSpacing;    // tasks stacked vertically
+        existingPositions[nodeId] = { x, y };
+      });
+    });
   }
 
-  cancelNodeDialog();
-}
-
-function cancelNodeDialog() {
-  showAddNodeDialog.value = false;
-  editingNodeId.value = null;
-  nodeForm.value = {
-    title: '',
-    expected: 8,
-    type: 'task',
-    isCritical: false,
-  };
-}
-
-function deleteNode(nodeId: number) {
-  $q.dialog({
-    title: 'Confirm Delete',
-    message: 'Are you sure you want to delete this task?',
-    cancel: true,
-  }).onOk(() => {
-    // Remove node
-    customNodes.value = customNodes.value.filter((n) => n.id !== nodeId);
-
-    // Remove all edges connected to this node
-    customEdges.value = customEdges.value.filter((e) => e.from !== nodeId && e.to !== nodeId);
-
-    // Remove position
-    delete nodePositions.value[nodeId];
-
-    $q.notify({ type: 'positive', message: 'Task deleted' });
+  // Layout independent nodes in a separate swimlane at the bottom
+  independent.forEach((node, index) => {
+    const x = 100 + (index % 6) * horizontalSpacing;
+    const y = independentSectionY + Math.floor(index / 6) * verticalSpacing;
+    existingPositions[node.id] = { x, y };
   });
 }
 
-// Connection mode
-function toggleConnectionMode() {
-  connectionMode.value = !connectionMode.value;
-  if (!connectionMode.value) {
-    connectionStart.value = null;
-    tempConnectionEnd.value = null;
-  }
-}
+// Update diagram size based on node positions
+function updateDiagramSize() {
+  const positions = Object.values(nodePositions.value);
+  if (positions.length === 0) return;
 
-function onNodeClick(nodeId: number) {
-  if (connectionMode.value) {
-    if (connectionStart.value === null) {
-      // First node selected
-      connectionStart.value = nodeId;
-      tempConnectionEnd.value = null;
-    } else if (connectionStart.value === nodeId) {
-      // Clicked same node, cancel
-      connectionStart.value = null;
-      tempConnectionEnd.value = null;
-    } else {
-      // Second node selected, create connection
-      const edgeExists = customEdges.value.some(
-        (e) => e.from === connectionStart.value && e.to === nodeId,
-      );
-
-      if (!edgeExists) {
-        customEdges.value.push({
-          from: connectionStart.value,
-          to: nodeId,
-          isCritical: false,
-        });
-        $q.notify({ type: 'positive', message: 'Connection created' });
-      } else {
-        $q.notify({ type: 'warning', message: 'Connection already exists' });
-      }
-
-      connectionStart.value = null;
-      tempConnectionEnd.value = null;
-    }
-  } else {
-    // Select node for editing
-    selectedNodeId.value = nodeId;
-    const node = customNodes.value.find((n) => n.id === nodeId);
-    if (node) {
-      editingNodeId.value = nodeId;
-      nodeForm.value = {
-        title: node.title,
-        expected: node.expected,
-        type: node.type,
-        isCritical: node.isCritical,
-      };
-      showAddNodeDialog.value = true;
-    }
-  }
-}
-
-function onNodeMouseDown(nodeId: number, event: MouseEvent) {
-  if (!connectionMode.value) {
-    startDrag(nodeId, event);
-  }
-}
-
-function onCanvasClick() {
-  selectedNodeId.value = null;
-}
-
-// Edge management
-function selectEdge(edge: { from: number; to: number; isCritical: boolean }, index: number) {
-  selectedEdge.value = { ...edge };
-  selectedEdgeIndex.value = index;
-  showEdgeDialog.value = true;
-}
-
-function updateEdgeCritical() {
-  if (selectedEdgeIndex.value !== null) {
-    const edge = customEdges.value[selectedEdgeIndex.value];
-    if (edge) {
-      edge.isCritical = selectedEdge.value.isCritical;
-    }
-  }
-}
-
-function deleteSelectedEdge() {
-  if (selectedEdgeIndex.value !== null) {
-    customEdges.value.splice(selectedEdgeIndex.value, 1);
-    $q.notify({ type: 'positive', message: 'Connection deleted' });
-  }
-  showEdgeDialog.value = false;
-}
-
-// Drag node functions
-function startDrag(nodeId: number, event: MouseEvent) {
-  draggedNode.value = nodeId;
-  const pos = nodePositions.value[nodeId];
-  if (pos) {
-    dragOffset.value = {
-      x: event.clientX / zoomLevel.value - pos.x,
-      y: event.clientY / zoomLevel.value - pos.y,
-    };
-  }
-}
-
-function handleDrag(event: MouseEvent) {
-  if (draggedNode.value !== null && nodePositions.value[draggedNode.value]) {
-    nodePositions.value[draggedNode.value] = {
-      x: event.clientX / zoomLevel.value - dragOffset.value.x - panX.value / zoomLevel.value,
-      y: event.clientY / zoomLevel.value - dragOffset.value.y - panY.value / zoomLevel.value,
-    };
-  }
-}
-
-function endDrag() {
-  draggedNode.value = null;
+  const maxX = Math.max(...positions.map((p) => p.x)) + 250;
+  const maxY = Math.max(...positions.map((p) => p.y)) + 200;
+  diagramWidth.value = Math.max(1400, maxX);
+  diagramHeight.value = Math.max(800, maxY);
 }
 
 // Pan functions
 function startPan(event: MouseEvent) {
-  if (event.button === 0 && draggedNode.value === null) {
+  if (event.button === 0) {
     isPanning.value = true;
     panStart.value = { x: event.clientX - panX.value, y: event.clientY - panY.value };
   }
 }
 
 function handlePan(event: MouseEvent) {
-  if (draggedNode.value !== null) {
-    handleDrag(event);
-  } else if (isPanning.value) {
+  if (isPanning.value) {
     panX.value = event.clientX - panStart.value.x;
     panY.value = event.clientY - panStart.value.y;
-  } else if (connectionMode.value && connectionStart.value !== null) {
-    // Update temp connection line position
-    const svg = pertSvg.value;
-    if (svg) {
-      const rect = svg.getBoundingClientRect();
-      tempConnectionEnd.value = {
-        x: (event.clientX - rect.left - panX.value) / zoomLevel.value,
-        y: (event.clientY - rect.top - panY.value) / zoomLevel.value,
-      };
-    }
   }
 }
 
 function endPan() {
   isPanning.value = false;
-  endDrag();
 }
 
 // Zoom functions
@@ -976,8 +798,29 @@ function handleWheel(event: WheelEvent) {
   zoomLevel.value = Math.max(0.3, Math.min(2, zoomLevel.value + delta));
 }
 
+// Refresh diagram - reload from database and reset view
+async function refreshDiagram() {
+  zoomLevel.value = 1;
+  panX.value = 0;
+  panY.value = 0;
+  
+  // Reload project data from database
+  if (selectedProjectId.value) {
+    await projectStore.fetchProjects(true);
+    await initializeCustomNodesFromProject();
+    
+    $q.notify({ 
+      type: 'positive', 
+      message: 'Diagram refreshed from database' 
+    });
+  }
+}
+
 // Initialize on mount
-onMounted(() => {
+onMounted(async () => {
+  // Fetch projects first
+  await projectStore.fetchProjects(true);
+
   // Set default project if available
   if (projectStore.projects.length > 0 && !selectedProjectId.value) {
     const firstProject = projectStore.projects[0];
@@ -985,13 +828,17 @@ onMounted(() => {
       selectedProjectId.value = firstProject.id;
     }
   }
-  initializeCustomNodesFromProject();
+
+  // Initialize diagram if project is selected
+  if (selectedProjectId.value) {
+    await initializeCustomNodesFromProject();
+  }
 });
 
 // Watch for project changes
-watch(selectedProjectId, () => {
+watch(selectedProjectId, async () => {
   if (selectedProjectId.value) {
-    initializeCustomNodesFromProject();
+    await initializeCustomNodesFromProject();
   }
 });
 </script>
@@ -1016,20 +863,7 @@ watch(selectedProjectId, () => {
 }
 
 .pert-node {
-  cursor: move;
   transition: filter 0.2s ease;
-}
-
-.pert-node:hover {
-  filter: brightness(1.05);
-}
-
-.pert-node.critical rect {
-  filter: drop-shadow(0 4px 8px rgba(244, 67, 54, 0.3));
-}
-
-.pert-node.dragging {
-  opacity: 0.7;
 }
 
 .node-title {
@@ -1056,55 +890,13 @@ watch(selectedProjectId, () => {
     stroke-width 0.3s ease;
 }
 
-.edge-group:hover .edge-line {
-  stroke-width: 4 !important;
-  filter: brightness(1.2);
+
+.independent-node rect {
+  filter: drop-shadow(0 2px 4px rgba(156, 39, 176, 0.3));
 }
 
-.edge-hitbox {
-  cursor: pointer;
-}
-
-.pert-node.selected rect {
-  stroke-width: 4 !important;
-  filter: drop-shadow(0 0 10px rgba(33, 150, 243, 0.8));
-}
-
-.pert-node.connection-start rect {
-  stroke: #ff9800 !important;
-  stroke-width: 4 !important;
-  filter: drop-shadow(0 0 10px rgba(255, 152, 0, 0.8));
-  animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.delete-btn {
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  cursor: pointer;
-}
-
-.pert-node:hover .delete-btn {
-  opacity: 1;
-}
-
-.delete-icon {
-  font-size: 14px;
-  font-weight: bold;
-  fill: white;
+.section-label {
+  user-select: none;
   pointer-events: none;
-}
-
-.delete-btn:hover circle {
-  fill: #d32f2f;
 }
 </style>

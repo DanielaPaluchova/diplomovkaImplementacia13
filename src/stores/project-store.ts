@@ -62,6 +62,52 @@ export interface Task {
   startDate?: Date | string | null;
   endDate?: Date | string | null;
   dependencies?: number[];
+  // PERT diagram position
+  diagramPositionX?: number | null;
+  diagramPositionY?: number | null;
+}
+
+export interface PertManualEdge {
+  from: number;
+  to: number;
+  isCritical?: boolean;
+}
+
+export interface PertLayoutSettings {
+  zoomLevel?: number;
+  panX?: number;
+  panY?: number;
+}
+
+export interface TaskSchedule {
+  taskId: number;
+  taskName: string;
+  duration: number;
+  earlyStart: number;
+  earlyFinish: number;
+  lateStart: number;
+  lateFinish: number;
+  slack: number;
+  isCritical: boolean;
+}
+
+export interface CriticalPathResponse {
+  criticalPath: number[];
+  taskSchedule: Record<number, TaskSchedule>;
+  projectDuration: number;
+}
+
+export interface RaciWeights {
+  responsible: number;
+  accountable: number;
+  consulted: number;
+  informed: number;
+}
+
+export interface PertWeights {
+  optimistic: number;
+  mostLikely: number;
+  pessimistic: number;
 }
 
 export interface Project {
@@ -82,6 +128,11 @@ export interface Project {
   tasks: Task[];
   totalStoryPoints: number;
   estimatedDuration: number;
+  pertManualEdges?: PertManualEdge[];
+  pertLayoutSettings?: PertLayoutSettings;
+  raciWeights?: RaciWeights;
+  pertWeights?: PertWeights;
+  maxStoryPointsPerPerson?: number;
 }
 
 export const useProjectStore = defineStore('project', () => {
@@ -416,6 +467,77 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
+  // PERT/CPM methods
+  async function getCriticalPath(projectId: number): Promise<CriticalPathResponse> {
+    loading.value = true;
+    error.value = null;
+    try {
+      const data = await api.get<CriticalPathResponse>(`/projects/${projectId}/critical-path`);
+      return data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to calculate critical path';
+      console.error('Failed to calculate critical path:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updatePertSettings(
+    projectId: number,
+    settings: { pertManualEdges?: PertManualEdge[]; pertLayoutSettings?: PertLayoutSettings },
+  ) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const data = await api.patch<Project>(`/projects/${projectId}/pert-settings`, settings);
+
+      // Update local state
+      const index = projects.value.findIndex((p) => p.id === projectId);
+      if (index !== -1) {
+        projects.value[index] = data;
+      }
+
+      return data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update PERT settings';
+      console.error('Failed to update PERT settings:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateTaskPosition(taskId: number, x: number | null, y: number | null) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const data = await api.put<Task>(`/tasks/${taskId}`, {
+        diagramPositionX: x,
+        diagramPositionY: y,
+      });
+
+      // Update local state
+      for (const project of projects.value) {
+        if (!project.tasks) continue; // Skip projects without tasks loaded
+
+        const taskIndex = project.tasks.findIndex((t) => t.id === taskId);
+        if (taskIndex !== -1) {
+          project.tasks[taskIndex] = data;
+          break;
+        }
+      }
+
+      return data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update task position';
+      console.error('Failed to update task position:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     projects,
     loading,
@@ -438,5 +560,8 @@ export const useProjectStore = defineStore('project', () => {
     addMemberToProject,
     updateMemberRole,
     removeMemberFromProject,
+    getCriticalPath,
+    updatePertSettings,
+    updateTaskPosition,
   };
 });

@@ -257,12 +257,6 @@ const projectNavigation: NavigationItemProps[] = [
     route: '/raci-matrix',
   },
   {
-    title: 'Gantt Chart',
-    caption: 'Timeline visualization',
-    icon: 'view_timeline',
-    route: '/gantt',
-  },
-  {
     title: 'PERT + RACI Integration',
     caption: 'Combined project analysis',
     icon: 'auto_awesome',

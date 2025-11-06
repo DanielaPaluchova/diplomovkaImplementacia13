@@ -21,6 +21,16 @@ class Project(db.Model):
     total_story_points = db.Column(db.Integer, nullable=False, default=0)
     estimated_duration = db.Column(db.Integer, nullable=False, default=0)  # in days
     team_member_ids = db.Column(db.JSON, nullable=True)  # Array of team member IDs
+    
+    # PERT diagram settings
+    pert_manual_edges = db.Column(db.JSON, nullable=True)  # User-created connections separate from dependencies
+    pert_layout_settings = db.Column(db.JSON, nullable=True)  # Zoom/pan state
+    
+    # RACI and PERT Configuration
+    raci_weights = db.Column(db.JSON, nullable=True)  # RACI weights for combined formula
+    pert_weights = db.Column(db.JSON, nullable=True)  # PERT formula weights
+    max_story_points_per_person = db.Column(db.Integer, nullable=False, default=20)  # Maximum story points per person
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -36,6 +46,21 @@ class Project(db.Model):
         if self.total_tasks > 0:
             progress = int((self.tasks_completed / self.total_tasks) * 100)
         
+        # Default RACI weights
+        default_raci_weights = {
+            'responsible': 0.6,
+            'accountable': 0.45,
+            'consulted': 0.3,
+            'informed': 0.05
+        }
+        
+        # Default PERT weights
+        default_pert_weights = {
+            'optimistic': 1,
+            'mostLikely': 4,
+            'pessimistic': 1
+        }
+        
         result = {
             'id': self.id,
             'name': self.name,
@@ -50,6 +75,11 @@ class Project(db.Model):
             'totalStoryPoints': self.total_story_points,
             'estimatedDuration': self.estimated_duration,
             'teamMemberIds': self.team_member_ids or [],
+            'pertManualEdges': self.pert_manual_edges or [],
+            'pertLayoutSettings': self.pert_layout_settings or {},
+            'raciWeights': self.raci_weights or default_raci_weights,
+            'pertWeights': self.pert_weights or default_pert_weights,
+            'maxStoryPointsPerPerson': self.max_story_points_per_person,
             'createdAt': self.created_at.isoformat() if self.created_at else None
         }
         

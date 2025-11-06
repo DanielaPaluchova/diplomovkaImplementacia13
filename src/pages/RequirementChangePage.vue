@@ -1213,10 +1213,10 @@ function generateChangeLogEntry(
   const riskDiff = afterRisk - beforeRisk;
 
   // Formatted strings for display
-  const durationDiffStr = durationDiff.toFixed(1);
+  const durationDiffStr = durationDiff.toFixed(2);
   const workloadDiffStr = workloadDiff.toFixed(0);
   const balanceDiffStr = balanceDiff.toFixed(0);
-  const riskDiffStr = riskDiff.toFixed(1);
+  const riskDiffStr = riskDiff.toFixed(2);
 
   let entry: ChangeLogEntry;
 
@@ -1226,7 +1226,7 @@ function generateChangeLogEntry(
       const opt = Math.floor(Math.random() * 3) + 1;
       const most = opt + Math.floor(Math.random() * 3) + 2;
       const pess = most + Math.floor(Math.random() * 4) + 2;
-      const duration = ((opt + 4 * most + pess) / 6).toFixed(1);
+      const duration = ((opt + 4 * most + pess) / 6).toFixed(2);
       const responsible = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
       const accountable = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
 
@@ -1291,13 +1291,13 @@ function generateChangeLogEntry(
       const oldOpt = Math.floor(oldSP * 0.6);
       const oldMost = oldSP;
       const oldPess = Math.floor(oldSP * 1.5);
-      const oldDuration = ((oldOpt + 4 * oldMost + oldPess) / 6).toFixed(1);
+      const oldDuration = ((oldOpt + 4 * oldMost + oldPess) / 6).toFixed(2);
 
       const speedup = newPriority === 'Critical' ? 0.7 : 1.0;
       const newOpt = Math.floor(oldOpt * speedup);
       const newMost = Math.floor(oldMost * speedup);
       const newPess = Math.floor(oldPess * speedup);
-      const newDuration = ((newOpt + 4 * newMost + newPess) / 6).toFixed(1);
+      const newDuration = ((newOpt + 4 * newMost + newPess) / 6).toFixed(2);
 
       const oldResponsible = [teamMembers[Math.floor(Math.random() * teamMembers.length)]!];
       const newResponsible =
@@ -1330,7 +1330,7 @@ function generateChangeLogEntry(
           newPriority === 'Critical'
             ? '🔄 Reassigned na senior developera'
             : '✅ RACI roles upravené',
-          `📊 PERT prepočítaný: ${oldDuration}d → ${newDuration}d (${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d)`,
+          `📊 PERT prepočítaný: ${oldDuration}d → ${newDuration}d (${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(2)}d)`,
           `⚖️ Team workload adjusted: ${workloadDiffStr}%`,
           newPriority === 'Critical'
             ? '⚡ Aktivovaný fast-track režím'
@@ -1339,7 +1339,7 @@ function generateChangeLogEntry(
         metrics: [
           {
             label: 'Duration Impact',
-            value: `${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d`,
+            value: `${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(2)}d`,
             color: 'green',
           },
           {
@@ -1366,12 +1366,12 @@ function generateChangeLogEntry(
       const oldOpt = Math.floor(oldSP * 0.6);
       const oldMost = oldSP;
       const oldPess = Math.floor(oldSP * 1.5);
-      const oldDuration = ((oldOpt + 4 * oldMost + oldPess) / 6).toFixed(1);
+      const oldDuration = ((oldOpt + 4 * oldMost + oldPess) / 6).toFixed(2);
 
       const newOpt = Math.floor(newSP * 0.6);
       const newMost = newSP;
       const newPess = Math.floor(newSP * 1.5);
-      const newDuration = ((newOpt + 4 * newMost + newPess) / 6).toFixed(1);
+      const newDuration = ((newOpt + 4 * newMost + newPess) / 6).toFixed(2);
 
       const responsible1 = teamMembers[Math.floor(Math.random() * teamMembers.length)]!;
       const responsible2 =
@@ -1400,7 +1400,7 @@ function generateChangeLogEntry(
           },
         },
         adaptations: [
-          `📈 PERT časy aktualizované: ${oldDuration}d → ${newDuration}d (${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d)`,
+          `📈 PERT časy aktualizované: ${oldDuration}d → ${newDuration}d (${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(2)}d)`,
           responsible2
             ? `👥 Pridaný ${responsible2} ako druhý Responsible (workload sharing)`
             : '👥 RACI role unchanged',
@@ -1416,7 +1416,7 @@ function generateChangeLogEntry(
           },
           {
             label: 'Duration Impact',
-            value: `${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(1)}d`,
+            value: `${(parseFloat(newDuration) - parseFloat(oldDuration)).toFixed(2)}d`,
             color: spChange > 0 ? 'orange' : 'green',
           },
           {

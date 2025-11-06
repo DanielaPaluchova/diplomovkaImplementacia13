@@ -42,13 +42,17 @@ class Task(db.Model):
     end_date = db.Column(db.DateTime, nullable=True)  # Task end date
     dependencies = db.Column(db.JSON, nullable=True)  # Array of task IDs that this task depends on
     
+    # PERT diagram position overrides
+    diagram_position_x = db.Column(db.Float, nullable=True)  # Manual position X (null = use auto-layout)
+    diagram_position_y = db.Column(db.Float, nullable=True)  # Manual position Y (null = use auto-layout)
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def calculate_pert_expected(self):
         """Calculate PERT expected time"""
         if self.pert_optimistic and self.pert_most_likely and self.pert_pessimistic:
-            self.pert_expected = (self.pert_optimistic + 4 * self.pert_most_likely + self.pert_pessimistic) / 6
+            self.pert_expected = round((self.pert_optimistic + 4 * self.pert_most_likely + self.pert_pessimistic) / 6, 2)
     
     def to_dict(self):
         """Convert task to dictionary"""
@@ -70,10 +74,10 @@ class Task(db.Model):
             'labels': self.labels or [],
             'complexity': self.complexity,
             'pert': {
-                'optimistic': self.pert_optimistic,
-                'mostLikely': self.pert_most_likely,
-                'pessimistic': self.pert_pessimistic,
-                'expected': self.pert_expected
+                'optimistic': round(self.pert_optimistic, 2) if self.pert_optimistic is not None else None,
+                'mostLikely': round(self.pert_most_likely, 2) if self.pert_most_likely is not None else None,
+                'pessimistic': round(self.pert_pessimistic, 2) if self.pert_pessimistic is not None else None,
+                'expected': round(self.pert_expected, 2) if self.pert_expected is not None else None
             },
             'raci': {
                 'responsible': self.raci_responsible or [],
@@ -83,7 +87,9 @@ class Task(db.Model):
             },
             'startDate': self.start_date.isoformat() if self.start_date else None,
             'endDate': self.end_date.isoformat() if self.end_date else None,
-            'dependencies': self.dependencies or []
+            'dependencies': self.dependencies or [],
+            'diagramPositionX': self.diagram_position_x,
+            'diagramPositionY': self.diagram_position_y
         }
     
     def __repr__(self):

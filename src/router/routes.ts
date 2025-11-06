@@ -39,11 +39,6 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'kanban', component: () => import('pages/KanbanPage.vue') },
       {
-        path: 'gantt',
-        component: () => import('pages/GanttPage.vue'),
-        meta: { requiresManager: true },
-      },
-      {
         path: 'pert-raci-optimization',
         component: () => import('pages/PertRaciOptimizationPage.vue'),
         meta: { requiresManager: true },

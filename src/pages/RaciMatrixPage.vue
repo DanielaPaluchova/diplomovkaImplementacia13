@@ -9,7 +9,6 @@
             Responsibility Assignment Matrix for clear role definitions
           </p>
         </div>
-        <q-btn color="secondary" icon="download" label="Export" @click="exportMatrix" />
       </div>
 
       <!-- Project Selection -->
@@ -340,17 +339,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useQuasar } from 'quasar';
 import { useProjectStore, type Task } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
 
-const $q = useQuasar();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
 
 // Fetch data from API
 onMounted(async () => {
-  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
+  await Promise.all([projectStore.fetchProjects(true), teamStore.fetchTeamMembers()]);
 });
 
 const selectedProjectId = ref<number | null>(null);
@@ -454,16 +451,6 @@ const raciStats = computed(() => {
 
   return stats;
 });
-
-// Methods
-function exportMatrix() {
-  $q.notify({
-    message: 'RACI Matrix exported successfully!',
-    color: 'positive',
-    icon: 'download',
-    position: 'top',
-  });
-}
 </script>
 
 <style scoped>
