@@ -18,8 +18,6 @@ class Task(db.Model):
     priority = db.Column(db.String(20), nullable=False, default='medium')  # high, medium, low
     type = db.Column(db.String(20), nullable=False, default='task')  # feature, bug, task
     story_points = db.Column(db.Integer, nullable=False, default=0)
-    assignee_id = db.Column(db.Integer, nullable=True)
-    assignee = db.Column(db.String(100), nullable=True)
     due_date = db.Column(db.DateTime, nullable=True)
     completed = db.Column(db.Boolean, nullable=False, default=False)
     labels = db.Column(db.JSON, nullable=True)  # Array of labels
@@ -67,8 +65,6 @@ class Task(db.Model):
             'priority': self.priority,
             'type': self.type,
             'storyPoints': self.story_points,
-            'assigneeId': self.assignee_id,
-            'assignee': self.assignee,
             'dueDate': self.due_date.isoformat() if self.due_date else None,
             'completed': self.completed,
             'labels': self.labels or [],

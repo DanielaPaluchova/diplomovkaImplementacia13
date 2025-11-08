@@ -20,26 +20,40 @@ def calculate_member_metrics(member_id):
     all_projects = Project.query.all()
     projects_as_member = sum(1 for p in all_projects if p.team_member_ids and member_id in p.team_member_ids)
     
-    # Count projects where member has assigned tasks
-    projects_with_tasks = db.session.query(func.count(func.distinct(Task.project_id))).filter(
-        Task.assignee_id == member_id
-    ).scalar() or 0
+    # Count projects where member has assigned tasks (via RACI)
+    all_tasks = Task.query.all()
+    projects_with_tasks = len(set(
+        task.project_id for task in all_tasks 
+        if (task.raci_responsible and member_id in task.raci_responsible) or 
+           task.raci_accountable == member_id
+    ))
     
     # Use the max to avoid double counting
     active_projects = max(projects_as_member, projects_with_tasks)
     
-    # Calculate workload based on incomplete tasks
-    # Sum story points from all tasks that are not Done
-    incomplete_tasks = Task.query.filter(
-        Task.assignee_id == member_id,
-        Task.status != 'Done'
-    ).all()
+    # Calculate workload based on tasks in ACTIVE SPRINTS only (not all incomplete tasks)
+    # This matches the frontend WorkloadDashboard calculation
+    from app.models.sprint import Sprint
     
-    total_story_points = sum(task.story_points or 0 for task in incomplete_tasks)
+    # Get all active sprints
+    active_sprints = Sprint.query.filter_by(status='active').all()
+    active_sprint_ids = [sprint.id for sprint in active_sprints]
+    
+    # Filter tasks: in active sprint, assigned to member, and not done
+    active_sprint_tasks = [
+        task for task in all_tasks
+        if task.sprint_id in active_sprint_ids and
+           task.status != 'Done' and (
+               (task.raci_responsible and member_id in task.raci_responsible) or
+               task.raci_accountable == member_id
+           )
+    ]
+    
+    total_story_points = sum(task.story_points or 0 for task in active_sprint_tasks)
     
     # Get member's max capacity
     member = TeamMember.query.get(member_id)
-    max_capacity = member.max_story_points if member else 40
+    max_capacity = member.max_story_points if member else 20
     
     # Calculate workload as percentage based on member's max capacity
     workload = min(100, int((total_story_points / max_capacity) * 100))
@@ -99,7 +113,7 @@ def create_team_member():
             avatar=data.get('avatar', 'https://cdn.quasar.dev/img/avatar.png'),
             status=data.get('status', 'offline'),
             skills=data.get('skills', []),
-            max_story_points=data.get('maxStoryPoints', 40)
+            max_story_points=data.get('maxStoryPoints', 20)
         )
         
         db.session.add(member)

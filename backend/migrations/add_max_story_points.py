@@ -20,7 +20,7 @@ def upgrade():
             # Add the column using raw SQL
             with db.engine.connect() as conn:
                 conn.execute(db.text(
-                    'ALTER TABLE team_members ADD COLUMN max_story_points INTEGER NOT NULL DEFAULT 40'
+                    'ALTER TABLE team_members ADD COLUMN max_story_points INTEGER NOT NULL DEFAULT 20'
                 ))
                 conn.commit()
             print("✓ Added max_story_points column to team_members table")

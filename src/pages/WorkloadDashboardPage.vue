@@ -545,7 +545,7 @@ const projectOptions = computed(() => projectStore.projects);
 const membersWithWorkload = computed((): MemberWorkload[] => {
   return teamStore.teamMembers
     .map((member) => {
-      const maxStoryPoints = member.maxStoryPoints || 40;
+      const maxStoryPoints = member.maxStoryPoints || 20;
 
       // Calculate project-level breakdown
       const memberProjects: ProjectWorkload[] = [];
@@ -562,7 +562,6 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
             const sprintTasks = project.tasks.filter((task) => {
               const isInSprint = task.sprintId === activeSprint.id;
               const isAssigned =
-                task.assigneeId === member.id ||
                 (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
                 task.raci?.accountable === member.id;
               const isIncomplete = task.status !== 'Done';
@@ -576,7 +575,6 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
           if (project.tasks) {
             const allTasks = project.tasks.filter((task) => {
               const isAssigned =
-                task.assigneeId === member.id ||
                 (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
                 task.raci?.accountable === member.id;
               const isIncomplete = task.status !== 'Done';
@@ -628,7 +626,6 @@ const membersWithWorkload = computed((): MemberWorkload[] => {
         if (project.tasks && project.teamMemberIds?.includes(member.id)) {
           const memberTasks = project.tasks.filter((task) => {
             const isAssigned =
-              task.assigneeId === member.id ||
               (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
               task.raci?.accountable === member.id;
             return isAssigned;
@@ -754,7 +751,6 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
             const memberTasks = project.tasks.filter((task) => {
               const isInSprint = task.sprintId === activeSprint.id;
               const isAssigned =
-                task.assigneeId === member.id ||
                 (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
                 task.raci?.accountable === member.id;
               return isInSprint && isAssigned;

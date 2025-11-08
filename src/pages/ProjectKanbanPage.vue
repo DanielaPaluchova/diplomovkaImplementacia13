@@ -100,11 +100,17 @@
                             {{ task.storyPoints }} SP
                           </q-chip>
                         </div>
-                        <div class="row items-center">
-                          <q-avatar size="24px">
-                            <img :src="task.assigneeAvatar" />
+                        <div v-if="task.raci?.responsible && task.raci.responsible.length > 0" class="row items-center">
+                          <q-avatar 
+                            v-for="memberId in task.raci.responsible.slice(0, 2)" 
+                            :key="memberId"
+                            size="24px"
+                            class="q-mr-xs"
+                          >
+                            <img :src="getMemberAvatar(memberId)" />
+                            <q-tooltip>{{ getMemberName(memberId) }}</q-tooltip>
                           </q-avatar>
-                          <span class="text-caption q-ml-xs">{{ task.assignee }}</span>
+                          <span v-if="task.raci.responsible.length > 2" class="text-caption">+{{ task.raci.responsible.length - 2 }}</span>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -153,11 +159,17 @@
                             {{ task.storyPoints }} SP
                           </q-chip>
                         </div>
-                        <div class="row items-center">
-                          <q-avatar size="24px">
-                            <img :src="task.assigneeAvatar" />
+                        <div v-if="task.raci?.responsible && task.raci.responsible.length > 0" class="row items-center">
+                          <q-avatar 
+                            v-for="memberId in task.raci.responsible.slice(0, 2)" 
+                            :key="memberId"
+                            size="24px"
+                            class="q-mr-xs"
+                          >
+                            <img :src="getMemberAvatar(memberId)" />
+                            <q-tooltip>{{ getMemberName(memberId) }}</q-tooltip>
                           </q-avatar>
-                          <span class="text-caption q-ml-xs">{{ task.assignee }}</span>
+                          <span v-if="task.raci.responsible.length > 2" class="text-caption">+{{ task.raci.responsible.length - 2 }}</span>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -206,11 +218,17 @@
                             {{ task.storyPoints }} SP
                           </q-chip>
                         </div>
-                        <div class="row items-center">
-                          <q-avatar size="24px">
-                            <img :src="task.assigneeAvatar" />
+                        <div v-if="task.raci?.responsible && task.raci.responsible.length > 0" class="row items-center">
+                          <q-avatar 
+                            v-for="memberId in task.raci.responsible.slice(0, 2)" 
+                            :key="memberId"
+                            size="24px"
+                            class="q-mr-xs"
+                          >
+                            <img :src="getMemberAvatar(memberId)" />
+                            <q-tooltip>{{ getMemberName(memberId) }}</q-tooltip>
                           </q-avatar>
-                          <span class="text-caption q-ml-xs">{{ task.assignee }}</span>
+                          <span v-if="task.raci.responsible.length > 2" class="text-caption">+{{ task.raci.responsible.length - 2 }}</span>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -258,11 +276,16 @@
             </div>
           </div>
           <q-select
-            v-model="newTask.assignee"
+            v-model="newTask.responsible"
             :options="projectTeamMembers"
             option-label="name"
-            label="Assignee"
+            option-value="id"
+            label="Responsible (who does the work)"
             filled
+            multiple
+            use-chips
+            emit-value
+            map-options
           />
         </q-card-section>
 
@@ -282,7 +305,7 @@ import { useQuasar } from 'quasar';
 import { format } from 'date-fns';
 import draggable from 'vuedraggable';
 import { useProjectStore, type Task } from 'src/stores/project-store';
-import { useTeamStore, type TeamMember } from 'src/stores/team-store';
+import { useTeamStore } from 'src/stores/team-store';
 
 const router = useRouter();
 const route = useRoute();
@@ -328,7 +351,7 @@ const newTask = ref({
   description: '',
   priority: 'Medium' as 'High' | 'Medium' | 'Low',
   storyPoints: 5,
-  assignee: null as TeamMember | null,
+  responsible: [] as number[],
 });
 
 // Computed - filter tasks by status with two-way binding for drag-and-drop
@@ -422,9 +445,9 @@ function editTask(task: Task) {
 }
 
 async function createTask() {
-  if (!newTask.value.assignee) {
+  if (!newTask.value.responsible || newTask.value.responsible.length === 0) {
     $q.notify({
-      message: 'Please select an assignee',
+      message: 'Please select at least one responsible person',
       color: 'negative',
       icon: 'warning',
       position: 'top',
@@ -449,7 +472,17 @@ async function createTask() {
       status: 'To Do',
       priority: newTask.value.priority,
       storyPoints: newTask.value.storyPoints,
-      assignee: newTask.value.assignee.name,
+      raci: {
+        responsible: newTask.value.responsible,
+        accountable: null,
+        consulted: [],
+        informed: [],
+      },
+      pert: {
+        optimistic: 8,
+        mostLikely: 16,
+        pessimistic: 24,
+      },
       sprintId: activeSprint.value?.id || null,
     });
 
@@ -466,7 +499,7 @@ async function createTask() {
       description: '',
       priority: 'Medium',
       storyPoints: 5,
-      assignee: null,
+      responsible: [],
     };
   } catch (err) {
     console.error('Failed to create task:', err);
@@ -491,6 +524,16 @@ function goToSprints() {
   if (project.value) {
     router.push(`/projects/${project.value.id}?tab=sprints`);
   }
+}
+
+function getMemberAvatar(memberId: number): string {
+  const member = teamStore.teamMembers.find(m => m.id === memberId);
+  return member?.avatar || 'https://cdn.quasar.dev/img/avatar.png';
+}
+
+function getMemberName(memberId: number): string {
+  const member = teamStore.teamMembers.find(m => m.id === memberId);
+  return member?.name || 'Unknown';
 }
 </script>
 

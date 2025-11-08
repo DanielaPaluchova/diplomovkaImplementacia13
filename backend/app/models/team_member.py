@@ -16,7 +16,7 @@ class TeamMember(db.Model):
     avatar = db.Column(db.Text, nullable=True)  # Support base64 encoded images
     status = db.Column(db.String(20), nullable=False, default='offline')  # online, busy, away, offline
     skills = db.Column(db.JSON, nullable=True)  # Array of skills
-    max_story_points = db.Column(db.Integer, nullable=False, default=40)  # Maximum story points capacity per sprint
+    max_story_points = db.Column(db.Integer, nullable=False, default=20)  # Maximum story points capacity per sprint
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     

@@ -409,11 +409,24 @@
                           </q-chip>
                           <div class="text-caption">{{ task.storyPoints }} SP</div>
                         </div>
-                        <div v-if="task.assignee" class="row items-center q-mt-sm">
-                          <q-avatar size="20px" class="q-mr-xs">
-                            <img :src="getAssigneeAvatar(task.assigneeId)" />
+                        <div
+                          v-if="task.raci?.responsible && task.raci.responsible.length > 0"
+                          class="row items-center q-mt-sm"
+                        >
+                          <q-avatar
+                            v-for="memberId in task.raci.responsible.slice(0, 3)"
+                            :key="memberId"
+                            size="20px"
+                            class="q-mr-xs"
+                          >
+                            <img :src="getResponsibleAvatar(memberId)" />
+                            <q-tooltip>{{
+                              teamStore.teamMembers.find((m) => m.id === memberId)?.name
+                            }}</q-tooltip>
                           </q-avatar>
-                          <span class="text-caption">{{ task.assignee }}</span>
+                          <span v-if="task.raci.responsible.length > 3" class="text-caption"
+                            >+{{ task.raci.responsible.length - 3 }} more</span
+                          >
                         </div>
                       </q-card-section>
                     </q-card>
@@ -484,11 +497,24 @@
                           </q-chip>
                           <div class="text-caption">{{ task.storyPoints }} SP</div>
                         </div>
-                        <div v-if="task.assignee" class="row items-center q-mt-sm">
-                          <q-avatar size="20px" class="q-mr-xs">
-                            <img :src="getAssigneeAvatar(task.assigneeId)" />
+                        <div
+                          v-if="task.raci?.responsible && task.raci.responsible.length > 0"
+                          class="row items-center q-mt-sm"
+                        >
+                          <q-avatar
+                            v-for="memberId in task.raci.responsible.slice(0, 3)"
+                            :key="memberId"
+                            size="20px"
+                            class="q-mr-xs"
+                          >
+                            <img :src="getResponsibleAvatar(memberId)" />
+                            <q-tooltip>{{
+                              teamStore.teamMembers.find((m) => m.id === memberId)?.name
+                            }}</q-tooltip>
                           </q-avatar>
-                          <span class="text-caption">{{ task.assignee }}</span>
+                          <span v-if="task.raci.responsible.length > 3" class="text-caption"
+                            >+{{ task.raci.responsible.length - 3 }} more</span
+                          >
                         </div>
                       </q-card-section>
                     </q-card>
@@ -546,11 +572,24 @@
                           </q-chip>
                           <div class="text-caption">{{ task.storyPoints }} SP</div>
                         </div>
-                        <div v-if="task.assignee" class="row items-center q-mt-sm">
-                          <q-avatar size="20px" class="q-mr-xs">
-                            <img :src="getAssigneeAvatar(task.assigneeId)" />
+                        <div
+                          v-if="task.raci?.responsible && task.raci.responsible.length > 0"
+                          class="row items-center q-mt-sm"
+                        >
+                          <q-avatar
+                            v-for="memberId in task.raci.responsible.slice(0, 3)"
+                            :key="memberId"
+                            size="20px"
+                            class="q-mr-xs"
+                          >
+                            <img :src="getResponsibleAvatar(memberId)" />
+                            <q-tooltip>{{
+                              teamStore.teamMembers.find((m) => m.id === memberId)?.name
+                            }}</q-tooltip>
                           </q-avatar>
-                          <span class="text-caption">{{ task.assignee }}</span>
+                          <span v-if="task.raci.responsible.length > 3" class="text-caption"
+                            >+{{ task.raci.responsible.length - 3 }} more</span
+                          >
                         </div>
                       </q-card-section>
                     </q-card>
@@ -614,7 +653,10 @@
                   </div>
                 </q-card-section>
                 <q-separator />
-                <q-card-section class="q-pa-sm" style="min-height: 500px">
+                <q-card-section
+                  class="q-pa-sm"
+                  style="height: 650px; overflow-y: auto; overflow-x: hidden"
+                >
                   <div class="column q-gutter-sm">
                     <q-card
                       v-for="task in backlogTasks"
@@ -624,6 +666,7 @@
                       @dragstart="onDragStart(task)"
                       @dragend="onDragEnd"
                       @click="openEditTaskDialog(task)"
+                      @contextmenu.prevent="showTaskContextMenu($event, task, 'backlog')"
                     >
                       <q-card-section class="q-pa-sm">
                         <div class="row items-start q-mb-xs">
@@ -714,7 +757,10 @@
                   </div>
                 </q-card-section>
                 <q-separator />
-                <q-card-section class="q-pa-sm" style="min-height: 500px">
+                <q-card-section
+                  class="q-pa-sm"
+                  style="height: 650px; overflow-y: auto; overflow-x: hidden"
+                >
                   <div v-if="!activeSprint" class="text-center text-grey-5 q-pa-xl">
                     <q-icon name="event_busy" size="64px" class="q-mb-md" />
                     <div class="text-h6 q-mb-sm">No Active Sprint</div>
@@ -733,6 +779,7 @@
                       :key="task.id"
                       class="task-card cursor-pointer bg-blue-1"
                       @click="openEditTaskDialog(task)"
+                      @contextmenu.prevent="showTaskContextMenu($event, task, 'sprint')"
                     >
                       <q-card-section class="q-pa-sm">
                         <div class="row items-start q-mb-xs">
@@ -815,6 +862,52 @@
               </q-card>
             </div>
           </div>
+
+          <!-- Context Menu -->
+          <q-menu
+            v-model="showContextMenu"
+            touch-position
+            context-menu
+            :target="false"
+            :offset="[contextMenuX, contextMenuY]"
+          >
+            <q-list dense style="min-width: 200px">
+              <q-item
+                v-if="contextMenuSource === 'backlog' && activeSprint"
+                clickable
+                v-close-popup
+                @click="moveTaskToSprint"
+              >
+                <q-item-section avatar>
+                  <q-icon name="arrow_forward" color="primary" />
+                </q-item-section>
+                <q-item-section>Move to Sprint</q-item-section>
+              </q-item>
+              <q-item
+                v-if="contextMenuSource === 'sprint'"
+                clickable
+                v-close-popup
+                @click="moveTaskToBacklog"
+              >
+                <q-item-section avatar>
+                  <q-icon name="arrow_back" color="primary" />
+                </q-item-section>
+                <q-item-section>Move to Backlog</q-item-section>
+              </q-item>
+              <q-separator v-if="contextMenuTask" />
+              <q-item
+                v-if="contextMenuTask"
+                clickable
+                v-close-popup
+                @click="openEditTaskDialog(contextMenuTask)"
+              >
+                <q-item-section avatar>
+                  <q-icon name="edit" color="grey-7" />
+                </q-item-section>
+                <q-item-section>Edit Task</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
         </q-tab-panel>
 
         <!-- Sprint Management Tab -->
@@ -1097,8 +1190,13 @@
                         {{ task.priority }}
                       </q-chip>
                       <q-chip size="sm" dense icon="functions"> {{ task.storyPoints }} SP </q-chip>
-                      <q-chip v-if="task.assignee" size="sm" dense icon="person">
-                        {{ task.assignee }}
+                      <q-chip
+                        v-if="task.raci?.responsible && task.raci.responsible.length > 0"
+                        size="sm"
+                        dense
+                        icon="people"
+                      >
+                        {{ getResponsibleNames(task.raci.responsible) }}
                       </q-chip>
                     </div>
                   </q-item-section>
@@ -1454,23 +1552,6 @@
                 filled
               />
             </div>
-            <div class="col">
-              <q-select
-                v-model="editTask.assigneeId"
-                :options="teamMembersOptions"
-                label="Assignee"
-                filled
-                clearable
-                emit-value
-                map-options
-              >
-                <template v-slot:prepend v-if="editTask.assigneeId">
-                  <q-avatar size="24px">
-                    <img :src="getAssigneeAvatar(editTask.assigneeId)" />
-                  </q-avatar>
-                </template>
-              </q-select>
-            </div>
           </div>
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
@@ -1792,6 +1873,13 @@ const selectedRole = ref('developer');
 const isDragOver = ref(false);
 const draggedTask = ref<Task | null>(null);
 
+// Context menu state
+const showContextMenu = ref(false);
+const contextMenuX = ref(0);
+const contextMenuY = ref(0);
+const contextMenuTask = ref<Task | null>(null);
+const contextMenuSource = ref<'backlog' | 'sprint'>('backlog');
+
 // Kanban drag and drop state
 const dragOverColumn = ref<string | null>(null);
 const kanbanDraggedTask = ref<Task | null>(null);
@@ -2002,7 +2090,6 @@ const editTask = ref({
   complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
-  assigneeId: null as number | null,
   pert: {
     optimistic: 8,
     mostLikely: 16,
@@ -2161,6 +2248,81 @@ async function onDrop() {
   draggedTask.value = null;
 }
 
+// Context menu functions
+function showTaskContextMenu(event: MouseEvent, task: Task, source: 'backlog' | 'sprint') {
+  contextMenuTask.value = task;
+  contextMenuSource.value = source;
+  contextMenuX.value = event.clientX;
+  contextMenuY.value = event.clientY;
+  showContextMenu.value = true;
+}
+
+async function moveTaskToSprint() {
+  if (!contextMenuTask.value || !activeSprint.value) {
+    $q.notify({
+      message: 'No active sprint available',
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    showContextMenu.value = false;
+    return;
+  }
+
+  const task = contextMenuTask.value;
+  try {
+    await projectStore.updateTask(task.id, {
+      sprintId: activeSprint.value.id,
+    });
+
+    $q.notify({
+      message: `Moved "${task.title}" to sprint`,
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+  } catch (error) {
+    console.error('Failed to move task to sprint:', error);
+    $q.notify({
+      message: 'Failed to move task to sprint',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
+  showContextMenu.value = false;
+}
+
+async function moveTaskToBacklog() {
+  if (!contextMenuTask.value) {
+    showContextMenu.value = false;
+    return;
+  }
+
+  const task = contextMenuTask.value;
+  try {
+    await projectStore.updateTask(task.id, {
+      sprintId: null,
+    });
+
+    $q.notify({
+      message: `Moved "${task.title}" to backlog`,
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
+  } catch (error) {
+    console.error('Failed to move task to backlog:', error);
+    $q.notify({
+      message: 'Failed to move task to backlog',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
+  showContextMenu.value = false;
+}
+
 async function removeFromSprint(taskId: number) {
   const task = project.value.tasks?.find((t) => t.id === taskId);
   if (task) {
@@ -2310,7 +2472,6 @@ async function createTask() {
     priority: newTask.value.priority,
     type: newTask.value.type,
     storyPoints: newTask.value.storyPoints,
-    assigneeId: null,
     sprintId: null,
     dueDate: new Date().toISOString(),
     completed: false,
@@ -2393,7 +2554,6 @@ function openEditTaskDialog(task: Task) {
     complexity: task.complexity,
     labels: [...task.labels],
     dependencies: task.dependencies ? [...task.dependencies] : [],
-    assigneeId: task.assigneeId,
     pert: {
       optimistic: task.pert?.optimistic || 8,
       mostLikely: task.pert?.mostLikely || 16,
@@ -2442,7 +2602,6 @@ async function saveEditTask() {
         complexity: editTask.value.complexity,
         labels: editTask.value.labels,
         dependencies: editTask.value.dependencies,
-        assigneeId: editTask.value.assigneeId,
         completed: editTask.value.status === 'Done',
         pert: {
           optimistic: editTask.value.pert.optimistic,
@@ -2493,7 +2652,6 @@ function cancelEditTask() {
     complexity: 5,
     labels: [],
     dependencies: [],
-    assigneeId: null,
     pert: {
       optimistic: 8,
       mostLikely: 16,
@@ -2858,8 +3016,25 @@ async function onKanbanDrop(newStatus: string) {
 
 // Workload functions for Overview
 function getProjectWorkload(memberId: number): number {
-  // Calculate workload percentage for this project based on tasks assigned
-  const memberTasks = project.value.tasks?.filter((t) => t.assigneeId === memberId) || [];
+  // Calculate workload percentage for this project based on tasks in ACTIVE SPRINT only
+  // This matches the backend API calculation
+
+  // Get active sprint for this project
+  const activeSprintForProject = project.value.sprints?.find((s) => s.status === 'active');
+
+  if (!activeSprintForProject) {
+    return 0; // No active sprint = no workload from this project
+  }
+
+  // Filter tasks: in active sprint, assigned to member (via RACI), and not done
+  const memberTasks =
+    project.value.tasks?.filter(
+      (t) =>
+        t.sprintId === activeSprintForProject.id &&
+        t.status !== 'Done' &&
+        (t.raci?.responsible?.includes(memberId) || t.raci?.accountable === memberId),
+    ) || [];
+
   const totalSP = memberTasks.reduce((sum, t) => sum + t.storyPoints, 0);
 
   // Assume 20 SP = 100% workload for one project
@@ -2877,11 +3052,22 @@ function getOtherProjectsWorkload(memberId: number): number {
   return Math.max(0, otherWorkload);
 }
 
-function getAssigneeAvatar(assigneeId: number | null): string {
-  if (!assigneeId) return 'https://cdn.quasar.dev/img/avatar.png';
+function getResponsibleAvatar(memberId: number | null): string {
+  if (!memberId) return 'https://cdn.quasar.dev/img/avatar.png';
 
-  const member = teamStore.teamMembers.find((m) => m.id === assigneeId);
+  const member = teamStore.teamMembers.find((m) => m.id === memberId);
   return member?.avatar || 'https://cdn.quasar.dev/img/avatar.png';
+}
+
+function getResponsibleNames(responsibleIds: number[]): string {
+  if (!responsibleIds || responsibleIds.length === 0) return 'Unassigned';
+
+  const names = responsibleIds
+    .map((id) => teamStore.teamMembers.find((m) => m.id === id)?.name)
+    .filter((name) => name)
+    .join(', ');
+
+  return names || 'Unassigned';
 }
 </script>
 

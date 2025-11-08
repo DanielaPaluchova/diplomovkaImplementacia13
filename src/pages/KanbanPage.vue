@@ -138,10 +138,6 @@
                   <q-icon name="functions" size="12px" />
                   <span class="text-caption text-weight-bold">{{ task.storyPoints }} SP</span>
                 </div>
-                <q-avatar v-if="task.assignee" size="20px">
-                  <img :src="getAssigneeAvatar(task.assignee)" />
-                  <q-tooltip>{{ task.assignee }}</q-tooltip>
-                </q-avatar>
               </div>
 
               <!-- Task Actions -->
@@ -238,15 +234,6 @@
                 filled
               />
             </div>
-            <div class="col">
-              <q-select
-                v-model="newTask.assignee"
-                :options="teamMemberOptions"
-                label="Assignee"
-                filled
-                clearable
-              />
-            </div>
           </div>
 
           <q-select
@@ -325,7 +312,6 @@ interface KanbanTask {
   storyPoints: number;
   priority: 'high' | 'medium' | 'low';
   type: 'feature' | 'bug' | 'task';
-  assignee?: string;
   labels: string[];
   status: string;
   projectId: number;
@@ -353,7 +339,6 @@ const newTask = reactive({
   type: 'feature',
   priority: 'medium',
   storyPoints: 1,
-  assignee: '',
   labels: [] as string[],
   status: 'todo',
 });
@@ -382,8 +367,6 @@ const availableLabels = [
   'database',
   'ui/ux',
 ];
-
-const teamMemberOptions = computed(() => teamStore.teamMembers.map((member) => member.name));
 
 // Methods
 function getTasksInColumn(columnId: string) {
@@ -429,16 +412,6 @@ function getTypeIcon(type: string): string {
   }
 }
 
-function getAssigneeAvatar(assignee: string): string {
-  const avatars: Record<string, string> = {
-    'John Smith': 'https://cdn.quasar.dev/img/avatar2.jpg',
-    'Sarah Johnson': 'https://cdn.quasar.dev/img/avatar3.jpg',
-    'Mike Wilson': 'https://cdn.quasar.dev/img/avatar4.jpg',
-    'Emma Davis': 'https://cdn.quasar.dev/img/avatar5.jpg',
-  };
-  return avatars[assignee] || 'https://cdn.quasar.dev/img/avatar.png';
-}
-
 function onDragStart(event: DragEvent, task: KanbanTask) {
   draggedTask.value = task;
   if (event.dataTransfer) {
@@ -480,7 +453,6 @@ function cancelAddTask() {
     type: 'feature',
     priority: 'medium',
     storyPoints: 1,
-    assignee: '',
     labels: [],
     status: 'todo',
   });

@@ -49,8 +49,6 @@ export interface Task {
   priority: 'High' | 'Medium' | 'Low' | 'high' | 'medium' | 'low';
   type: 'feature' | 'bug' | 'task';
   storyPoints: number;
-  assigneeId: number | null;
-  assignee?: string;
   sprintId: number | null;
   dueDate: Date | string;
   completed: boolean;

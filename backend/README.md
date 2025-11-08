@@ -204,7 +204,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Tasks (with PERT + RACI)
 
-- id, project_id, sprint_id, name, description, status, priority, type, story_points, assignee_id
+- id, project_id, sprint_id, name, description, status, priority, type, story_points
 - **PERT**: pert_optimistic, pert_most_likely, pert_pessimistic, pert_expected
 - **RACI**: raci_responsible[], raci_accountable, raci_consulted[], raci_informed[]
 

@@ -181,7 +181,7 @@
       <div class="row q-gutter-lg">
         <!-- Backlog -->
         <div class="col-12 col-lg-6">
-          <q-card class="full-height">
+          <q-card>
             <q-card-section class="bg-grey-3">
               <div class="row items-center">
                 <div class="text-h6 text-weight-bold">Product Backlog</div>
@@ -190,7 +190,15 @@
               </div>
             </q-card-section>
             <q-separator />
-            <q-card-section class="q-pa-sm">
+            <div
+              style="
+                height: 650px;
+                overflow-y: scroll;
+                overflow-x: hidden;
+                padding: 8px;
+                background: white;
+              "
+            >
               <div class="column q-gutter-sm">
                 <q-card
                   v-for="task in backlogTasks"
@@ -223,19 +231,13 @@
                   </q-card-section>
                 </q-card>
               </div>
-            </q-card-section>
+            </div>
           </q-card>
         </div>
 
         <!-- Sprint Backlog -->
         <div class="col-12 col-lg-6">
-          <q-card
-            class="full-height sprint-backlog"
-            :class="{ 'drag-over': isDragOver }"
-            @dragover.prevent="onDragOver"
-            @dragleave="onDragLeave"
-            @drop="onDrop"
-          >
+          <q-card class="sprint-backlog" :class="{ 'drag-over': isDragOver }">
             <q-card-section class="bg-primary text-white">
               <div class="row items-center">
                 <div class="text-h6 text-weight-bold">Sprint Backlog</div>
@@ -244,58 +246,65 @@
               </div>
             </q-card-section>
             <q-separator />
-            <q-card-section class="q-pa-sm">
-              <div class="column q-gutter-sm">
-                <q-card
-                  v-for="task in sprintTasks"
-                  :key="task.id"
-                  class="task-card cursor-pointer bg-primary-1"
-                >
-                  <q-card-section class="q-pa-sm">
-                    <div class="row items-start q-mb-sm">
-                      <div class="col">
-                        <div class="text-subtitle2 text-weight-medium q-mb-xs">
-                          {{ task.title }}
+            <q-scroll-area
+              style="height: 650px"
+              @dragover.prevent="onDragOver"
+              @dragleave="onDragLeave"
+              @drop="onDrop"
+            >
+              <div class="q-pa-sm">
+                <div class="column q-gutter-sm">
+                  <q-card
+                    v-for="task in sprintTasks"
+                    :key="task.id"
+                    class="task-card cursor-pointer bg-primary-1"
+                  >
+                    <q-card-section class="q-pa-sm">
+                      <div class="row items-start q-mb-sm">
+                        <div class="col">
+                          <div class="text-subtitle2 text-weight-medium q-mb-xs">
+                            {{ task.title }}
+                          </div>
+                        </div>
+                        <div class="col-auto">
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="close"
+                            size="sm"
+                            color="grey-6"
+                            @click="removeFromSprint(task.id)"
+                          />
                         </div>
                       </div>
-                      <div class="col-auto">
-                        <q-btn
-                          flat
-                          round
-                          dense
-                          icon="close"
-                          size="sm"
-                          color="grey-6"
-                          @click="removeFromSprint(task.id)"
-                        />
+                      <div class="text-body2 text-grey-7 q-mb-sm" style="font-size: 12px">
+                        {{ task.description }}
                       </div>
-                    </div>
-                    <div class="text-body2 text-grey-7 q-mb-sm" style="font-size: 12px">
-                      {{ task.description }}
-                    </div>
-                    <div class="row items-center justify-between">
-                      <q-chip
-                        :color="
-                          task.priority.toLowerCase() === 'high'
-                            ? 'red'
-                            : task.priority.toLowerCase() === 'medium'
-                              ? 'orange'
-                              : 'green'
-                        "
-                        text-color="white"
-                        size="sm"
-                        :label="task.priority"
-                      />
-                      <div class="text-caption">{{ task.storyPoints }} SP</div>
-                    </div>
-                  </q-card-section>
-                </q-card>
+                      <div class="row items-center justify-between">
+                        <q-chip
+                          :color="
+                            task.priority.toLowerCase() === 'high'
+                              ? 'red'
+                              : task.priority.toLowerCase() === 'medium'
+                                ? 'orange'
+                                : 'green'
+                          "
+                          text-color="white"
+                          size="sm"
+                          :label="task.priority"
+                        />
+                        <div class="text-caption">{{ task.storyPoints }} SP</div>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+                <div v-if="sprintTasks.length === 0" class="text-center text-grey-5 q-pa-lg">
+                  <q-icon name="timeline" size="48px" class="q-mb-md" />
+                  <div>Drag tasks here to add to sprint</div>
+                </div>
               </div>
-              <div v-if="sprintTasks.length === 0" class="text-center text-grey-5 q-pa-lg">
-                <q-icon name="timeline" size="48px" class="q-mb-md" />
-                <div>Drag tasks here to add to sprint</div>
-              </div>
-            </q-card-section>
+            </q-scroll-area>
           </q-card>
         </div>
       </div>
@@ -388,7 +397,7 @@ const teamMembers = computed(() => {
     id: member.id,
     name: member.name,
     avatar: member.avatar,
-    capacity: member.maxStoryPoints || 40, // Default capacity
+    capacity: member.maxStoryPoints || 20, // Default capacity
     workload: member.workload,
   }));
 });
@@ -615,8 +624,8 @@ function startSprint() {
 }
 
 .sprint-backlog.drag-over {
-  border: 2px dashed var(--q-primary);
-  background-color: rgba(25, 118, 210, 0.05);
+  border: 2px dashed var(--q-primary) !important;
+  background-color: rgba(25, 118, 210, 0.05) !important;
 }
 
 .task-card {
@@ -630,5 +639,29 @@ function startSprint() {
   border-color: var(--q-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
+}
+
+/* Custom scrollbar styling */
+:deep(.q-card-section) {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+
+:deep(.q-card-section::-webkit-scrollbar) {
+  width: 8px;
+}
+
+:deep(.q-card-section::-webkit-scrollbar-track) {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+:deep(.q-card-section::-webkit-scrollbar-thumb) {
+  background: #888;
+  border-radius: 4px;
+}
+
+:deep(.q-card-section::-webkit-scrollbar-thumb:hover) {
+  background: #555;
 }
 </style>

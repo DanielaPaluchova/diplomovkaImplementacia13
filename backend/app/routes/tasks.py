@@ -11,23 +11,18 @@ from datetime import datetime
 tasks_bp = Blueprint('tasks', __name__)
 
 
-def validate_team_members(project, assignee_id=None, raci_data=None):
+def validate_team_members(project, raci_data=None):
     """
     Validate that team members are assigned to the project.
     
     Args:
         project: Project object
-        assignee_id: Optional assignee ID to validate
         raci_data: Optional dictionary with RACI role assignments
         
     Returns:
         tuple: (is_valid: bool, error_message: str or None)
     """
     project_member_ids = project.team_member_ids or []
-    
-    # Check assignee
-    if assignee_id is not None and assignee_id not in project_member_ids:
-        return False, f'Team member with ID {assignee_id} is not assigned to this project'
     
     # Check RACI roles
     if raci_data:
@@ -146,10 +141,9 @@ def create_task():
             return jsonify({'error': 'Project not found'}), 404
         
         # Validate team member assignments
-        assignee_id = data.get('assigneeId')
         raci_data = data.get('raci', {})
         
-        is_valid, error_message = validate_team_members(project, assignee_id, raci_data)
+        is_valid, error_message = validate_team_members(project, raci_data)
         if not is_valid:
             return jsonify({'error': error_message}), 400
         
@@ -164,8 +158,6 @@ def create_task():
             priority=data.get('priority', 'medium'),
             type=data.get('type', 'task'),
             story_points=data.get('storyPoints', 0),
-            assignee_id=data.get('assigneeId'),
-            assignee=data.get('assignee'),
             due_date=datetime.fromisoformat(data['dueDate']) if data.get('dueDate') else None,
             labels=data.get('labels', []),
             complexity=data.get('complexity', 0)
@@ -230,11 +222,10 @@ def update_task(task_id):
         
         # Validate team member assignments if they're being updated
         project = task.project
-        assignee_id = data.get('assigneeId') if 'assigneeId' in data else None
         raci_data = data.get('raci') if 'raci' in data else None
         
-        if assignee_id is not None or raci_data is not None:
-            is_valid, error_message = validate_team_members(project, assignee_id, raci_data)
+        if raci_data is not None:
+            is_valid, error_message = validate_team_members(project, raci_data)
             if not is_valid:
                 return jsonify({'error': error_message}), 400
         
@@ -253,10 +244,6 @@ def update_task(task_id):
             task.type = data['type']
         if 'storyPoints' in data:
             task.story_points = data['storyPoints']
-        if 'assigneeId' in data:
-            task.assignee_id = data['assigneeId']
-        if 'assignee' in data:
-            task.assignee = data['assignee']
         if 'sprintId' in data:
             task.sprint_id = data['sprintId']
         if 'dueDate' in data:
