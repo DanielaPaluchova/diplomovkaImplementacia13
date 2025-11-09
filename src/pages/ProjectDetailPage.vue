@@ -24,13 +24,13 @@
       <div class="row q-gutter-md q-mt-lg">
         <div class="col">
           <div class="text-caption">Progress</div>
-          <div class="text-h6 text-weight-bold">{{ project.progress }}%</div>
-          <q-linear-progress :value="project.progress / 100" color="white" class="q-mt-xs" />
+          <div class="text-h6 text-weight-bold">{{ projectProgress }}%</div>
+          <q-linear-progress :value="projectProgress / 100" color="white" class="q-mt-xs" />
         </div>
         <div class="col">
           <div class="text-caption">Tasks</div>
           <div class="text-h6 text-weight-bold">
-            {{ project.tasksCompleted }}/{{ project.totalTasks }}
+            {{ projectTasksCompleted }}/{{ projectTotalTasks }}
           </div>
         </div>
         <div class="col">
@@ -77,10 +77,10 @@
                     <q-card-section>
                       <div class="text-caption text-grey-7">Progress</div>
                       <div class="text-h5 text-weight-bold text-primary">
-                        {{ project.progress }}%
+                        {{ projectProgress }}%
                       </div>
                       <q-linear-progress
-                        :value="project.progress / 100"
+                        :value="projectProgress / 100"
                         color="primary"
                         class="q-mt-sm"
                       />
@@ -144,23 +144,23 @@
                   <div class="row q-col-gutter-md">
                     <div class="col-4">
                       <div class="text-caption text-grey-7">Total Tasks</div>
-                      <div class="text-h6 text-primary">{{ activeSprint.totalTasks }}</div>
+                      <div class="text-h6 text-primary">{{ activeSprintTotalTasks }}</div>
                     </div>
                     <div class="col-4">
                       <div class="text-caption text-grey-7">Completed</div>
-                      <div class="text-h6 text-green">{{ activeSprint.completedTasks }}</div>
+                      <div class="text-h6 text-green">{{ activeSprintCompletedTasks }}</div>
                     </div>
                     <div class="col-4">
                       <div class="text-caption text-grey-7">Remaining</div>
                       <div class="text-h6 text-orange">
-                        {{ activeSprint.totalTasks - activeSprint.completedTasks }}
+                        {{ activeSprintTotalTasks - activeSprintCompletedTasks }}
                       </div>
                     </div>
                   </div>
                   <q-linear-progress
                     :value="
-                      activeSprint.totalTasks > 0
-                        ? activeSprint.completedTasks / activeSprint.totalTasks
+                      activeSprintTotalTasks > 0
+                        ? activeSprintCompletedTasks / activeSprintTotalTasks
                         : 0
                     "
                     color="green"
@@ -237,7 +237,7 @@
                         </span>
                       </div>
                       <q-linear-progress
-                        :value="getProjectWorkload(member.id) / 100"
+                        :value="Math.min(1, getProjectWorkload(member.id) / 100)"
                         color="primary"
                         size="6px"
                       />
@@ -252,7 +252,7 @@
                         </span>
                       </div>
                       <q-linear-progress
-                        :value="getOtherProjectsWorkload(member.id) / 100"
+                        :value="Math.min(1, getOtherProjectsWorkload(member.id) / 100)"
                         color="orange"
                         size="6px"
                       />
@@ -274,7 +274,7 @@
                         </span>
                       </div>
                       <q-linear-progress
-                        :value="member.workload / 100"
+                        :value="Math.min(1, member.workload / 100)"
                         :color="
                           member.workload > 100 ? 'red' : member.workload > 80 ? 'orange' : 'green'
                         "
@@ -696,7 +696,7 @@
                           </div>
                         </div>
                         <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
-                        <div class="row items-center justify-between">
+                        <div class="row items-center justify-between q-mb-xs">
                           <div class="row items-center q-gutter-xs">
                             <q-chip
                               v-for="label in task.labels"
@@ -712,6 +712,12 @@
                           <div class="text-caption text-weight-medium">
                             {{ task.storyPoints }} SP
                           </div>
+                        </div>
+                        <div class="row items-center q-gutter-xs">
+                          <q-icon name="person" size="16px" color="grey-6" />
+                          <span class="text-caption text-grey-7">
+                            {{ getResponsibleNames(task.raci?.responsible || []) }}
+                          </span>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -820,7 +826,7 @@
                           </div>
                         </div>
                         <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
-                        <div class="row items-center justify-between">
+                        <div class="row items-center justify-between q-mb-xs">
                           <div class="row items-center q-gutter-xs">
                             <q-chip
                               v-for="label in task.labels"
@@ -846,6 +852,12 @@
                               {{ task.storyPoints }} SP
                             </div>
                           </div>
+                        </div>
+                        <div class="row items-center q-gutter-xs">
+                          <q-icon name="person" size="16px" color="grey-6" />
+                          <span class="text-caption text-grey-7">
+                            {{ getResponsibleNames(task.raci?.responsible || []) }}
+                          </span>
                         </div>
                       </q-card-section>
                     </q-card>
@@ -946,26 +958,24 @@
                 <div class="row q-gutter-md">
                   <div class="col">
                     <div class="text-caption text-grey-7">Completed Tasks</div>
-                    <div class="text-h6 text-green">{{ activeSprint.completedTasks }}</div>
+                    <div class="text-h6 text-green">{{ activeSprintCompletedTasks }}</div>
                   </div>
                   <div class="col">
                     <div class="text-caption text-grey-7">Remaining Tasks</div>
                     <div class="text-h6 text-orange">
-                      {{ activeSprint.totalTasks - activeSprint.completedTasks }}
+                      {{ activeSprintTotalTasks - activeSprintCompletedTasks }}
                     </div>
                   </div>
                   <div class="col">
                     <div class="text-caption text-grey-7">Total Tasks</div>
-                    <div class="text-h6 text-primary">{{ activeSprint.totalTasks }}</div>
+                    <div class="text-h6 text-primary">{{ activeSprintTotalTasks }}</div>
                   </div>
                   <div class="col">
                     <div class="text-caption text-grey-7">Progress</div>
                     <div class="text-h6 text-blue">
                       {{
-                        activeSprint.totalTasks > 0
-                          ? Math.round(
-                              (activeSprint.completedTasks / activeSprint.totalTasks) * 100,
-                            )
+                        activeSprintTotalTasks > 0
+                          ? Math.round((activeSprintCompletedTasks / activeSprintTotalTasks) * 100)
                           : 0
                       }}%
                     </div>
@@ -974,8 +984,8 @@
 
                 <q-linear-progress
                   :value="
-                    activeSprint.totalTasks > 0
-                      ? activeSprint.completedTasks / activeSprint.totalTasks
+                    activeSprintTotalTasks > 0
+                      ? activeSprintCompletedTasks / activeSprintTotalTasks
                       : 0
                   "
                   color="green"
@@ -1250,7 +1260,7 @@
                   <div class="text-left">
                     <div class="text-caption text-grey-7 q-mb-xs">Workload</div>
                     <q-linear-progress
-                      :value="member.workload / 100"
+                      :value="Math.min(1, member.workload / 100)"
                       :color="
                         member.workload > 80 ? 'red' : member.workload > 60 ? 'orange' : 'green'
                       "
@@ -1397,6 +1407,57 @@
             use-chips
             class="q-mb-md"
           />
+
+          <div class="row q-gutter-md q-mb-md">
+            <div class="col">
+              <q-select
+                v-model="newTask.requiredSkills"
+                :options="[
+                  'Python',
+                  'JavaScript',
+                  'TypeScript',
+                  'Vue.js',
+                  'React',
+                  'Node.js',
+                  'PostgreSQL',
+                  'MongoDB',
+                  'Docker',
+                  'AWS',
+                  'DevOps',
+                  'UI/UX',
+                  'Testing',
+                  'Security',
+                ]"
+                label="Required Skills"
+                filled
+                multiple
+                use-chips
+                use-input
+                hint="Skills needed for this task"
+              />
+            </div>
+          </div>
+
+          <div class="row q-gutter-md q-mb-md">
+            <div class="col">
+              <q-input
+                v-model.number="newTask.estimatedHours"
+                label="Estimated Hours"
+                type="number"
+                filled
+                hint="Estimated time to complete"
+              />
+            </div>
+            <div class="col">
+              <q-select
+                v-model="newTask.riskLevel"
+                :options="['low', 'medium', 'high', 'critical']"
+                label="Risk Level"
+                filled
+                hint="Risk assessment"
+              />
+            </div>
+          </div>
 
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (hours)</div>
@@ -1580,6 +1641,57 @@
             use-chips
             class="q-mb-md"
           />
+
+          <div class="row q-gutter-md q-mb-md">
+            <div class="col">
+              <q-select
+                v-model="editTask.requiredSkills"
+                :options="[
+                  'Python',
+                  'JavaScript',
+                  'TypeScript',
+                  'Vue.js',
+                  'React',
+                  'Node.js',
+                  'PostgreSQL',
+                  'MongoDB',
+                  'Docker',
+                  'AWS',
+                  'DevOps',
+                  'UI/UX',
+                  'Testing',
+                  'Security',
+                ]"
+                label="Required Skills"
+                filled
+                multiple
+                use-chips
+                use-input
+                hint="Skills needed for this task"
+              />
+            </div>
+          </div>
+
+          <div class="row q-gutter-md q-mb-md">
+            <div class="col">
+              <q-input
+                v-model.number="editTask.estimatedHours"
+                label="Estimated Hours"
+                type="number"
+                filled
+                hint="Estimated time to complete"
+              />
+            </div>
+            <div class="col">
+              <q-select
+                v-model="editTask.riskLevel"
+                :options="['low', 'medium', 'high', 'critical']"
+                label="Risk Level"
+                filled
+                hint="Risk assessment"
+              />
+            </div>
+          </div>
 
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (hours)</div>
@@ -1972,6 +2084,36 @@ const completedSprintTasks = computed(() => {
   return sprintTasks.value.filter((t) => t.completed).length;
 });
 
+// Dynamic project-level calculations
+const projectProgress = computed(() => {
+  const tasks = project.value.tasks || [];
+  const totalTasks = tasks.length;
+  if (totalTasks === 0) return 0;
+  const completedTasks = tasks.filter((t) => t.status === 'Done').length;
+  return Math.round((completedTasks / totalTasks) * 100);
+});
+
+const projectTotalTasks = computed(() => {
+  return (project.value.tasks || []).length;
+});
+
+const projectTasksCompleted = computed(() => {
+  return (project.value.tasks || []).filter((t) => t.status === 'Done').length;
+});
+
+// Dynamic sprint task calculations
+const activeSprintTotalTasks = computed(() => {
+  if (!activeSprint.value) return 0;
+  return (project.value.tasks || []).filter((t) => t.sprintId === activeSprint.value?.id).length;
+});
+
+const activeSprintCompletedTasks = computed(() => {
+  if (!activeSprint.value) return 0;
+  return (project.value.tasks || []).filter(
+    (t) => t.sprintId === activeSprint.value?.id && t.status === 'Done',
+  ).length;
+});
+
 const teamMembersOptions = computed(() => {
   return projectTeamMembers.value.map((member) => ({
     label: member.name,
@@ -2065,6 +2207,9 @@ const newTask = ref({
   complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
+  requiredSkills: [] as string[],
+  estimatedHours: 0,
+  riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
   pert: {
     optimistic: 8,
     mostLikely: 16,
@@ -2090,6 +2235,9 @@ const editTask = ref({
   complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
+  requiredSkills: [] as string[],
+  estimatedHours: 0,
+  riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
   pert: {
     optimistic: 8,
     mostLikely: 16,
@@ -2478,6 +2626,9 @@ async function createTask() {
     labels: newTask.value.labels,
     complexity: newTask.value.complexity,
     dependencies: newTask.value.dependencies,
+    requiredSkills: newTask.value.requiredSkills,
+    estimatedHours: newTask.value.estimatedHours,
+    riskLevel: newTask.value.riskLevel,
     pert: {
       optimistic: newTask.value.pert.optimistic,
       mostLikely: newTask.value.pert.mostLikely,
@@ -2527,6 +2678,9 @@ function cancelNewTask() {
     complexity: 5,
     labels: [],
     dependencies: [],
+    requiredSkills: [],
+    estimatedHours: 0,
+    riskLevel: 'low',
     pert: {
       optimistic: 8,
       mostLikely: 16,
@@ -2554,6 +2708,9 @@ function openEditTaskDialog(task: Task) {
     complexity: task.complexity,
     labels: [...task.labels],
     dependencies: task.dependencies ? [...task.dependencies] : [],
+    requiredSkills: task.requiredSkills ? [...task.requiredSkills] : [],
+    estimatedHours: task.estimatedHours || 0,
+    riskLevel: (task.riskLevel || 'low') as 'low' | 'medium' | 'high' | 'critical',
     pert: {
       optimistic: task.pert?.optimistic || 8,
       mostLikely: task.pert?.mostLikely || 16,
@@ -2603,6 +2760,9 @@ async function saveEditTask() {
         labels: editTask.value.labels,
         dependencies: editTask.value.dependencies,
         completed: editTask.value.status === 'Done',
+        requiredSkills: editTask.value.requiredSkills,
+        estimatedHours: editTask.value.estimatedHours,
+        riskLevel: editTask.value.riskLevel,
         pert: {
           optimistic: editTask.value.pert.optimistic,
           mostLikely: editTask.value.pert.mostLikely,
@@ -2652,6 +2812,9 @@ function cancelEditTask() {
     complexity: 5,
     labels: [],
     dependencies: [],
+    requiredSkills: [],
+    estimatedHours: 0,
+    riskLevel: 'low',
     pert: {
       optimistic: 8,
       mostLikely: 16,
@@ -3038,7 +3201,8 @@ function getProjectWorkload(memberId: number): number {
   const totalSP = memberTasks.reduce((sum, t) => sum + t.storyPoints, 0);
 
   // Assume 20 SP = 100% workload for one project
-  return Math.min(100, Math.round((totalSP / 20) * 100));
+  // Don't cap at 100% - show real overload
+  return Math.round((totalSP / 20) * 100);
 }
 
 function getOtherProjectsWorkload(memberId: number): number {

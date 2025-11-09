@@ -44,6 +44,12 @@ class Task(db.Model):
     diagram_position_x = db.Column(db.Float, nullable=True)  # Manual position X (null = use auto-layout)
     diagram_position_y = db.Column(db.Float, nullable=True)  # Manual position Y (null = use auto-layout)
     
+    # Optimization fields
+    required_skills = db.Column(db.JSON, nullable=True, default=list)  # Array of required skills
+    estimated_hours = db.Column(db.Integer, nullable=False, default=0)  # Estimated effort in hours
+    actual_hours = db.Column(db.Integer, nullable=False, default=0)  # Actual time spent
+    risk_level = db.Column(db.String(20), nullable=False, default='low')  # low, medium, high, critical
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -85,7 +91,11 @@ class Task(db.Model):
             'endDate': self.end_date.isoformat() if self.end_date else None,
             'dependencies': self.dependencies or [],
             'diagramPositionX': self.diagram_position_x,
-            'diagramPositionY': self.diagram_position_y
+            'diagramPositionY': self.diagram_position_y,
+            'requiredSkills': self.required_skills or [],
+            'estimatedHours': self.estimated_hours,
+            'actualHours': self.actual_hours,
+            'riskLevel': self.risk_level
         }
     
     def __repr__(self):

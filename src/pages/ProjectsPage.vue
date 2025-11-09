@@ -376,14 +376,18 @@ const sortOptions = ['Recent', 'Name', 'Due Date', 'Progress'];
 // Computed
 const filteredProjects = computed(() => {
   let filtered = [
-    ...projectStore.projects.map((p) => ({
-      ...p,
-      dueDate: typeof p.dueDate === 'string' ? new Date(p.dueDate) : p.dueDate,
-      createdAt: typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt,
-      teamMembers: p.teamMemberIds
-        .map((id) => teamStore.teamMembers.find((m) => m.id === id))
-        .filter(Boolean) as TeamMember[],
-    })),
+    ...projectStore.projects.map((p) => {
+      // Use backend-calculated values for totalTasks, tasksCompleted, and progress
+      // Backend now dynamically calculates these from the database
+      return {
+        ...p,
+        dueDate: typeof p.dueDate === 'string' ? new Date(p.dueDate) : p.dueDate,
+        createdAt: typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt,
+        teamMembers: p.teamMemberIds
+          .map((id) => teamStore.teamMembers.find((m) => m.id === id))
+          .filter(Boolean) as TeamMember[],
+      };
+    }),
   ];
 
   // Search filter

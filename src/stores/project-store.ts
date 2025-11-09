@@ -12,6 +12,10 @@ export interface Sprint {
   totalTasks: number;
   completedTasks: number;
   taskIds: number[];
+  // Optimization fields
+  capacity?: number;
+  plannedStoryPoints?: number;
+  velocity?: number;
 }
 
 export interface ProjectRole {
@@ -63,6 +67,11 @@ export interface Task {
   // PERT diagram position
   diagramPositionX?: number | null;
   diagramPositionY?: number | null;
+  // Optimization fields
+  requiredSkills?: string[];
+  estimatedHours?: number;
+  actualHours?: number;
+  riskLevel?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface PertManualEdge {

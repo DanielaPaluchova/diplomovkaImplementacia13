@@ -48,6 +48,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/RequirementChangePage.vue'),
         meta: { requiresManager: true },
       },
+      {
+        path: 'smart-sprint-planning',
+        component: () => import('pages/SmartSprintPlanningPage.vue'),
+        meta: { requiresManager: true },
+      },
       // Profile
       {
         path: 'profile',

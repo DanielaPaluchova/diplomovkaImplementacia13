@@ -13,9 +13,11 @@ class Project(db.Model):
     description = db.Column(db.Text, nullable=True)
     template = db.Column(db.String(100), nullable=True)
     icon = db.Column(db.String(50), nullable=True)
-    # progress is computed from tasks_completed / total_tasks
-    tasks_completed = db.Column(db.Integer, nullable=False, default=0)
-    total_tasks = db.Column(db.Integer, nullable=False, default=0)
+    # NOTE: tasks_completed and total_tasks are DEPRECATED database columns
+    # They are now computed dynamically in to_dict() from the tasks relationship
+    # progress is also computed dynamically from actual task counts
+    tasks_completed = db.Column(db.Integer, nullable=False, default=0)  # DEPRECATED - use to_dict()
+    total_tasks = db.Column(db.Integer, nullable=False, default=0)  # DEPRECATED - use to_dict()
     status = db.Column(db.String(50), nullable=False, default='In Progress')
     due_date = db.Column(db.DateTime, nullable=True)
     total_story_points = db.Column(db.Integer, nullable=False, default=0)
@@ -41,10 +43,19 @@ class Project(db.Model):
     
     def to_dict(self, include_details=False):
         """Convert project to dictionary"""
+        # Always calculate task counts dynamically from actual tasks
+        # Even if lazy loading hasn't triggered, we need to count tasks for accurate stats
+        from app.models.task import Task
+        
+        # Query tasks for this project to ensure we have accurate counts
+        all_project_tasks = Task.query.filter_by(project_id=self.id).all()
+        total_tasks = len(all_project_tasks)
+        tasks_completed = len([t for t in all_project_tasks if t.status == 'Done'])
+        
         # Calculate progress dynamically
         progress = 0
-        if self.total_tasks > 0:
-            progress = int((self.tasks_completed / self.total_tasks) * 100)
+        if total_tasks > 0:
+            progress = int((tasks_completed / total_tasks) * 100)
         
         # Default RACI weights
         default_raci_weights = {
@@ -67,9 +78,9 @@ class Project(db.Model):
             'description': self.description,
             'template': self.template,
             'icon': self.icon,
-            'progress': progress,  # Computed from tasks_completed / total_tasks
-            'tasksCompleted': self.tasks_completed,
-            'totalTasks': self.total_tasks,
+            'progress': progress,  # Computed dynamically from actual tasks
+            'tasksCompleted': tasks_completed,  # Computed dynamically
+            'totalTasks': total_tasks,  # Computed dynamically
             'status': self.status,
             'dueDate': self.due_date.isoformat() if self.due_date else None,
             'totalStoryPoints': self.total_story_points,

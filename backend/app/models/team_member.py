@@ -17,10 +17,17 @@ class TeamMember(db.Model):
     status = db.Column(db.String(20), nullable=False, default='offline')  # online, busy, away, offline
     skills = db.Column(db.JSON, nullable=True)  # Array of skills
     max_story_points = db.Column(db.Integer, nullable=False, default=20)  # Maximum story points capacity per sprint
+    
+    # Optimization fields
+    workload = db.Column(db.Float, nullable=False, default=0.0)  # Current workload percentage (0-100)
+    availability = db.Column(db.Float, nullable=False, default=1.0)  # Availability factor (0.0-1.0)
+    current_sprint_capacity = db.Column(db.Integer, nullable=False, default=0)  # Available SP in current sprint
+    historical_velocity = db.Column(db.Float, nullable=False, default=0.0)  # Average SP completed per sprint
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def to_dict(self, active_projects=0, workload=0, total_story_points=0):
+    def to_dict(self, active_projects=0, workload=None, total_story_points=0):
         """Convert team member to dictionary with computed values"""
         return {
             'id': self.id,
@@ -31,9 +38,12 @@ class TeamMember(db.Model):
             'avatar': self.avatar,
             'status': self.status,
             'activeProjects': active_projects,
-            'workload': workload,
+            'workload': workload if workload is not None else self.workload,
             'totalStoryPoints': total_story_points,
             'maxStoryPoints': self.max_story_points,
+            'availability': self.availability,
+            'currentSprintCapacity': self.current_sprint_capacity,
+            'historicalVelocity': self.historical_velocity,
             'skills': self.skills or []
         }
     

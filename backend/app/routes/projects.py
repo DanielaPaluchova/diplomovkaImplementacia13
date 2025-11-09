@@ -104,17 +104,14 @@ def update_project(project_id):
             project.template = data['template']
         if 'icon' in data:
             project.icon = data['icon']
-        # progress is computed automatically from tasks_completed / total_tasks
+        # progress, tasksCompleted, and totalTasks are computed automatically from tasks relationship
         if 'status' in data:
             project.status = data['status']
         if 'dueDate' in data:
             project.due_date = datetime.fromisoformat(data['dueDate']) if data['dueDate'] else None
         if 'teamMemberIds' in data:
             project.team_member_ids = data['teamMemberIds']
-        if 'tasksCompleted' in data:
-            project.tasks_completed = data['tasksCompleted']
-        if 'totalTasks' in data:
-            project.total_tasks = data['totalTasks']
+        # tasksCompleted and totalTasks are now computed dynamically - no longer updated manually
         if 'totalStoryPoints' in data:
             project.total_story_points = data['totalStoryPoints']
         if 'estimatedDuration' in data:

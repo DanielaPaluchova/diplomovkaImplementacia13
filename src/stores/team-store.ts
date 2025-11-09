@@ -12,10 +12,13 @@ export interface TeamMember {
   status?: string;
   activeProjects?: number;
   skills: string[];
-  availability?: boolean;
+  availability?: number; // 0.0-1.0 (changed from boolean)
   workload: number;
   totalStoryPoints?: number;
   maxStoryPoints?: number;
+  // Optimization fields
+  currentSprintCapacity?: number;
+  historicalVelocity?: number;
 }
 
 export const useTeamStore = defineStore('team', () => {
@@ -118,7 +121,7 @@ export const useTeamStore = defineStore('team', () => {
 
   // Local getters (no API calls)
   function getAvailableMembers(): TeamMember[] {
-    return teamMembers.value.filter((m) => m.availability !== false);
+    return teamMembers.value.filter((m) => (m.availability ?? 0) > 0);
   }
 
   function getMembersByRole(role: string): TeamMember[] {

@@ -262,14 +262,20 @@ const projectNavigation: NavigationItemProps[] = [
     icon: 'auto_awesome',
     route: '/pert-raci-optimization',
   },
-  // Hidden temporarily
-  // {
-  //   title: 'Requirement Changes',
-  //   caption: 'Auto-adaptation simulator',
-  //   icon: 'sync_alt',
-  //   route: '/requirement-changes',
-  //   badge: 'New',
-  // },
+  {
+    title: 'Requirement Changes',
+    caption: 'Intelligent adaptation system',
+    icon: 'change_circle',
+    route: '/requirement-changes',
+    badge: 'New',
+  },
+  {
+    title: 'Smart Sprint Planning',
+    caption: 'AI-powered sprint optimization',
+    icon: 'auto_awesome',
+    route: '/smart-sprint-planning',
+    badge: 'New',
+  },
 ];
 
 const leftDrawerOpen = ref(false);

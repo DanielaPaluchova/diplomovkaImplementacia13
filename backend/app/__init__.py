@@ -58,11 +58,15 @@ def create_app():
     from app.routes.projects import projects_bp
     from app.routes.teams import teams_bp
     from app.routes.tasks import tasks_bp
+    from app.routes.requirement_changes import requirement_changes_bp
+    from app.routes.smart_sprint import smart_sprint_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(projects_bp, url_prefix='/api/projects')
     app.register_blueprint(teams_bp, url_prefix='/api/teams')
     app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
+    app.register_blueprint(requirement_changes_bp, url_prefix='/api/projects')
+    app.register_blueprint(smart_sprint_bp, url_prefix='/api/projects')
     
     # Health check endpoint
     @app.route('/api/health')

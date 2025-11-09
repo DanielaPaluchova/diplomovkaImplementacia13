@@ -237,7 +237,7 @@
                   </span>
                 </div>
                 <q-linear-progress
-                  :value="member.totalWorkload / 100"
+                  :value="Math.min(1, member.totalWorkload / 100)"
                   :color="getWorkloadColor(member.totalWorkload)"
                   size="12px"
                   class="rounded-borders"
@@ -767,6 +767,12 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
         })
         .filter((m): m is NonNullable<typeof m> => m !== null);
 
+      // Calculate tasks dynamically from actual task array
+      const sprintTasks = project.tasks?.filter((task) => task.sprintId === activeSprint.id) || [];
+      const totalTasks = sprintTasks.length;
+      const completedTasks = sprintTasks.filter((task) => task.status === 'Done').length;
+      const remainingTasks = totalTasks - completedTasks;
+
       sprints.push({
         id: activeSprint.id,
         projectId: project.id,
@@ -780,9 +786,9 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
           typeof activeSprint.endDate === 'string'
             ? new Date(activeSprint.endDate)
             : activeSprint.endDate,
-        totalTasks: activeSprint.totalTasks || 0,
-        completedTasks: activeSprint.completedTasks || 0,
-        remainingTasks: (activeSprint.totalTasks || 0) - (activeSprint.completedTasks || 0),
+        totalTasks,
+        completedTasks,
+        remainingTasks,
         teamMembers,
       });
     }

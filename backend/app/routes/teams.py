@@ -56,7 +56,8 @@ def calculate_member_metrics(member_id):
     max_capacity = member.max_story_points if member else 20
     
     # Calculate workload as percentage based on member's max capacity
-    workload = min(100, int((total_story_points / max_capacity) * 100))
+    # Don't cap at 100% - show real overload
+    workload = int((total_story_points / max_capacity) * 100) if max_capacity > 0 else 0
     
     return active_projects, workload, total_story_points
 

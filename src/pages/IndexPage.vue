@@ -271,25 +271,32 @@ const averageWorkload = computed(() => {
 });
 
 const totalTasks = computed(() => {
-  return projectStore.projects.reduce((sum, p) => sum + (p.totalTasks || 0), 0);
+  return projectStore.projects.reduce((sum, p) => {
+    return sum + (p.totalTasks || 0); // Use backend-calculated value
+  }, 0);
 });
 
 const completedTasks = computed(() => {
-  return projectStore.projects.reduce((sum, p) => sum + (p.tasksCompleted || 0), 0);
+  return projectStore.projects.reduce((sum, p) => {
+    return sum + (p.tasksCompleted || 0); // Use backend-calculated value
+  }, 0);
 });
 
 // Active Projects - Get real data from project store
 const activeProjects = computed(() => {
   return projectStore.projects
     .slice(0, 6) // Show max 6 projects
-    .map((project) => ({
-      id: project.id,
-      name: project.name,
-      icon: project.icon || 'work',
-      color: getProjectColor(project.status),
-      progress: project.progress || 0,
-      status: project.status || 'In Progress',
-    }));
+    .map((project) => {
+      // Use backend-calculated progress value
+      return {
+        id: project.id,
+        name: project.name,
+        icon: project.icon || 'work',
+        color: getProjectColor(project.status),
+        progress: project.progress, // Backend now calculates this dynamically
+        status: project.status || 'In Progress',
+      };
+    });
 });
 
 function getProjectColor(status: string): string {

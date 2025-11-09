@@ -18,6 +18,12 @@ class Sprint(db.Model):
     total_tasks = db.Column(db.Integer, nullable=False, default=0)
     completed_tasks = db.Column(db.Integer, nullable=False, default=0)
     task_ids = db.Column(db.JSON, nullable=True)  # Deprecated - computed from tasks relationship
+    
+    # Optimization fields
+    capacity = db.Column(db.Integer, nullable=False, default=100)  # Maximum story points capacity
+    planned_story_points = db.Column(db.Integer, nullable=False, default=0)  # Total SP planned
+    velocity = db.Column(db.Float, nullable=False, default=0.0)  # Actual velocity (completed SP)
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -43,7 +49,10 @@ class Sprint(db.Model):
             'status': self.status,
             'totalTasks': total_tasks,  # Computed from tasks
             'completedTasks': completed_tasks,  # Computed from tasks
-            'taskIds': task_ids  # Computed from tasks
+            'taskIds': task_ids,  # Computed from tasks
+            'capacity': self.capacity,
+            'plannedStoryPoints': self.planned_story_points,
+            'velocity': self.velocity
         }
     
     def __repr__(self):

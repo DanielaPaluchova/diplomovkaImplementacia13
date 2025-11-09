@@ -160,7 +160,14 @@ def create_task():
             story_points=data.get('storyPoints', 0),
             due_date=datetime.fromisoformat(data['dueDate']) if data.get('dueDate') else None,
             labels=data.get('labels', []),
-            complexity=data.get('complexity', 0)
+            complexity=data.get('complexity', 0),
+            completed=data.get('completed', False),
+            required_skills=data.get('requiredSkills', []),
+            estimated_hours=data.get('estimatedHours', 0),
+            actual_hours=data.get('actualHours', 0),
+            risk_level=data.get('riskLevel', 'low'),
+            start_date=datetime.fromisoformat(data['startDate']) if data.get('startDate') else None,
+            end_date=datetime.fromisoformat(data['endDate']) if data.get('endDate') else None
         )
         
         # PERT data
@@ -191,10 +198,7 @@ def create_task():
                 return jsonify({'error': cycle_error}), 400
             task.dependencies = dependencies
         
-        # Update project stats
-        project.total_tasks += 1
-        if task.status == 'Done':
-            project.tasks_completed += 1
+        # Update project stats (total_tasks and tasks_completed are now computed dynamically)
         if task.story_points:
             project.total_story_points += task.story_points
         
@@ -254,6 +258,18 @@ def update_task(task_id):
             task.complexity = data['complexity']
         if 'completed' in data:
             task.completed = data['completed']
+        if 'requiredSkills' in data:
+            task.required_skills = data['requiredSkills']
+        if 'estimatedHours' in data:
+            task.estimated_hours = data['estimatedHours']
+        if 'actualHours' in data:
+            task.actual_hours = data['actualHours']
+        if 'riskLevel' in data:
+            task.risk_level = data['riskLevel']
+        if 'startDate' in data:
+            task.start_date = datetime.fromisoformat(data['startDate']) if data['startDate'] else None
+        if 'endDate' in data:
+            task.end_date = datetime.fromisoformat(data['endDate']) if data['endDate'] else None
         
         # Update diagram position
         if 'diagramPositionX' in data:
@@ -293,18 +309,10 @@ def update_task(task_id):
             if 'informed' in raci:
                 task.raci_informed = raci['informed']
         
-        # Update project stats if status or story points changed
+        # Update project stats if story points changed (total_tasks, tasks_completed, and progress are computed dynamically)
         project = task.project
-        if old_status != task.status:
-            if old_status == 'Done':
-                project.tasks_completed -= 1
-            if task.status == 'Done':
-                project.tasks_completed += 1
-        
         if old_story_points != task.story_points:
             project.total_story_points = project.total_story_points - old_story_points + task.story_points
-        
-        # progress is computed automatically in to_dict() method
         
         task.updated_at = datetime.utcnow()
         db.session.commit()
@@ -325,15 +333,10 @@ def delete_task(task_id):
         if not task:
             return jsonify({'error': 'Task not found'}), 404
         
-        # Update project stats
+        # Update project stats (total_tasks and tasks_completed are now computed dynamically)
         project = task.project
-        project.total_tasks -= 1
-        if task.status == 'Done':
-            project.tasks_completed -= 1
         if task.story_points:
             project.total_story_points -= task.story_points
-        
-        # progress is computed automatically in to_dict() method
         
         db.session.delete(task)
         db.session.commit()
