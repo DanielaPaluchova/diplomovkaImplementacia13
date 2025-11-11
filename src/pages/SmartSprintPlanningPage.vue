@@ -30,8 +30,14 @@
             label="Apply Plan"
             @click="onApplyPlan"
             :loading="smartSprintStore.applyingPlan"
+            :disable="!canApplyPlan"
             unelevated
-          />
+          >
+            <q-tooltip v-if="!canApplyPlan" max-width="300px">
+              Cannot apply: Sprint "{{ activeSprint?.name }}" is currently active. 
+              Please enable "Close active sprint when applying" option in the warning banner above.
+            </q-tooltip>
+          </q-btn>
         </div>
       </div>
     </div>
@@ -113,17 +119,28 @@
         <template v-slot:avatar>
           <q-icon name="warning" color="orange" size="32px" />
         </template>
-        <div class="text-weight-bold">Active Sprint Detected</div>
-        <div class="text-body2">
-          Sprint "{{ activeSprint.name }}" is currently active. You can either plan a new sprint
-          with remaining tasks or close the active sprint and replan all tasks.
+        <div class="text-weight-bold text-orange-9 q-mb-sm">
+          <q-icon name="info" size="20px" class="q-mr-xs" />
+          Active Sprint Detected: "{{ activeSprint.name }}"
+        </div>
+        <div class="text-body2 q-mb-sm">
+          To apply a new sprint plan, you must close the active sprint first.
+        </div>
+        <div class="text-body2 text-weight-medium">
+          <q-icon name="arrow_forward" size="16px" class="q-mr-xs" />
+          Check the option below to automatically close the active sprint when applying:
         </div>
         <template v-slot:action>
           <q-checkbox
             v-model="closeActiveSprint"
             label="Close active sprint when applying"
             color="orange"
-          />
+            class="text-weight-bold"
+          >
+            <q-tooltip v-if="!closeActiveSprint" max-width="300px">
+              Required to apply the plan. This will mark "{{ activeSprint.name }}" as completed.
+            </q-tooltip>
+          </q-checkbox>
         </template>
       </q-banner>
 
@@ -808,6 +825,11 @@ const hasGeneratedPlan = computed(() => {
   return !!smartSprintStore.planningResult;
 });
 
+const canApplyPlan = computed(() => {
+  // Can apply if there's no active sprint, or if closeActiveSprint is enabled
+  return !activeSprint.value || closeActiveSprint.value;
+});
+
 const planningResult = computed(() => smartSprintStore.planningResult);
 
 // Table columns
@@ -951,9 +973,18 @@ async function onApplyPlan() {
     };
   });
 
+  // Build confirmation message
+  let confirmMessage = `This will create "${sprintName.value}" with ${taskIds.length} tasks and assign them to team members.`;
+  
+  if (activeSprint.value && closeActiveSprint.value) {
+    confirmMessage += `\n\n✓ The active sprint "${activeSprint.value.name}" will be closed and marked as completed.`;
+  }
+  
+  confirmMessage += '\n\nContinue?';
+
   $q.dialog({
     title: 'Apply Sprint Plan',
-    message: `This will create "${sprintName.value}" with ${taskIds.length} tasks and assign them to team members. ${closeActiveSprint.value && activeSprint.value ? `The active sprint "${activeSprint.value.name}" will be closed.` : ''} Continue?`,
+    message: confirmMessage,
     cancel: true,
     persistent: true,
   }).onOk(async () => {
@@ -1044,7 +1075,7 @@ function getMemberStatusLabel(status: string): string {
 
 // Lifecycle
 onMounted(async () => {
-  await projectStore.fetchProjects();
+  await projectStore.fetchProjects(true);
 
   // Auto-select first project if available
   if (projectStore.projects.length > 0 && projectStore.projects[0]) {

@@ -8,6 +8,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.team_member import TeamMember
 from app.models.sprint import Sprint
+from app.models.optimization_log import OptimizationLog
 from app.services.smart_sprint_planner import SmartSprintPlannerService
 from app.utils.auth import token_required
 from datetime import datetime
@@ -155,10 +156,9 @@ def generate_smart_sprint_plan(project_id):
                         ).all()
                         
                         for task in sprint_tasks:
-                            # Check if member is responsible or accountable
+                            # Check if member is responsible
                             is_assigned = (
-                                (task.raci_responsible and member.id in task.raci_responsible) or
-                                task.raci_accountable == member.id
+                                task.raci_responsible and member.id in task.raci_responsible
                             )
                             
                             if is_assigned:
@@ -286,17 +286,25 @@ def apply_smart_sprint_plan(project_id):
         except ValueError:
             return jsonify({'error': 'Invalid date format'}), 400
         
-        # Close active sprint if requested
+        # Check for existing active sprint and handle it
         closed_sprint = None
-        if close_active_sprint:
-            active_sprint = Sprint.query.filter_by(
-                project_id=project_id,
-                status='active'
-            ).first()
-            
-            if active_sprint:
-                active_sprint.status = 'completed'
-                closed_sprint = active_sprint.to_dict()
+        active_sprint = Sprint.query.filter_by(
+            project_id=project_id,
+            status='active'
+        ).first()
+        
+        # If active sprint exists and closeActiveSprint is false, return error
+        if active_sprint and not close_active_sprint:
+            return jsonify({
+                'error': 'Cannot create new active sprint while another sprint is active',
+                'message': f'Sprint "{active_sprint.name}" is currently active. Please close it first or enable "Close Active Sprint" option.',
+                'activeSprint': active_sprint.to_dict()
+            }), 400
+        
+        # Close active sprint if requested
+        if close_active_sprint and active_sprint:
+            active_sprint.status = 'completed'
+            closed_sprint = active_sprint.to_dict()
         
         # Create new sprint
         new_sprint = Sprint(
@@ -331,6 +339,10 @@ def apply_smart_sprint_plan(project_id):
             if not task or task.project_id != project_id:
                 continue
             
+            # Skip blocked tasks - they cannot be assigned to a sprint
+            if task.status == 'Blocked':
+                continue
+            
             # Assign task to sprint
             task.sprint_id = new_sprint.id
             tasks_updated += 1
@@ -363,6 +375,24 @@ def apply_smart_sprint_plan(project_id):
         new_sprint.planned_story_points = sum(
             task.story_points or 0 for task in sprint_tasks
         )
+        
+        # Create OptimizationLog entry
+        optimization_log = OptimizationLog(
+            project_id=project_id,
+            optimization_type='smart_sprint',
+            proposals_count=len(task_ids),
+            applied_count=tasks_updated,
+            scope='sprint_planning',
+            results={
+                'sprintId': new_sprint.id,
+                'sprintName': sprint_name,
+                'tasksUpdated': tasks_updated,
+                'assignmentsApplied': assignments_applied,
+                'plannedStoryPoints': new_sprint.planned_story_points,
+                'closedSprint': closed_sprint is not None
+            }
+        )
+        db.session.add(optimization_log)
         
         # Commit all changes
         db.session.commit()
@@ -434,14 +464,6 @@ def get_sprint_strategies(project_id):
             'recommended': 'When you have specialized tasks requiring specific skills'
         },
         {
-            'id': 'dependency-aware',
-            'name': 'Dependency-Aware',
-            'description': 'Prioritize tasks based on dependencies to avoid blocking',
-            'parameters': [],
-            'icon': 'account_tree',
-            'recommended': 'When your tasks have complex dependencies'
-        },
-        {
             'id': 'velocity-based',
             'name': 'Velocity-Based',
             'description': 'Use historical velocity for realistic capacity planning',
@@ -464,6 +486,60 @@ def get_sprint_strategies(project_id):
             'parameters': [],
             'icon': 'trending_up',
             'recommended': 'When you want to maximize delivered business value'
+        },
+        {
+            'id': 'balanced-priority',
+            'name': 'Balanced Priority',
+            'description': 'Balance high-priority tasks with fair workload distribution',
+            'parameters': [
+                {
+                    'name': 'priority',
+                    'label': 'Priority Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.6
+                },
+                {
+                    'name': 'workload',
+                    'label': 'Workload Balance Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.4
+                }
+            ],
+            'icon': 'filter_list',
+            'recommended': 'When you need to address important work while maintaining fair distribution'
+        },
+        {
+            'id': 'safe-value',
+            'name': 'Safe Value',
+            'description': 'Maximize business value while minimizing risk for predictable delivery',
+            'parameters': [
+                {
+                    'name': 'value',
+                    'label': 'Value Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.5
+                },
+                {
+                    'name': 'risk',
+                    'label': 'Risk Mitigation Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.5
+                }
+            ],
+            'icon': 'verified',
+            'recommended': 'When you want high value delivery with controlled risk'
         },
         {
             'id': 'hybrid',

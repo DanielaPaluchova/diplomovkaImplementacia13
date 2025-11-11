@@ -1941,12 +1941,33 @@ import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useProjectStore, type Task, type Project, type Sprint } from 'src/stores/project-store';
 import { useTeamStore, type TeamMember } from 'src/stores/team-store';
+import type { AxiosError } from 'axios';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
+
+// Helper function to extract error messages from server responses
+function getErrorMessage(error: unknown, defaultMessage: string): string {
+  // Type guard to check if error is an AxiosError
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const axiosError = error as AxiosError<{ error?: string; message?: string }>;
+    if (axiosError.response?.data?.error) {
+      return axiosError.response.data.error;
+    } else if (axiosError.response?.data?.message) {
+      return axiosError.response.data.message;
+    }
+  }
+  
+  // Check if error has a message property
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  return defaultMessage;
+}
 
 // Fetch data from API
 onMounted(async () => {
@@ -2381,11 +2402,11 @@ async function onDrop() {
         position: 'top',
         timeout: 1000,
       });
-    } catch {
+    } catch (error) {
       // Revert on error
       task.sprintId = oldSprintId;
       $q.notify({
-        message: 'Failed to add task to sprint',
+        message: getErrorMessage(error, 'Failed to add task to sprint'),
         color: 'negative',
         icon: 'error',
         position: 'top',
@@ -2432,7 +2453,7 @@ async function moveTaskToSprint() {
   } catch (error) {
     console.error('Failed to move task to sprint:', error);
     $q.notify({
-      message: 'Failed to move task to sprint',
+      message: getErrorMessage(error, 'Failed to move task to sprint'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -2462,7 +2483,7 @@ async function moveTaskToBacklog() {
   } catch (error) {
     console.error('Failed to move task to backlog:', error);
     $q.notify({
-      message: 'Failed to move task to backlog',
+      message: getErrorMessage(error, 'Failed to move task to backlog'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -2492,11 +2513,11 @@ async function removeFromSprint(taskId: number) {
         position: 'top',
         timeout: 1000,
       });
-    } catch {
+    } catch (error) {
       // Revert on error
       task.sprintId = oldSprintId;
       $q.notify({
-        message: 'Failed to remove task from sprint',
+        message: getErrorMessage(error, 'Failed to remove task from sprint'),
         color: 'negative',
         icon: 'error',
         position: 'top',
@@ -2541,9 +2562,9 @@ async function deleteTask(taskId: number) {
       icon: 'delete',
       position: 'top',
     });
-  } catch {
+  } catch (error) {
     $q.notify({
-      message: 'Failed to delete task',
+      message: getErrorMessage(error, 'Failed to delete task'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -2579,12 +2600,12 @@ async function toggleTaskStatus(task: Task) {
       position: 'top',
       timeout: 1000,
     });
-  } catch {
+  } catch (error) {
     // Revert on error
     task.status = oldStatus;
     task.completed = oldCompleted;
     $q.notify({
-      message: 'Failed to update task status',
+      message: getErrorMessage(error, 'Failed to update task status'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -2658,9 +2679,9 @@ async function createTask() {
 
     cancelNewTask();
     showNewTaskDialog.value = false;
-  } catch {
+  } catch (error) {
     $q.notify({
-      message: 'Failed to create task',
+      message: getErrorMessage(error, 'Failed to create task'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -2789,9 +2810,9 @@ async function saveEditTask() {
 
       showEditTaskDialog.value = false;
       cancelEditTask();
-    } catch {
+    } catch (error) {
       $q.notify({
-        message: 'Failed to update task',
+        message: getErrorMessage(error, 'Failed to update task'),
         color: 'negative',
         icon: 'error',
         position: 'top',
@@ -2899,9 +2920,9 @@ async function completeSprint(sprint: Sprint) {
       icon: 'check_circle',
       position: 'top',
     });
-  } catch {
+  } catch (error) {
     $q.notify({
-      message: 'Failed to complete sprint',
+      message: getErrorMessage(error, 'Failed to complete sprint'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -2957,9 +2978,9 @@ async function deleteSprint(sprint: Sprint) {
       icon: 'delete',
       position: 'top',
     });
-  } catch {
+  } catch (error) {
     $q.notify({
-      message: 'Failed to delete sprint',
+      message: getErrorMessage(error, 'Failed to delete sprint'),
       color: 'negative',
       icon: 'error',
       position: 'top',
@@ -3161,12 +3182,12 @@ async function onKanbanDrop(newStatus: string) {
         position: 'top',
         timeout: 1000,
       });
-    } catch {
+    } catch (error) {
       // Revert on error
       task.status = oldStatus;
       task.completed = oldCompleted;
       $q.notify({
-        message: 'Failed to move task',
+        message: getErrorMessage(error, 'Failed to move task'),
         color: 'negative',
         icon: 'error',
         position: 'top',
@@ -3189,13 +3210,12 @@ function getProjectWorkload(memberId: number): number {
     return 0; // No active sprint = no workload from this project
   }
 
-  // Filter tasks: in active sprint, assigned to member (via RACI), and not done
+  // Filter tasks: in active sprint, assigned to member (via RACI) - Sprint Commitment
   const memberTasks =
     project.value.tasks?.filter(
       (t) =>
         t.sprintId === activeSprintForProject.id &&
-        t.status !== 'Done' &&
-        (t.raci?.responsible?.includes(memberId) || t.raci?.accountable === memberId),
+        t.raci?.responsible?.includes(memberId),
     ) || [];
 
   const totalSP = memberTasks.reduce((sum, t) => sum + t.storyPoints, 0);

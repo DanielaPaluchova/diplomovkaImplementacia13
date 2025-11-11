@@ -20,10 +20,18 @@
 
       <!-- Content -->
       <div class="col">
-        <!-- Title with score -->
+        <!-- Title with score and PERT+RACI badge -->
         <div class="row items-center q-mb-xs">
           <div class="text-subtitle1 text-weight-bold">{{ proposal.title }}</div>
           <q-space />
+          <q-badge
+            v-if="proposal.source === 'pert_raci'"
+            color="purple"
+            label="PERT+RACI"
+            class="q-mr-sm"
+          >
+            <q-tooltip>Analyzed using PERT duration and RACI workload metrics</q-tooltip>
+          </q-badge>
           <q-chip
             :color="getScoreColor(proposal.score)"
             text-color="white"
@@ -96,6 +104,9 @@ function getProposalIcon(type: string): string {
     cross_sprint_dep: 'link_off',
     parallel_opportunity: 'device_hub',
     idle_resource: 'person_off',
+    pert_uncertainty: 'schedule',
+    raci_overload: 'people',
+    duration_risk: 'schedule_send',
   };
   return icons[type] || 'change_circle';
 }
@@ -113,6 +124,9 @@ function getIconColor(type: string): string {
     cross_sprint_dep: 'orange',
     parallel_opportunity: 'blue',
     idle_resource: 'yellow-8',
+    pert_uncertainty: 'orange',
+    raci_overload: 'red',
+    duration_risk: 'orange',
   };
   return colors[type] || 'grey';
 }
@@ -141,6 +155,7 @@ function getCategoryLabel(category: string): string {
     quality: 'Quality',
     timeline: 'Timeline',
     resources: 'Resources',
+    pert_raci: 'PERT+RACI',
   };
   return labels[category] || category;
 }
@@ -165,6 +180,9 @@ function getTypeLabel(type: string): string {
     cross_sprint_dep: 'Dependencies',
     parallel_opportunity: 'Parallel',
     idle_resource: 'Resources',
+    pert_uncertainty: 'PERT Uncertainty',
+    raci_overload: 'RACI Overload',
+    duration_risk: 'Duration Risk',
   };
   return labels[type] || type;
 }

@@ -34,16 +34,20 @@ class SprintAnalyzerService:
         Returns:
             Dict with capacity analysis
         """
-        # Filter tasks for this sprint
-        sprint_tasks = [t for t in tasks if t.sprint_id == sprint.id and t.status != 'Done']
+        # Filter tasks for this sprint (Sprint Commitment - includes Done tasks)
+        sprint_tasks = [t for t in tasks if t.sprint_id == sprint.id]
         
-        # Calculate total story points
+        # Calculate total story points (all tasks in sprint)
         total_sp = sum(task.story_points or 0 for task in sprint_tasks)
+        
+        # Calculate remaining work (only incomplete tasks)
+        incomplete_tasks = [t for t in sprint_tasks if t.status != 'Done']
+        remaining_sp = sum(task.story_points or 0 for task in incomplete_tasks)
         
         # Calculate team capacity
         team_capacity = sum(member.max_story_points for member in team_members)
         
-        # Calculate utilization
+        # Calculate utilization based on committed work (Sprint Commitment)
         utilization_percentage = (total_sp / team_capacity * 100) if team_capacity > 0 else 0
         
         # Calculate remaining capacity
@@ -129,7 +133,8 @@ class SprintAnalyzerService:
         # Try to move tasks from overloaded to underutilized sprints
         for overloaded_sprint in overloaded:
             sprint_id = overloaded_sprint['sprint_id']
-            sprint_tasks = [t for t in tasks if t.sprint_id == sprint_id and t.status != 'Done']
+            # Sprint Commitment - includes all tasks
+            sprint_tasks = [t for t in tasks if t.sprint_id == sprint_id]
             
             # Sort tasks by story points (move smaller tasks first for easier fit)
             sprint_tasks.sort(key=lambda t: t.story_points or 0)

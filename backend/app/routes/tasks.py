@@ -94,6 +94,40 @@ def has_circular_dependency(task_id, dependencies, project_id):
     return False, None
 
 
+def unblock_dependent_tasks(completed_task_id, project_id):
+    """
+    Automatically unblock tasks that were waiting for this task to complete.
+    When a task is marked as Done, check all tasks that depend on it.
+    If a dependent task has all its dependencies completed and is in 'Blocked' status,
+    change it to 'To Do'.
+    
+    Args:
+        completed_task_id: ID of the task that was just completed
+        project_id: ID of the project
+    """
+    # Find all tasks in the project that have the completed task in their dependencies
+    all_tasks = Task.query.filter_by(project_id=project_id).all()
+    
+    for task in all_tasks:
+        # Check if this task depends on the completed task
+        if task.dependencies and completed_task_id in task.dependencies:
+            # Check if this task is currently blocked
+            if task.status == 'Blocked':
+                # Check if ALL dependencies are now completed
+                all_dependencies_done = True
+                for dep_id in task.dependencies:
+                    dep_task = Task.query.get(dep_id)
+                    if not dep_task or dep_task.status != 'Done':
+                        all_dependencies_done = False
+                        break
+                
+                # If all dependencies are done, unblock the task
+                if all_dependencies_done:
+                    task.status = 'To Do'
+                    task.updated_at = datetime.utcnow()
+                    db.session.add(task)
+
+
 @tasks_bp.route('/', methods=['GET'])
 @token_required
 def get_tasks():
@@ -147,14 +181,20 @@ def create_task():
         if not is_valid:
             return jsonify({'error': error_message}), 400
         
+        # Validate that blocked tasks cannot be assigned to a sprint
+        task_status = data.get('status', 'To Do')
+        sprint_id = data.get('sprintId')
+        if task_status == 'Blocked' and sprint_id is not None:
+            return jsonify({'error': 'Cannot assign blocked task to sprint. Task must have all dependencies completed first.'}), 400
+        
         # Create task first to get an ID (we'll validate dependencies after)
         task = Task(
             project_id=data['projectId'],
-            sprint_id=data.get('sprintId'),
+            sprint_id=sprint_id,
             name=data['name'],
             title=data.get('title', data['name']),
             description=data.get('description', ''),
-            status=data.get('status', 'To Do'),
+            status=task_status,
             priority=data.get('priority', 'medium'),
             type=data.get('type', 'task'),
             story_points=data.get('storyPoints', 0),
@@ -232,6 +272,12 @@ def update_task(task_id):
             is_valid, error_message = validate_team_members(project, raci_data)
             if not is_valid:
                 return jsonify({'error': error_message}), 400
+        
+        # Validate that blocked tasks cannot be assigned to a sprint
+        if 'sprintId' in data and data['sprintId'] is not None:
+            current_status = data.get('status', task.status)
+            if current_status == 'Blocked':
+                return jsonify({'error': 'Cannot assign blocked task to sprint. Task must have all dependencies completed first.'}), 400
         
         # Update basic fields
         if 'name' in data:
@@ -313,6 +359,10 @@ def update_task(task_id):
         project = task.project
         if old_story_points != task.story_points:
             project.total_story_points = project.total_story_points - old_story_points + task.story_points
+        
+        # If task status changed to Done, unblock any dependent tasks
+        if old_status != 'Done' and task.status == 'Done':
+            unblock_dependent_tasks(task.id, task.project_id)
         
         task.updated_at = datetime.utcnow()
         db.session.commit()

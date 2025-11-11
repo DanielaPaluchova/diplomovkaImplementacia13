@@ -123,7 +123,7 @@ class TaskMergerService:
                     union = len(current_labels.union(task_labels))
                     similarity = intersection / union if union > 0 else 0
                     
-                    if similarity > 0.3:  # 30% similarity threshold
+                    if similarity > 0.5:  # 50% similarity threshold
                         similar.append(task)
                     else:
                         still_remaining.append(task)

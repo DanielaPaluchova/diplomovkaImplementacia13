@@ -22,10 +22,8 @@ const routes: RouteRecordRaw[] = [
       { path: '', component: () => import('pages/IndexPage.vue') },
       { path: 'projects', component: () => import('pages/ProjectsPage.vue') },
       { path: 'projects/:id', component: () => import('pages/ProjectDetailPage.vue') },
-      { path: 'projects/:id/kanban', component: () => import('pages/ProjectKanbanPage.vue') },
       { path: 'team', component: () => import('pages/TeamPage.vue') },
       { path: 'workload', component: () => import('pages/WorkloadDashboardPage.vue') },
-      { path: 'sprint-planning', component: () => import('pages/SprintPlanningPage.vue') },
       // Project Management routes (Manager/Admin only)
       {
         path: 'pert-analysis',
@@ -37,7 +35,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/RaciMatrixPage.vue'),
         meta: { requiresManager: true },
       },
-      { path: 'kanban', component: () => import('pages/KanbanPage.vue') },
       {
         path: 'pert-raci-optimization',
         component: () => import('pages/PertRaciOptimizationPage.vue'),

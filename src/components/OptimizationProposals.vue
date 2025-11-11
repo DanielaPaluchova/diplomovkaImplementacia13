@@ -82,9 +82,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, defineOptions } from 'vue';
 import type { Proposal } from 'src/stores/requirement-change-store';
 import ProposalCard from './ProposalCard.vue';
+
+defineOptions({
+  name: 'OptimizationProposals'
+});
 
 interface Props {
   proposals: Proposal[];

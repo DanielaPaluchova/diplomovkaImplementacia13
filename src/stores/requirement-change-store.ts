@@ -51,6 +51,8 @@ export interface ProposalImpact {
   toMember?: string;
   fromWorkload?: number;
   toWorkload?: number;
+  fromWorkloadAfter?: number;
+  toWorkloadBefore?: number;
   taskSP?: number;
   originalSP?: number;
   newSP?: number;
@@ -67,6 +69,39 @@ export interface ProposalImpact {
   newMatch?: string;
   suggestedAction?: string;
   reason?: string;
+  // PERT/RACI specific impact fields
+  optimistic?: number;
+  mostLikely?: number;
+  pessimistic?: number;
+  expected?: number;
+  uncertainty?: number;
+  uncertaintyRatio?: number; // Now represents CV (Coefficient of Variation)
+  suggestedBuffer?: number;
+  pertDuration?: number;
+  adjustedDuration?: number;
+  newAdjustedDuration?: number;
+  overhead?: number;
+  newOverhead?: number;
+  delayDays?: number;
+  overloadedMembers?: string[];
+  weightedSP?: number;
+  raciRoles?: Record<string, unknown>;
+  reduction?: number;
+  roleChange?: string;
+  remainingResponsible?: number;
+  skillMatch?: number;
+  member?: string; // Member name for RACI rebalance
+  currentWorkload?: number; // Current workload percentage
+  newWorkload?: number; // New workload percentage after change
+  // Standard PERT statistical metrics
+  stdDev?: number; // Standard Deviation (σ)
+  variance?: number; // Variance (σ²)
+  coefficientOfVariation?: number; // CV (σ / Expected) - as percentage
+  // Confidence intervals
+  conf68Lower?: number; // 68% confidence interval lower bound (Expected - 1σ)
+  conf68Upper?: number; // 68% confidence interval upper bound (Expected + 1σ)
+  conf95Lower?: number; // 95% confidence interval lower bound (Expected - 2σ)
+  conf95Upper?: number; // 95% confidence interval upper bound (Expected + 2σ)
 }
 
 export interface ProposalAction {
@@ -90,6 +125,7 @@ export interface Proposal {
     | 'split'
     | 'merge'
     | 'sprint_move'
+    | 'cross_sprint_dep'
     | 'deadline_adjust'
     | 'add_task'
     | 'increase_sp'
@@ -98,15 +134,17 @@ export interface Proposal {
     | 'priority_conflict'
     | 'deadline_risk'
     | 'skill_mismatch'
-    | 'cross_sprint_dep'
-    | 'parallel_opportunity'
-    | 'idle_resource';
+    | 'idle_resource'
+    | 'pert_uncertainty'
+    | 'raci_overload'
+    | 'duration_risk';
   severity: 'critical' | 'important' | 'recommended';
-  category: 'workload' | 'quality' | 'timeline' | 'resources';
+  category: 'workload' | 'quality' | 'timeline' | 'resources' | 'pert_raci';
   title: string;
   description: string;
   reason: string;
   score: number;
+  source?: 'standard' | 'pert_raci';
   impact?: ProposalImpact;
   action: ProposalAction;
   selected?: boolean;
@@ -132,6 +170,12 @@ export interface ProjectState {
   teamCapacity: number;
   taskCount: number;
   sprintCount: number;
+  // PERT/RACI metrics
+  totalPertDuration?: number;
+  totalAdjustedDuration?: number;
+  avgPertUncertainty?: number;
+  raciWorkload?: number;
+  durationOverhead?: number;
 }
 
 export interface AnalysisResult {
@@ -213,6 +257,31 @@ export const useRequirementChangeStore = defineStore('requirementChange', () => 
     }
   }
 
+  async function analyzePertRaci(
+    projectId: number,
+    scope: 'current_sprint' | 'all_sprints' = 'all_sprints',
+  ): Promise<AnalysisResult | null> {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.post<AnalysisResult>(`/projects/${projectId}/analyze-pert-raci`, {
+        scope,
+      });
+
+      analysisResult.value = response;
+      selectedProposals.value = [];
+
+      return response;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to analyze PERT+RACI';
+      console.error('Failed to analyze PERT+RACI:', err);
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function applyChanges(projectId: number, proposals: Proposal[]): Promise<boolean> {
     loading.value = true;
     error.value = null;
@@ -226,6 +295,8 @@ export const useRequirementChangeStore = defineStore('requirementChange', () => 
             type: p.type,
             action: p.action,
           })),
+          scope: analysisResult.value?.scope,
+          optimizationType: analysisResult.value?.scope ? 'auto' : 'manual',
         },
       );
 
@@ -276,6 +347,7 @@ export const useRequirementChangeStore = defineStore('requirementChange', () => 
     selectedProposals,
     autoOptimizeProject,
     analyzeRequirementChange,
+    analyzePertRaci,
     applyChanges,
     toggleProposalSelection,
     selectAllProposals,

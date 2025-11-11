@@ -62,9 +62,9 @@ class TaskSplitterService:
         subtasks = []
         for i in range(num_parts):
             subtask = {
-                'name': f"{task.name} - Part {i+1}",
-                'title': f"{task.title} - Part {i+1}",
-                'description': f"Split from original task: {task.name}. {task.description or ''}",
+                'name': f"{task.name} {i+1}",
+                'title': f"{task.title} {i+1}" if task.title else f"{task.name} {i+1}",
+                'description': task.description or '',
                 'story_points': split_sps[i],
                 'type': task.type,
                 'priority': task.priority,
@@ -146,18 +146,55 @@ class TaskSplitterService:
     
     def _calculate_split_pert(self, task: Task, num_parts: int) -> Optional[List[Dict]]:
         """
-        Split PERT estimates proportionally across subtasks
+        Split PERT estimates across subtasks with uncertainty reduction
+        
+        Uses advanced PERT methodology:
+        - Distributes duration proportionally to story points
+        - Applies uncertainty reduction factor: 1 / sqrt(num_parts)
+        - Smaller tasks have lower uncertainty (narrower range)
+        
+        Reference: NASA Program Management Guide, PMI PMBOK
         """
         if not task.pert_optimistic or not task.pert_most_likely or not task.pert_pessimistic:
             return None
         
-        # Simple proportional split
+        if not task.pert_expected or task.pert_expected == 0:
+            return None
+        
+        # Calculate subtask story points distribution
+        subtask_sps = self._calculate_split_story_points(task.story_points or num_parts, num_parts)
+        total_sp = task.story_points or num_parts
+        
+        # Original task parameters
+        original_expected = task.pert_expected
+        original_range = task.pert_pessimistic - task.pert_optimistic
+        
+        # Uncertainty reduction factor: sqrt(N)
+        # Smaller tasks have proportionally lower uncertainty
+        uncertainty_reduction_factor = 1.0 / (num_parts ** 0.5)
+        
         pert_splits = []
+        
         for i in range(num_parts):
+            # Proportional expected duration based on story points
+            sp_ratio = subtask_sps[i] / total_sp
+            subtask_expected = original_expected * sp_ratio
+            
+            # Calculate reduced uncertainty range for subtask
+            # Original range scaled by SP ratio and uncertainty reduction
+            subtask_range = original_range * sp_ratio * uncertainty_reduction_factor
+            
+            # Distribute range: 30% below expected, 70% above (realistic distribution)
+            subtask_optimistic = max(0.5, subtask_expected - (subtask_range * 0.3))
+            subtask_pessimistic = subtask_expected + (subtask_range * 0.7)
+            
+            # Most likely: closer to optimistic (40% into range from optimistic)
+            subtask_most_likely = subtask_optimistic + (subtask_range * 0.4)
+            
             pert_splits.append({
-                'optimistic': round(task.pert_optimistic / num_parts, 1),
-                'mostLikely': round(task.pert_most_likely / num_parts, 1),
-                'pessimistic': round(task.pert_pessimistic / num_parts, 1)
+                'optimistic': round(subtask_optimistic, 1),
+                'mostLikely': round(subtask_most_likely, 1),
+                'pessimistic': round(subtask_pessimistic, 1)
             })
         
         return pert_splits

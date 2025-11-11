@@ -39,13 +39,11 @@ def calculate_member_metrics(member_id):
     active_sprints = Sprint.query.filter_by(status='active').all()
     active_sprint_ids = [sprint.id for sprint in active_sprints]
     
-    # Filter tasks: in active sprint, assigned to member, and not done
+    # Filter tasks: in active sprint, assigned to member (Sprint Commitment)
     active_sprint_tasks = [
         task for task in all_tasks
-        if task.sprint_id in active_sprint_ids and
-           task.status != 'Done' and (
-               (task.raci_responsible and member_id in task.raci_responsible) or
-               task.raci_accountable == member_id
+        if task.sprint_id in active_sprint_ids and (
+               task.raci_responsible and member_id in task.raci_responsible
            )
     ]
     

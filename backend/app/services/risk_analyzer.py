@@ -90,7 +90,8 @@ class RiskAnalyzerService:
     def find_priority_conflicts(
         self,
         team_members: List[TeamMember],
-        tasks: List[Task]
+        tasks: List[Task],
+        cross_project_workload: Dict[int, Dict[str, float]] = None
     ) -> List[Dict]:
         """
         Find high priority tasks assigned to overloaded members
@@ -98,6 +99,7 @@ class RiskAnalyzerService:
         Args:
             team_members: List of team members
             tasks: List of tasks
+            cross_project_workload: Optional dict of cross-project workload {member_id: {'sp': float, 'pct': float}}
             
         Returns:
             List of priority conflict proposals
@@ -105,17 +107,20 @@ class RiskAnalyzerService:
         proposals = []
         
         for member in team_members:
-            # Get member's tasks
+            # Get member's tasks (Sprint Commitment - includes Done tasks for workload calc)
             member_tasks = [
-                t for t in tasks if t.status != 'Done' and (
-                    (t.raci_responsible and member.id in t.raci_responsible) or
-                    t.raci_accountable == member.id
+                t for t in tasks if (
+                    t.raci_responsible and member.id in t.raci_responsible
                 )
             ]
             
-            # Calculate workload
-            total_sp = sum(t.story_points or 0 for t in member_tasks)
-            workload_pct = (total_sp / member.max_story_points) * 100
+            # Calculate workload (use cross-project if available, otherwise current project only)
+            if cross_project_workload and member.id in cross_project_workload:
+                workload_pct = cross_project_workload[member.id]['pct']
+                total_sp = cross_project_workload[member.id]['sp']
+            else:
+                total_sp = sum(t.story_points or 0 for t in member_tasks)
+                workload_pct = (total_sp / member.max_story_points) * 100
             
             # Check if overloaded
             if workload_pct > 85:
@@ -134,19 +139,25 @@ class RiskAnalyzerService:
                         other_members = [m for m in team_members if m.id != member.id]
                         
                         if other_members:
-                            # Calculate workloads for all candidates
+                            # Calculate workloads for all candidates (use cross-project if available)
                             candidate_workloads = {}
                             for candidate in other_members:
-                                cand_tasks = [
-                                    t for t in tasks if t.status != 'Done' and (
-                                        (t.raci_responsible and candidate.id in t.raci_responsible) or
-                                        t.raci_accountable == candidate.id
-                                    )
-                                ]
-                                cand_sp = sum(t.story_points or 0 for t in cand_tasks)
+                                if cross_project_workload and candidate.id in cross_project_workload:
+                                    cand_sp = cross_project_workload[candidate.id]['sp']
+                                    cand_pct = cross_project_workload[candidate.id]['pct']
+                                else:
+                                    # Sprint Commitment - includes Done tasks for workload calc
+                                    cand_tasks = [
+                                        t for t in tasks if (
+                                            t.raci_responsible and candidate.id in t.raci_responsible
+                                        )
+                                    ]
+                                    cand_sp = sum(t.story_points or 0 for t in cand_tasks)
+                                    cand_pct = (cand_sp / candidate.max_story_points) * 100
+                                
                                 candidate_workloads[candidate.id] = {
                                     'sp': cand_sp,
-                                    'pct': (cand_sp / candidate.max_story_points) * 100,
+                                    'pct': cand_pct,
                                     'max_sp': candidate.max_story_points
                                 }
                             
@@ -194,6 +205,7 @@ class RiskAnalyzerService:
                                 })
                             else:
                                 # Can reassign to less loaded member
+                                from_workload_after = ((total_sp - task_sp) / member.max_story_points) * 100
                                 proposals.append({
                                     'id': f"priority-conflict-{task.id}-{uuid.uuid4().hex[:8]}",
                                     'type': 'priority_conflict',
@@ -209,6 +221,8 @@ class RiskAnalyzerService:
                                         'fromMember': member.name,
                                         'toMember': best_candidate.name,
                                         'fromWorkload': round(workload_pct, 1),
+                                        'fromWorkloadAfter': round(from_workload_after, 1),
+                                        'toWorkloadBefore': round(best_workload_pct, 1),
                                         'toWorkload': round(new_workload_pct, 1),
                                         'taskSP': task_sp,
                                         'taskPriority': task.priority,
@@ -231,7 +245,8 @@ class RiskAnalyzerService:
     def find_skill_mismatches(
         self,
         team_members: List[TeamMember],
-        tasks: List[Task]
+        tasks: List[Task],
+        cross_project_workload: Dict[int, Dict[str, float]] = None
     ) -> List[Dict]:
         """
         Find tasks where assignee lacks required skills
@@ -239,6 +254,7 @@ class RiskAnalyzerService:
         Args:
             team_members: List of team members
             tasks: List of tasks
+            cross_project_workload: Optional dict of cross-project workload {member_id: {'sp': float, 'pct': float}}
             
         Returns:
             List of skill mismatch proposals
@@ -288,22 +304,33 @@ class RiskAnalyzerService:
                             better_candidates.sort(key=lambda x: x[1], reverse=True)
                             best_candidate, best_match = better_candidates[0]
                             
-                            # Calculate workloads
+                            # Calculate workloads (use cross-project if available)
                             task_sp = task.story_points or 0
-                            assignee_tasks = [t for t in tasks if t.status != 'Done' and (
-                                (t.raci_responsible and assignee.id in t.raci_responsible) or
-                                t.raci_accountable == assignee.id
-                            )]
-                            assignee_sp = sum(t.story_points or 0 for t in assignee_tasks)
-                            assignee_workload_pct = (assignee_sp / assignee.max_story_points) * 100 if assignee.max_story_points else 0
                             
-                            candidate_tasks = [t for t in tasks if t.status != 'Done' and (
-                                (t.raci_responsible and best_candidate.id in t.raci_responsible) or
-                                t.raci_accountable == best_candidate.id
-                            )]
-                            candidate_sp = sum(t.story_points or 0 for t in candidate_tasks)
-                            candidate_workload_pct = (candidate_sp / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
+                            if cross_project_workload and assignee.id in cross_project_workload:
+                                assignee_sp = cross_project_workload[assignee.id]['sp']
+                                assignee_workload_pct = cross_project_workload[assignee.id]['pct']
+                            else:
+                                # Sprint Commitment - includes Done tasks for workload calc
+                                assignee_tasks = [t for t in tasks if (
+                                    t.raci_responsible and assignee.id in t.raci_responsible
+                                )]
+                                assignee_sp = sum(t.story_points or 0 for t in assignee_tasks)
+                                assignee_workload_pct = (assignee_sp / assignee.max_story_points) * 100 if assignee.max_story_points else 0
+                            
+                            if cross_project_workload and best_candidate.id in cross_project_workload:
+                                candidate_sp = cross_project_workload[best_candidate.id]['sp']
+                                candidate_workload_pct = cross_project_workload[best_candidate.id]['pct']
+                            else:
+                                # Sprint Commitment - includes Done tasks for workload calc
+                                candidate_tasks = [t for t in tasks if (
+                                    t.raci_responsible and best_candidate.id in t.raci_responsible
+                                )]
+                                candidate_sp = sum(t.story_points or 0 for t in candidate_tasks)
+                                candidate_workload_pct = (candidate_sp / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
+                            
                             new_candidate_workload_pct = ((candidate_sp + task_sp) / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
+                            assignee_workload_after = ((assignee_sp - task_sp) / assignee.max_story_points) * 100 if assignee.max_story_points else 0
                             
                             severity = 'important' if task.priority.lower() in ['high', 'critical'] else 'recommended'
                             
@@ -322,6 +349,8 @@ class RiskAnalyzerService:
                                     'fromMember': assignee.name,
                                     'toMember': best_candidate.name,
                                     'fromWorkload': round(assignee_workload_pct, 1),
+                                    'fromWorkloadAfter': round(assignee_workload_after, 1),
+                                    'toWorkloadBefore': round(candidate_workload_pct, 1),
                                     'toWorkload': round(new_candidate_workload_pct, 1),
                                     'taskSP': task_sp,
                                     'currentMatch': f"{round(match_score*100)}%",
@@ -344,7 +373,8 @@ class RiskAnalyzerService:
     def find_idle_resources(
         self,
         team_members: List[TeamMember],
-        tasks: List[Task]
+        tasks: List[Task],
+        cross_project_workload: Dict[int, Dict[str, float]] = None
     ) -> List[Dict]:
         """
         Find team members with very low workload
@@ -352,6 +382,7 @@ class RiskAnalyzerService:
         Args:
             team_members: List of team members
             tasks: List of tasks
+            cross_project_workload: Optional dict of cross-project workload {member_id: {'sp': float, 'pct': float}}
             
         Returns:
             List of idle resource proposals
@@ -365,16 +396,19 @@ class RiskAnalyzerService:
         ]
         
         for member in team_members:
-            # Calculate workload
-            member_tasks = [
-                t for t in tasks if t.status != 'Done' and (
-                    (t.raci_responsible and member.id in t.raci_responsible) or
-                    t.raci_accountable == member.id
-                )
-            ]
-            
-            total_sp = sum(t.story_points or 0 for t in member_tasks)
-            workload_pct = (total_sp / member.max_story_points) * 100
+            # Calculate workload (use cross-project if available)
+            if cross_project_workload and member.id in cross_project_workload:
+                total_sp = cross_project_workload[member.id]['sp']
+                workload_pct = cross_project_workload[member.id]['pct']
+            else:
+                # Sprint Commitment - includes Done tasks for workload calc
+                member_tasks = [
+                    t for t in tasks if (
+                        t.raci_responsible and member.id in t.raci_responsible
+                    )
+                ]
+                total_sp = sum(t.story_points or 0 for t in member_tasks)
+                workload_pct = (total_sp / member.max_story_points) * 100
             
             if workload_pct < 40 and unassigned_tasks:  # Less than 40% utilized
                 # Suggest assigning unassigned tasks

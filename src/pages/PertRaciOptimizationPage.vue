@@ -340,26 +340,6 @@
                     <div class="col">
                       <q-card flat bordered>
                         <q-card-section class="text-center">
-                          <div class="text-h6 text-weight-bold">
-                            {{ activeSprintSummary.totalPertDuration.toFixed(2) }}d
-                          </div>
-                          <div class="text-caption text-grey-7">PERT Duration</div>
-                        </q-card-section>
-                      </q-card>
-                    </div>
-                    <div class="col">
-                      <q-card flat bordered>
-                        <q-card-section class="text-center">
-                          <div class="text-h6 text-weight-bold text-orange">
-                            {{ activeSprintSummary.totalAdjustedDuration.toFixed(2) }}d
-                          </div>
-                          <div class="text-caption text-grey-7">Adjusted Duration</div>
-                        </q-card-section>
-                      </q-card>
-                    </div>
-                    <div class="col">
-                      <q-card flat bordered>
-                        <q-card-section class="text-center">
                           <div
                             class="text-h6 text-weight-bold"
                             :class="
@@ -373,7 +353,11 @@
                             {{ activeSprintSummary.durationIncrease > 0 ? '+' : ''
                             }}{{ activeSprintSummary.durationIncrease.toFixed(1) }}%
                           </div>
-                          <div class="text-caption text-grey-7">Increase</div>
+                          <div class="text-caption text-grey-7">Average Task Increase</div>
+                          <q-tooltip max-width="300px">
+                            Priemerný percentuálny nárast duration taskov v sprinte kvôli RACI
+                            overhead. Počíta sa ako (Σ Adjusted - Σ PERT) / Σ PERT × 100%
+                          </q-tooltip>
                         </q-card-section>
                       </q-card>
                     </div>
@@ -1039,9 +1023,11 @@
                         <template v-slot:avatar>
                           <q-icon name="info" color="white" />
                         </template>
-                        Priemer vypočítaný z {{ totalCompletedSprintsCountAllProjects }} ukončených
-                        šprintov naprieč všetkými projektami. Zobrazuje dlhodobé priemerné zaťaženie
-                        členov tímu. (V tomto projekte: {{ completedSprintsInCurrentProject }}
+                        Priemer vypočítaný iba zo šprintov kde má člen aspoň jednu úlohu s rolou
+                        Responsible, ale zahŕňa celé RACI zaťaženie (R+A+C+I) z týchto šprintov.
+                        Celkovo {{ totalCompletedSprintsCountAllProjects }} ukončených šprintov
+                        naprieč projektami. (V tomto projekte:
+                        {{ completedSprintsInCurrentProject }}
                         ukončených šprintov)
                       </q-banner>
 
@@ -1051,8 +1037,44 @@
                           :key="member.memberId"
                           class="row items-center"
                         >
-                          <div class="col-2 text-weight-medium">
+                          <div class="col-2 text-weight-medium cursor-pointer">
                             {{ member.memberName }}
+                            <q-tooltip
+                              anchor="center right"
+                              self="center left"
+                              :offset="[10, 10]"
+                              max-width="400px"
+                            >
+                              <div class="text-body2">
+                                <div class="text-weight-bold q-mb-sm">
+                                  Priemer z {{ member.sprintCount }} šprintov:
+                                </div>
+                                <div
+                                  v-for="(sprint, idx) in member.sprintDetails"
+                                  :key="idx"
+                                  class="q-mb-xs"
+                                >
+                                  <div class="text-weight-medium">{{ sprint.projectName }}</div>
+                                  <div class="text-caption">
+                                    {{ sprint.sprintName }}: {{ Math.round(sprint.workload) }} SP
+                                  </div>
+                                </div>
+                                <div
+                                  class="q-mt-sm q-pt-sm"
+                                  style="border-top: 1px solid rgba(255, 255, 255, 0.3)"
+                                >
+                                  <strong>Celkom:</strong>
+                                  {{
+                                    Math.round(
+                                      member.sprintDetails.reduce((sum, s) => sum + s.workload, 0),
+                                    )
+                                  }}
+                                  SP
+                                  <br />
+                                  <strong>Priemer:</strong> {{ member.workload }} SP
+                                </div>
+                              </div>
+                            </q-tooltip>
                           </div>
                           <div class="col-8">
                             <q-linear-progress
@@ -1130,32 +1152,6 @@
                         <div class="col">
                           <q-card flat bordered>
                             <q-card-section class="text-center">
-                              <div class="text-h6 text-weight-bold">
-                                {{
-                                  (pastSprintsSummary[index]?.totalPertDuration || 0).toFixed(2)
-                                }}d
-                              </div>
-                              <div class="text-caption text-grey-7">PERT Duration</div>
-                            </q-card-section>
-                          </q-card>
-                        </div>
-                        <div class="col">
-                          <q-card flat bordered>
-                            <q-card-section class="text-center">
-                              <div class="text-h6 text-weight-bold text-orange">
-                                {{
-                                  (pastSprintsSummary[index]?.totalAdjustedDuration || 0).toFixed(
-                                    2,
-                                  )
-                                }}d
-                              </div>
-                              <div class="text-caption text-grey-7">Adjusted Duration</div>
-                            </q-card-section>
-                          </q-card>
-                        </div>
-                        <div class="col">
-                          <q-card flat bordered>
-                            <q-card-section class="text-center">
                               <div
                                 class="text-h6 text-weight-bold"
                                 :class="
@@ -1172,7 +1168,11 @@
                                   (pastSprintsSummary[index]?.durationIncrease || 0).toFixed(1)
                                 }}%
                               </div>
-                              <div class="text-caption text-grey-7">Increase</div>
+                              <div class="text-caption text-grey-7">Average Task Increase</div>
+                              <q-tooltip max-width="300px">
+                                Priemerný percentuálny nárast duration taskov v sprinte kvôli RACI
+                                overhead. Počíta sa ako (Σ Adjusted - Σ PERT) / Σ PERT × 100%
+                              </q-tooltip>
                             </q-card-section>
                           </q-card>
                         </div>
@@ -1775,9 +1775,10 @@
                         <q-icon name="warning" color="white" />
                       </template>
                       Adjusted Duration pre budúce tasky je vypočítaná na základe priemerného
-                      zaťaženia z {{ totalCompletedSprintsCountAllProjects }} ukončených šprintov
-                      naprieč všetkými projektami. Skutočné hodnoty sa môžu líšiť po priradení do
-                      šprintu.
+                      zaťaženia zo šprintov kde mal člen rolu Responsible. Zahŕňa celé RACI
+                      zaťaženie (R+A+C+I). Celkovo
+                      {{ totalCompletedSprintsCountAllProjects }} ukončených šprintov naprieč
+                      projektami. Skutočné hodnoty sa môžu líšiť po priradení do šprintu.
                     </q-banner>
 
                     <div v-if="averageRaciWeightedWorkload.length > 0" class="q-gutter-md">
@@ -1786,8 +1787,44 @@
                         :key="member.memberId"
                         class="row items-center"
                       >
-                        <div class="col-2 text-weight-medium">
+                        <div class="col-2 text-weight-medium cursor-pointer">
                           {{ member.memberName }}
+                          <q-tooltip
+                            anchor="center right"
+                            self="center left"
+                            :offset="[10, 10]"
+                            max-width="400px"
+                          >
+                            <div class="text-body2">
+                              <div class="text-weight-bold q-mb-sm">
+                                Priemer z {{ member.sprintCount }} šprintov:
+                              </div>
+                              <div
+                                v-for="(sprint, idx) in member.sprintDetails"
+                                :key="idx"
+                                class="q-mb-xs"
+                              >
+                                <div class="text-weight-medium">{{ sprint.projectName }}</div>
+                                <div class="text-caption">
+                                  {{ sprint.sprintName }}: {{ Math.round(sprint.workload) }} SP
+                                </div>
+                              </div>
+                              <div
+                                class="q-mt-sm q-pt-sm"
+                                style="border-top: 1px solid rgba(255, 255, 255, 0.3)"
+                              >
+                                <strong>Celkom:</strong>
+                                {{
+                                  Math.round(
+                                    member.sprintDetails.reduce((sum, s) => sum + s.workload, 0),
+                                  )
+                                }}
+                                SP
+                                <br />
+                                <strong>Priemer:</strong> {{ member.workload }} SP
+                              </div>
+                            </div>
+                          </q-tooltip>
                         </div>
                         <div class="col-8">
                           <q-linear-progress
@@ -2941,14 +2978,22 @@ const completedSprintsInCurrentProject = computed(() => {
   return pastSprintsTasks.value.length;
 });
 
-// Average RACI Weighted Workload from ALL completed sprints across ALL projects
+// Average RACI Weighted Workload from completed sprints across ALL projects
+// NOTE: Only counts sprints where member has at least one Responsible role,
+// but includes ALL RACI workload (R+A+C+I) from those sprints for more accurate capacity planning
 const averageRaciWeightedWorkload = computed(() => {
   // Get all team members
   const allMembers = teamStore.teamMembers;
 
   const workloadMap = new Map<
     number,
-    { memberId: number; memberName: string; totalWorkload: number; sprintCount: number }
+    {
+      memberId: number;
+      memberName: string;
+      totalWorkload: number;
+      sprintCount: number;
+      sprintDetails: Array<{ projectName: string; sprintName: string; workload: number }>;
+    }
   >();
 
   // Initialize map with all members
@@ -2958,6 +3003,7 @@ const averageRaciWeightedWorkload = computed(() => {
       memberName: member.name,
       totalWorkload: 0,
       sprintCount: 0,
+      sprintDetails: [],
     });
   });
 
@@ -2971,12 +3017,19 @@ const averageRaciWeightedWorkload = computed(() => {
         if (sprint.status === 'completed' && !processedSprints.has(sprint.id)) {
           processedSprints.add(sprint.id);
 
+          // Store project name for sprint details
+          const projectName = project.name;
+          const sprintName = sprint.name;
+
           // Calculate workload for each member in this sprint
           const sprintWorkload = new Map<number, number>();
+          // Track if member has Responsible role in this sprint
+          const hasResponsibleRole = new Map<number, boolean>();
 
           // Initialize sprint workload for all members
           allMembers.forEach((member) => {
             sprintWorkload.set(member.id, 0);
+            hasResponsibleRole.set(member.id, false);
           });
 
           // Calculate workload from all projects for this sprint
@@ -2991,6 +3044,8 @@ const averageRaciWeightedWorkload = computed(() => {
                     task.raci.responsible.forEach((memberId: number) => {
                       const current = sprintWorkload.get(memberId) || 0;
                       sprintWorkload.set(memberId, current + raciWorkloadWeights.responsible * sp);
+                      // Mark that this member has Responsible role in this sprint
+                      hasResponsibleRole.set(memberId, true);
                     });
                   }
 
@@ -3018,13 +3073,20 @@ const averageRaciWeightedWorkload = computed(() => {
             }
           });
 
-          // Add this sprint's workload to the total and increment sprint count for members with workload
+          // Add this sprint's workload to the total ONLY if member has Responsible role
           sprintWorkload.forEach((workload, memberId) => {
-            if (workload > 0) {
+            const hasResponsible = hasResponsibleRole.get(memberId) || false;
+            if (workload > 0 && hasResponsible) {
               const memberData = workloadMap.get(memberId);
               if (memberData) {
                 memberData.totalWorkload += workload;
                 memberData.sprintCount += 1;
+                // Add sprint details for tooltip
+                memberData.sprintDetails.push({
+                  projectName: projectName,
+                  sprintName: sprintName,
+                  workload: Math.round(workload * 100) / 100, // Round to 2 decimals
+                });
               }
             }
           });
@@ -3040,6 +3102,7 @@ const averageRaciWeightedWorkload = computed(() => {
       memberName: item.memberName,
       workload: item.sprintCount > 0 ? Math.round(item.totalWorkload / item.sprintCount) : 0,
       sprintCount: item.sprintCount,
+      sprintDetails: item.sprintDetails,
     }))
     .filter((item) => item.workload > 0) // Only show members with workload
     .sort((a, b) => b.workload - a.workload); // Sort by workload descending
@@ -3244,8 +3307,26 @@ function getAverageMemberStoryPoints(memberId: number): number {
   return sum / sprintTotals.length;
 }
 
+// Helper function to check if member has Responsible role in a specific sprint
+function memberHasResponsibleRoleInSprint(memberId: number, sprintId: number): boolean {
+  let hasResponsible = false;
+
+  projectStore.projects.forEach((project) => {
+    if (project.tasks && !hasResponsible) {
+      project.tasks.forEach((task) => {
+        if (task.sprintId === sprintId && task.raci?.responsible?.includes(memberId)) {
+          hasResponsible = true;
+        }
+      });
+    }
+  });
+
+  return hasResponsible;
+}
+
 // Helper function to get average member's WEIGHTED story points from past sprints across ALL projects
 // Uses RACI workload weights (configurable)
+// NOTE: Only counts sprints where member has at least one Responsible role
 function getAverageMemberWeightedStoryPoints(memberId: number): number {
   const sprintTotals: number[] = [];
   const processedSprints = new Set<number>();
@@ -3256,9 +3337,14 @@ function getAverageMemberWeightedStoryPoints(memberId: number): number {
       project.sprints.forEach((sprint) => {
         if (sprint.status === 'completed' && !processedSprints.has(sprint.id)) {
           processedSprints.add(sprint.id);
-          const sprintTotal = getMemberWeightedStoryPointsInSprint(memberId, sprint.id);
-          if (sprintTotal > 0) {
-            sprintTotals.push(sprintTotal);
+
+          // Only count sprint if member has Responsible role
+          const hasResponsible = memberHasResponsibleRoleInSprint(memberId, sprint.id);
+          if (hasResponsible) {
+            const sprintTotal = getMemberWeightedStoryPointsInSprint(memberId, sprint.id);
+            if (sprintTotal > 0) {
+              sprintTotals.push(sprintTotal);
+            }
           }
         }
       });

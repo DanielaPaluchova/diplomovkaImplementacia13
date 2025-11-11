@@ -127,11 +127,10 @@ class TeamScoringService:
         task_type = task_requirements.get('type', '').lower()
         task_labels = set(label.lower() for label in (task_requirements.get('labels') or []))
         
-        # Find tasks where member was responsible or accountable
+        # Find tasks where member was responsible
         member_tasks = [
             task for task in all_tasks
-            if (task.raci_responsible and member.id in task.raci_responsible) or
-               task.raci_accountable == member.id
+            if (task.raci_responsible and member.id in task.raci_responsible)
         ]
         
         if not member_tasks:

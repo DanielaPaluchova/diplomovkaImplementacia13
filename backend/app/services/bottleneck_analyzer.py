@@ -20,7 +20,8 @@ class BottleneckAnalyzerService:
     def find_resource_bottlenecks(
         self,
         team_members: List[TeamMember],
-        tasks: List[Task]
+        tasks: List[Task],
+        cross_project_workload: Dict[int, Dict[str, float]] = None
     ) -> List[Dict]:
         """
         Find team members who are bottlenecks (too many critical tasks assigned)
@@ -28,6 +29,7 @@ class BottleneckAnalyzerService:
         Args:
             team_members: List of team members
             tasks: List of tasks
+            cross_project_workload: Optional dict of cross-project workload {member_id: {'sp': float, 'pct': float}}
             
         Returns:
             List of bottleneck proposals
@@ -36,11 +38,10 @@ class BottleneckAnalyzerService:
         
         # Analyze each member
         for member in team_members:
-            # Get their tasks
+            # Get their tasks (Sprint Commitment - includes Done tasks for workload calc)
             member_tasks = [
-                t for t in tasks if t.status != 'Done' and (
-                    (t.raci_responsible and member.id in t.raci_responsible) or
-                    t.raci_accountable == member.id
+                t for t in tasks if (
+                    t.raci_responsible and member.id in t.raci_responsible
                 )
             ]
             
@@ -58,9 +59,13 @@ class BottleneckAnalyzerService:
             
             # Check if bottleneck
             if len(high_priority_tasks) >= self.CRITICAL_TASK_THRESHOLD:
-                # Calculate current workload
-                total_sp = sum(t.story_points or 0 for t in member_tasks)
-                member_workload_pct = (total_sp / member.max_story_points) * 100
+                # Calculate current workload (use cross-project if available)
+                if cross_project_workload and member.id in cross_project_workload:
+                    total_sp = cross_project_workload[member.id]['sp']
+                    member_workload_pct = cross_project_workload[member.id]['pct']
+                else:
+                    total_sp = sum(t.story_points or 0 for t in member_tasks)
+                    member_workload_pct = (total_sp / member.max_story_points) * 100
                 
                 # Find other members who could help
                 other_members = [m for m in team_members if m.id != member.id]
@@ -70,25 +75,31 @@ class BottleneckAnalyzerService:
                     for task in high_priority_tasks[:2]:  # Suggest moving top 2
                         task_sp = task.story_points or 0
                         
-                        # Calculate workloads for all candidates
+                        # Calculate workloads for all candidates (use cross-project if available)
                         candidate_workloads = {}
                         for candidate in other_members:
-                            cand_tasks = [
-                                t for t in tasks if t.status != 'Done' and (
-                                    (t.raci_responsible and candidate.id in t.raci_responsible) or
-                                    t.raci_accountable == candidate.id
-                                )
-                            ]
-                            cand_sp = sum(t.story_points or 0 for t in cand_tasks)
+                            if cross_project_workload and candidate.id in cross_project_workload:
+                                cand_sp = cross_project_workload[candidate.id]['sp']
+                                cand_pct = cross_project_workload[candidate.id]['pct']
+                            else:
+                                # Sprint Commitment - includes Done tasks for workload calc
+                                cand_tasks = [
+                                    t for t in tasks if (
+                                        t.raci_responsible and candidate.id in t.raci_responsible
+                                    )
+                                ]
+                                cand_sp = sum(t.story_points or 0 for t in cand_tasks)
+                                cand_pct = (cand_sp / candidate.max_story_points) * 100
+                            
                             candidate_workloads[candidate.id] = {
                                 'sp': cand_sp,
-                                'pct': (cand_sp / candidate.max_story_points) * 100,
+                                'pct': cand_pct,
                                 'max_sp': candidate.max_story_points
                             }
                         
                         # Find best candidate
                         best_candidate = self._find_best_candidate_for_task(
-                            task, other_members, tasks
+                            task, other_members, tasks, cross_project_workload
                         )
                         
                         if best_candidate:
@@ -132,6 +143,7 @@ class BottleneckAnalyzerService:
                                 })
                             else:
                                 # Can reassign to less loaded member
+                                from_workload_after = ((total_sp - task_sp) / member.max_story_points) * 100
                                 proposals.append({
                                     'id': f"bottleneck-{task.id}-{uuid.uuid4().hex[:8]}",
                                     'type': 'bottleneck',
@@ -147,6 +159,8 @@ class BottleneckAnalyzerService:
                                         'fromMember': member.name,
                                         'toMember': best_candidate.name,
                                         'fromWorkload': round(member_workload_pct, 1),
+                                        'fromWorkloadAfter': round(from_workload_after, 1),
+                                        'toWorkloadBefore': round(best_workload_pct, 1),
                                         'toWorkload': round(new_workload_pct, 1),
                                         'taskSP': task_sp,
                                         'taskPriority': task.priority,
@@ -253,23 +267,28 @@ class BottleneckAnalyzerService:
         self,
         task: Task,
         candidates: List[TeamMember],
-        all_tasks: List[Task]
+        all_tasks: List[Task],
+        cross_project_workload: Dict[int, Dict[str, float]] = None
     ) -> TeamMember:
         """Find best team member to take over a task"""
         if not candidates:
             return None
         
-        # Calculate workload for each candidate
+        # Calculate workload for each candidate (use cross-project if available)
         candidate_workloads = {}
         for member in candidates:
-            member_tasks = [
-                t for t in all_tasks if t.status != 'Done' and (
-                    (t.raci_responsible and member.id in t.raci_responsible) or
-                    t.raci_accountable == member.id
-                )
-            ]
-            workload_sp = sum(t.story_points or 0 for t in member_tasks)
-            workload_pct = (workload_sp / member.max_story_points) * 100
+            if cross_project_workload and member.id in cross_project_workload:
+                workload_pct = cross_project_workload[member.id]['pct']
+            else:
+                # Sprint Commitment - includes Done tasks for workload calc
+                # Note: all_tasks should already be filtered to active sprint by caller
+                member_tasks = [
+                    t for t in all_tasks if (
+                        t.raci_responsible and member.id in t.raci_responsible
+                    )
+                ]
+                workload_sp = sum(t.story_points or 0 for t in member_tasks)
+                workload_pct = (workload_sp / member.max_story_points) * 100
             candidate_workloads[member.id] = workload_pct
         
         # Find member with lowest workload

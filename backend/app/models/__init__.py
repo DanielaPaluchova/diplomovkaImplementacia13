@@ -7,6 +7,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.sprint import Sprint
 from app.models.project_role import ProjectRole
+from app.models.optimization_log import OptimizationLog
 
 __all__ = [
     'User',
@@ -14,6 +15,7 @@ __all__ = [
     'Project',
     'Task',
     'Sprint',
-    'ProjectRole'
+    'ProjectRole',
+    'OptimizationLog'
 ]
 

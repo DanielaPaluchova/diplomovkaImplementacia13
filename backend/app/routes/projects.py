@@ -6,6 +6,7 @@ from app import db
 from app.models.project import Project
 from app.models.sprint import Sprint
 from app.models.project_role import ProjectRole
+from app.models.optimization_log import OptimizationLog
 from app.utils.auth import token_required
 from datetime import datetime
 
@@ -476,3 +477,35 @@ def update_project_configuration(project_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to update configuration', 'message': str(e)}), 500
+
+
+# Optimization Log endpoints
+@projects_bp.route('/<int:project_id>/optimization-logs', methods=['GET'])
+@token_required
+def get_optimization_logs(project_id):
+    """Get optimization logs for a project"""
+    try:
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        # Get query parameters
+        limit = request.args.get('limit', type=int, default=50)
+        optimization_type = request.args.get('type', None)
+        
+        # Build query
+        query = OptimizationLog.query.filter_by(project_id=project_id)
+        
+        if optimization_type:
+            query = query.filter_by(optimization_type=optimization_type)
+        
+        # Order by created_at descending (newest first)
+        logs = query.order_by(OptimizationLog.created_at.desc()).limit(limit).all()
+        
+        return jsonify({
+            'logs': [log.to_dict() for log in logs],
+            'total': len(logs)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Failed to get optimization logs', 'message': str(e)}), 500

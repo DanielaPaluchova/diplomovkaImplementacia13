@@ -9,7 +9,7 @@
             Project Optimization
           </h4>
           <p class="text-white q-ma-none q-mt-sm opacity-90">
-            Intelligent analysis with 12 optimization types
+            Intelligent analysis with 9 optimization types
           </p>
         </div>
       </div>
@@ -107,31 +107,15 @@
         </q-card-section>
             <q-card-section>
           <div class="row q-col-gutter-md">
-            <!-- Duration Card -->
-            <div class="col-6 col-md-3">
-              <div class="stat-card clickable">
-                <q-icon name="schedule" size="32px" color="blue" class="q-mb-sm" />
-                <div class="text-h4 text-weight-bold">{{ currentState.duration }}d</div>
-                <div class="text-caption text-grey-7">Duration</div>
-                <q-tooltip max-width="300px" class="bg-dark text-body2">
-                  <div class="text-weight-bold q-mb-sm">Project Duration Breakdown</div>
-                  <div>Total Sprints: {{ currentState.sprintCount || 0 }}</div>
-                  <div>Estimated Duration: {{ currentState.duration }}d</div>
-                  <div class="q-mt-sm text-caption">
-                    Based on sprint capacity and task estimates
-                  </div>
-                </q-tooltip>
-                      </div>
-                    </div>
-
-            <!-- Workload Card -->
-            <div class="col-6 col-md-3">
+            <!-- Workload Card (Current Project) -->
+            <div class="col-12 col-sm-6 col-md-3">
               <div class="stat-card clickable">
                 <q-icon name="assessment" size="32px" color="orange" class="q-mb-sm" />
                 <div class="text-h4 text-weight-bold">{{ currentState.workload }}%</div>
-                <div class="text-caption text-grey-7">Avg Workload</div>
+                <div class="text-caption text-grey-7">Project Workload</div>
                 <q-tooltip max-width="350px" class="bg-dark text-body2">
-                  <div class="text-weight-bold q-mb-sm">Team Workload Distribution</div>
+                  <div class="text-weight-bold q-mb-sm">Workload on This Project</div>
+                  <div class="text-caption text-grey-6 q-mb-sm">Active sprint only</div>
                   <div v-if="teamWorkloadDetails.length > 0">
                     <div v-for="member in teamWorkloadDetails" :key="member.id" class="q-mb-xs">
                       <div class="row items-center justify-between">
@@ -147,16 +131,48 @@
                         class="q-mt-xs"
                       />
                     </div>
-                      </div>
+                  </div>
                   <div v-else class="text-caption text-grey-5">
                     No team members assigned
-                    </div>
-                </q-tooltip>
                   </div>
-                </div>
+                </q-tooltip>
+              </div>
+            </div>
+
+            <!-- Cross-Project Workload Card -->
+            <div class="col-12 col-sm-6 col-md-3">
+              <div class="stat-card clickable">
+                <q-icon name="dashboard" size="32px" color="purple" class="q-mb-sm" />
+                <div class="text-h4 text-weight-bold">{{ crossProjectWorkload.average }}%</div>
+                <div class="text-caption text-grey-7">Cross-Project Workload</div>
+                <q-tooltip max-width="350px" class="bg-dark text-body2">
+                  <div class="text-weight-bold q-mb-sm">Workload Across All Projects</div>
+                  <div class="text-caption text-grey-6 q-mb-sm">All active sprints</div>
+                  <div v-if="crossProjectWorkload.details.length > 0">
+                    <div v-for="member in crossProjectWorkload.details" :key="member.id" class="q-mb-xs">
+                      <div class="row items-center justify-between">
+                        <span>{{ member.name }}:</span>
+                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                          {{ member.workload }}%
+                        </span>
+                      </div>
+                      <q-linear-progress 
+                        :value="Math.min(1, member.workload / 100)" 
+                        :color="getWorkloadColor(member.workload)"
+                        size="4px"
+                        class="q-mt-xs"
+                      />
+                    </div>
+                  </div>
+                  <div v-else class="text-caption text-grey-5">
+                    No workload data available
+                  </div>
+                </q-tooltip>
+              </div>
+            </div>
 
             <!-- Risk Score Card -->
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
               <div class="stat-card clickable">
                 <q-icon name="warning" size="32px" color="red" class="q-mb-sm" />
                 <div class="text-h4 text-weight-bold">{{ currentState.riskScore }}/10</div>
@@ -196,7 +212,7 @@
                       </div>
 
             <!-- Balance Card -->
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
               <div class="stat-card clickable">
                 <q-icon name="balance" size="32px" color="green" class="q-mb-sm" />
                 <div class="text-h4 text-weight-bold">{{ currentState.balanceScore }}%</div>
@@ -231,6 +247,111 @@
                 </q-tooltip>
                   </div>
                     </div>
+
+            <!-- PERT Duration Card -->
+            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.totalPertDuration !== undefined">
+              <div class="stat-card clickable">
+                <q-icon name="schedule" size="32px" color="blue" class="q-mb-sm" />
+                <div class="text-h4 text-weight-bold">{{ currentState.totalPertDuration }}d</div>
+                <div class="text-caption text-grey-7">PERT Duration</div>
+                <q-tooltip max-width="350px" class="bg-dark text-body2">
+                  <div class="text-weight-bold q-mb-sm">PERT Duration Analysis</div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>PERT Expected:</span>
+                      <span class="text-weight-bold">{{ currentState.totalPertDuration }}d</span>
+                    </div>
+                  </div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>RACI Adjusted:</span>
+                      <span class="text-weight-bold">{{ currentState.totalAdjustedDuration }}d</span>
+                    </div>
+                  </div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>Overhead:</span>
+                      <span class="text-weight-bold" :class="getDurationOverheadColor(currentState.durationOverhead || 0)">
+                        +{{ currentState.durationOverhead }}%
+                      </span>
+                    </div>
+                  </div>
+                  <q-separator class="q-my-sm" />
+                  <div class="text-caption text-grey-5">
+                    PERT duration adjusted for team overload
+                  </div>
+                </q-tooltip>
+              </div>
+            </div>
+
+            <!-- RACI Workload Card -->
+            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.raciWorkload !== undefined">
+              <div class="stat-card clickable">
+                <q-icon name="people" size="32px" color="purple" class="q-mb-sm" />
+                <div class="text-h4 text-weight-bold">{{ currentState.raciWorkload }}%</div>
+                <div class="text-caption text-grey-7">RACI Workload</div>
+                <q-tooltip max-width="350px" class="bg-dark text-body2">
+                  <div class="text-weight-bold q-mb-sm">RACI-Weighted Workload</div>
+                  <div class="text-caption text-grey-6 q-mb-sm">
+                    Workload calculated using RACI weights:
+                  </div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>Responsible (R):</span>
+                      <span class="text-weight-bold">1.0x</span>
+                    </div>
+                  </div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>Accountable (A):</span>
+                      <span class="text-weight-bold">0.1x</span>
+                    </div>
+                  </div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>Consulted (C):</span>
+                      <span class="text-weight-bold">0.05x</span>
+                    </div>
+                  </div>
+                  <div class="q-mb-xs">
+                    <div class="row justify-between">
+                      <span>Informed (I):</span>
+                      <span class="text-weight-bold">0.01x</span>
+                    </div>
+                  </div>
+                  <q-separator class="q-my-sm" />
+                  <div class="text-caption text-grey-5">
+                    Average weighted workload across team
+                  </div>
+                </q-tooltip>
+              </div>
+            </div>
+
+            <!-- PERT Uncertainty Card -->
+            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.avgPertUncertainty !== undefined">
+              <div class="stat-card clickable">
+                <q-icon name="warning_amber" size="32px" color="orange" class="q-mb-sm" />
+                <div class="text-h4 text-weight-bold">{{ currentState.avgPertUncertainty }}%</div>
+                <div class="text-caption text-grey-7">PERT Uncertainty</div>
+                <q-tooltip max-width="350px" class="bg-dark text-body2">
+                  <div class="text-weight-bold q-mb-sm">Average PERT Uncertainty</div>
+                  <div class="q-mb-sm">
+                    Measure of task estimation uncertainty (optimistic vs pessimistic).
+                  </div>
+                  <div class="text-caption text-grey-5">
+                    <div v-if="currentState.avgPertUncertainty! < 30">
+                      ✓ Low uncertainty - Good estimates
+                    </div>
+                    <div v-else-if="currentState.avgPertUncertainty! < 50" class="text-orange">
+                      ⚠ Medium uncertainty - Some risk
+                    </div>
+                    <div v-else class="text-red">
+                      ✗ High uncertainty - Consider breaking down tasks
+                    </div>
+                  </div>
+                </q-tooltip>
+              </div>
+            </div>
                   </div>
         </q-card-section>
               </q-card>
@@ -271,16 +392,30 @@
                     Complete project optimization across all sprints
                           </div>
                         </div>
-                <q-btn
-                  color="secondary"
-                  icon="auto_fix_high"
-                  label="Analyze & Optimize"
-                  @click="analyzeTab('all_sprints')"
-                  :loading="requirementChangeStore.loading"
-                  :disable="!selectedProjectId || initialLoading"
-                  size="lg"
-                  unelevated
-                />
+                <div class="row q-gutter-sm">
+                  <q-btn
+                    color="secondary"
+                    icon="auto_fix_high"
+                    label="Analyze & Optimize"
+                    @click="analyzeTab('all_sprints')"
+                    :loading="requirementChangeStore.loading"
+                    :disable="!selectedProjectId || initialLoading"
+                    size="lg"
+                    unelevated
+                  />
+                  <q-btn
+                    color="purple"
+                    icon="schedule"
+                    label="PERT+RACI Analysis"
+                    @click="analyzePertRaciTab('all_sprints')"
+                    :loading="requirementChangeStore.loading"
+                    :disable="!selectedProjectId || initialLoading"
+                    size="lg"
+                    unelevated
+                  >
+                    <q-tooltip>Specialized analysis for PERT duration and RACI workload</q-tooltip>
+                  </q-btn>
+                </div>
                       </div>
 
               <!-- Loading State -->
@@ -292,7 +427,7 @@
                 </div>
               </div>
 
-              <optimization-proposals
+              <OptimizationProposals
                 v-else-if="hasProposals"
                 :proposals="proposals"
                 :selected-proposals="requirementChangeStore.selectedProposals"
@@ -329,16 +464,30 @@
                     Focus on active sprint optimization
                           </div>
                         </div>
-                <q-btn
-                  color="secondary"
-                  icon="auto_fix_high"
-                  label="Analyze & Optimize"
-                  @click="analyzeTab('current_sprint')"
-                  :loading="requirementChangeStore.loading"
-                  :disable="!selectedProjectId || initialLoading"
-                  size="lg"
-                  unelevated
-                />
+                <div class="row q-gutter-sm">
+                  <q-btn
+                    color="secondary"
+                    icon="auto_fix_high"
+                    label="Analyze & Optimize"
+                    @click="analyzeTab('current_sprint')"
+                    :loading="requirementChangeStore.loading"
+                    :disable="!selectedProjectId || initialLoading"
+                    size="lg"
+                    unelevated
+                  />
+                  <q-btn
+                    color="purple"
+                    icon="schedule"
+                    label="PERT+RACI Analysis"
+                    @click="analyzePertRaciTab('current_sprint')"
+                    :loading="requirementChangeStore.loading"
+                    :disable="!selectedProjectId || initialLoading"
+                    size="lg"
+                    unelevated
+                  >
+                    <q-tooltip>Specialized analysis for PERT duration and RACI workload</q-tooltip>
+                  </q-btn>
+                </div>
                       </div>
 
               <!-- Loading State -->
@@ -350,7 +499,7 @@
                 </div>
               </div>
 
-              <optimization-proposals
+              <OptimizationProposals
                 v-else-if="hasProposals"
                 :proposals="proposals"
                 :selected-proposals="requirementChangeStore.selectedProposals"
@@ -527,33 +676,27 @@ const proposals = computed(() => requirementChangeStore.analysisResult?.proposal
 const currentState = computed(() => {
   if (!selectedProject.value) return null;
 
-  // Calculate duration from sprints
   const sprints = selectedProject.value.sprints || [];
-  const duration = sprints.reduce((total, sprint) => {
-    if (sprint.startDate && sprint.endDate) {
-      const start = typeof sprint.startDate === 'string' ? new Date(sprint.startDate) : sprint.startDate;
-      const end = typeof sprint.endDate === 'string' ? new Date(sprint.endDate) : sprint.endDate;
-      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      return total + days;
-    }
-    return total;
-  }, 0);
 
-  // Calculate average workload from team members (similar to WorkloadDashboardPage)
+  // Calculate average workload from team members (from active sprints only)
   const members = teamStore.teamMembers.filter((member) =>
     selectedProject.value?.teamMemberIds?.includes(member.id)
   );
   
+  // Get active sprint
+  const activeSprint = sprints.find((s) => s.status === 'active');
+  
   let totalWorkload = 0;
   members.forEach((member) => {
     const maxStoryPoints = member.maxStoryPoints || 20;
+    
+    // Only count tasks from active sprint (including Done - Sprint Commitment)
     const tasks = (selectedProject.value?.tasks || []).filter((task) => {
-      const isAssigned =
-        (task.raci?.responsible && task.raci.responsible.includes(member.id)) ||
-        task.raci?.accountable === member.id;
-      const isIncomplete = task.status !== 'Done';
-      return isAssigned && isIncomplete;
+      const isInSprint = activeSprint ? task.sprintId === activeSprint.id : false;
+      const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
+      return isInSprint && isAssigned;
     });
+    
     const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
     const memberWorkload = maxStoryPoints > 0 ? (memberStoryPoints / maxStoryPoints) * 100 : 0;
     totalWorkload += memberWorkload;
@@ -580,8 +723,10 @@ const currentState = computed(() => {
     balanceScore = Math.max(0, Math.round(100 - variance));
   }
 
+  // Calculate PERT/RACI metrics from analysis result if available
+  const analysisState = requirementChangeStore.analysisResult?.currentState;
+  
   return {
-    duration: duration || 0,
     workload,
     riskScore,
     balanceScore,
@@ -592,6 +737,12 @@ const currentState = computed(() => {
     teamCapacity: members.reduce((sum, m) => sum + (m.maxStoryPoints || 20), 0),
     taskCount: (selectedProject.value.tasks || []).length,
     sprintCount: sprints.length,
+    // PERT/RACI metrics from analysis (if available)
+    totalPertDuration: analysisState?.totalPertDuration,
+    totalAdjustedDuration: analysisState?.totalAdjustedDuration,
+    avgPertUncertainty: analysisState?.avgPertUncertainty,
+    raciWorkload: analysisState?.raciWorkload,
+    durationOverhead: analysisState?.durationOverhead,
   };
 });
 
@@ -607,11 +758,81 @@ const teamWorkloadDetails = computed(() => {
     selectedProject.value?.teamMemberIds?.includes(member.id)
   );
 
-  return members.map((member) => ({
-    id: member.id,
-    name: member.name,
-    workload: Math.round((member.workload || 0) * 100) / 100,
-  })).sort((a, b) => b.workload - a.workload);
+  // Get active sprint
+  const activeSprint = (selectedProject.value.sprints || []).find((s) => s.status === 'active');
+
+  return members.map((member) => {
+    const maxStoryPoints = member.maxStoryPoints || 20;
+    
+    // Only count tasks from active sprint (including Done - Sprint Commitment)
+    const tasks = (selectedProject.value?.tasks || []).filter((task) => {
+      const isInSprint = activeSprint ? task.sprintId === activeSprint.id : false;
+      const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
+      return isInSprint && isAssigned;
+    });
+    
+    const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+    const workload = maxStoryPoints > 0 ? Math.round((memberStoryPoints / maxStoryPoints) * 100 * 100) / 100 : 0;
+    
+    return {
+      id: member.id,
+      name: member.name,
+      workload: workload,
+    };
+  }).sort((a, b) => b.workload - a.workload);
+});
+
+const crossProjectWorkload = computed(() => {
+  if (!selectedProject.value) {
+    return { average: 0, details: [] };
+  }
+  
+  // Get members from current project
+  const projectMembers = teamStore.teamMembers.filter((member) =>
+    selectedProject.value?.teamMemberIds?.includes(member.id)
+  );
+
+  // Calculate workload across all projects for these members
+  const memberWorkloads = projectMembers.map((member) => {
+    const maxStoryPoints = member.maxStoryPoints || 20;
+    let totalStoryPoints = 0;
+
+    // Iterate through all projects
+    projectStore.projects.forEach((project) => {
+      // Check if member is in this project
+      if (project.teamMemberIds && project.teamMemberIds.includes(member.id)) {
+        // Get active sprint for this project
+        const activeSprint = project.sprints?.find((s) => s.status === 'active');
+        
+        if (project.tasks && activeSprint) {
+          // Count tasks from active sprint (including Done - Sprint Commitment)
+          const sprintTasks = project.tasks.filter((task) => {
+            const isInSprint = task.sprintId === activeSprint.id;
+            const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
+            return isInSprint && isAssigned;
+          });
+          totalStoryPoints += sprintTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+        }
+      }
+    });
+
+    const workload = maxStoryPoints > 0 ? Math.round((totalStoryPoints / maxStoryPoints) * 100 * 100) / 100 : 0;
+    
+    return {
+      id: member.id,
+      name: member.name,
+      workload: workload,
+    };
+  });
+
+  const average = memberWorkloads.length > 0
+    ? Math.round(memberWorkloads.reduce((sum, m) => sum + m.workload, 0) / memberWorkloads.length)
+    : 0;
+
+  return {
+    average,
+    details: memberWorkloads.sort((a, b) => b.workload - a.workload),
+  };
 });
 
 const riskBreakdown = computed(() => {
@@ -625,13 +846,10 @@ const riskBreakdown = computed(() => {
   }
 
   const tasks = selectedProject.value.tasks || [];
-  const members = teamStore.teamMembers.filter((member) =>
-    selectedProject.value?.teamMemberIds?.includes(member.id)
-  );
 
   return {
     deadlineRisks: tasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length,
-    overloadedMembers: members.filter((m) => (m.workload || 0) > 85).length,
+    overloadedMembers: teamWorkloadDetails.value.filter((m) => m.workload > 85).length,
     blockedTasks: tasks.filter((t) => t.dependencies && t.dependencies.length > 0).length,
     largeTasks: tasks.filter((t) => (t.storyPoints || 0) >= 21).length,
   };
@@ -693,6 +911,25 @@ async function analyzeTab(scope: 'current_sprint' | 'all_sprints') {
   }
 }
 
+async function analyzePertRaciTab(scope: 'current_sprint' | 'all_sprints') {
+  if (!selectedProjectId.value) return;
+
+  const result = await requirementChangeStore.analyzePertRaci(
+    selectedProjectId.value,
+    scope
+  );
+
+  if (result) {
+    $q.notify({
+      message: result.message || `Found ${result.totalProposals || 0} PERT+RACI opportunities`,
+      color: 'positive',
+      icon: 'schedule',
+      position: 'top',
+      timeout: 3000,
+    });
+  }
+}
+
 function clearAnalysis() {
   requirementChangeStore.clearAnalysis();
     $q.notify({
@@ -750,9 +987,10 @@ function getProposalIcon(type: string): string {
     priority_conflict: 'priority_high',
     deadline_risk: 'alarm',
     skill_mismatch: 'psychology',
-    cross_sprint_dep: 'link_off',
-    parallel_opportunity: 'device_hub',
     idle_resource: 'person_off',
+    pert_uncertainty: 'schedule',
+    raci_overload: 'people',
+    duration_risk: 'schedule_send',
   };
   return icons[type] || 'change_circle';
 }
@@ -764,6 +1002,12 @@ function getSeverityColor(severity: string): string {
     recommended: 'blue',
   };
   return colors[severity] || 'grey';
+}
+
+function getDurationOverheadColor(overhead: number): string {
+  if (overhead >= 50) return 'text-red';
+  if (overhead >= 20) return 'text-orange';
+  return 'text-green';
 }
 
 </script>

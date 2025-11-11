@@ -137,24 +137,50 @@
       >
         <div class="text-caption text-grey-7 q-mb-xs">Workload Impact</div>
 
-        <div v-if="proposal.impact?.fromWorkload !== undefined" class="q-mb-sm">
-          <div class="row items-center justify-between q-mb-xs">
-            <span class="text-caption">{{ proposal.impact.fromMember }} (Before)</span>
-            <span
-              class="text-caption text-weight-bold"
-              :class="getWorkloadColorClass(proposal.impact.fromWorkload)"
-            >
-              {{ proposal.impact.fromWorkload }}%
-            </span>
+        <!-- From Member - Before and After -->
+        <div v-if="proposal.impact?.fromWorkload !== undefined" class="q-mb-md">
+          <div class="text-weight-bold text-caption q-mb-xs">{{ proposal.impact.fromMember }}</div>
+
+          <!-- Before -->
+          <div class="q-mb-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption">Before</span>
+              <span
+                class="text-caption text-weight-bold"
+                :class="getWorkloadColorClass(proposal.impact.fromWorkload)"
+              >
+                {{ proposal.impact.fromWorkload }}%
+              </span>
+            </div>
+            <q-linear-progress
+              :value="proposal.impact.fromWorkload / 100"
+              :color="getWorkloadColor(proposal.impact.fromWorkload)"
+              size="8px"
+              rounded
+            />
           </div>
-          <q-linear-progress
-            :value="proposal.impact.fromWorkload / 100"
-            :color="getWorkloadColor(proposal.impact.fromWorkload)"
-            size="8px"
-            rounded
-          />
+
+          <!-- After -->
+          <div v-if="proposal.impact?.fromWorkloadAfter !== undefined" class="q-mb-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption">After</span>
+              <span
+                class="text-caption text-weight-bold"
+                :class="getWorkloadColorClass(proposal.impact.fromWorkloadAfter)"
+              >
+                {{ proposal.impact.fromWorkloadAfter }}%
+              </span>
+            </div>
+            <q-linear-progress
+              :value="proposal.impact.fromWorkloadAfter / 100"
+              :color="getWorkloadColor(proposal.impact.fromWorkloadAfter)"
+              size="8px"
+              rounded
+            />
+          </div>
         </div>
 
+        <!-- To Member - Before and After -->
         <div
           v-if="
             proposal.impact?.toWorkload !== undefined &&
@@ -162,21 +188,45 @@
           "
           class="q-mb-sm"
         >
-          <div class="row items-center justify-between q-mb-xs">
-            <span class="text-caption">{{ proposal.impact.toMember }} (After)</span>
-            <span
-              class="text-caption text-weight-bold"
-              :class="getWorkloadColorClass(proposal.impact.toWorkload)"
-            >
-              {{ proposal.impact.toWorkload }}%
-            </span>
+          <div class="text-weight-bold text-caption q-mb-xs">{{ proposal.impact.toMember }}</div>
+
+          <!-- Before -->
+          <div v-if="proposal.impact?.toWorkloadBefore !== undefined" class="q-mb-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption">Before</span>
+              <span
+                class="text-caption text-weight-bold"
+                :class="getWorkloadColorClass(proposal.impact.toWorkloadBefore)"
+              >
+                {{ proposal.impact.toWorkloadBefore }}%
+              </span>
+            </div>
+            <q-linear-progress
+              :value="proposal.impact.toWorkloadBefore / 100"
+              :color="getWorkloadColor(proposal.impact.toWorkloadBefore)"
+              size="8px"
+              rounded
+            />
           </div>
-          <q-linear-progress
-            :value="proposal.impact.toWorkload / 100"
-            :color="getWorkloadColor(proposal.impact.toWorkload)"
-            size="8px"
-            rounded
-          />
+
+          <!-- After -->
+          <div class="q-mb-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption">After</span>
+              <span
+                class="text-caption text-weight-bold"
+                :class="getWorkloadColorClass(proposal.impact.toWorkload)"
+              >
+                {{ proposal.impact.toWorkload }}%
+              </span>
+            </div>
+            <q-linear-progress
+              :value="proposal.impact.toWorkload / 100"
+              :color="getWorkloadColor(proposal.impact.toWorkload)"
+              size="8px"
+              rounded
+            />
+          </div>
         </div>
       </div>
 
@@ -241,126 +291,276 @@
       </div>
     </div>
 
+    <!-- PERT Uncertainty Details -->
+    <div v-else-if="proposal.type === 'pert_uncertainty'">
+      <div class="text-subtitle2 text-weight-bold q-mb-sm">PERT Uncertainty Analysis:</div>
+
+      <!-- Task Info -->
+      <div class="q-mb-md">
+        <strong>Task:</strong> {{ proposal.taskName || 'Task' }}
+        <span v-if="proposal.taskSp" class="text-primary text-weight-bold">
+          ({{ proposal.taskSp }} SP)
+        </span>
+      </div>
+
+      <!-- PERT Estimates -->
+      <div class="q-mb-md">
+        <div class="text-caption text-grey-7 q-mb-xs">PERT Estimates (Days)</div>
+        <div class="row q-gutter-sm">
+          <q-chip dense color="green" text-color="white" icon="trending_down">
+            Optimistic: {{ proposal.impact?.optimistic }}d
+          </q-chip>
+          <q-chip dense color="blue" text-color="white" icon="show_chart">
+            Expected: {{ proposal.impact?.expected }}d
+          </q-chip>
+          <q-chip dense color="orange" text-color="white" icon="trending_up">
+            Pessimistic: {{ proposal.impact?.pessimistic }}d
+          </q-chip>
+        </div>
+      </div>
+
+      <!-- Standard PERT Statistics -->
+      <div class="q-mb-md bg-blue-1 q-pa-md" style="border-radius: 8px">
+        <div class="text-weight-bold q-mb-sm">Statistical Analysis</div>
+
+        <!-- Coefficient of Variation (main metric) -->
+        <div class="q-mb-sm">
+          <div class="row items-center justify-between">
+            <span class="text-body2">
+              <q-icon name="analytics" size="sm" class="q-mr-xs" />
+              <strong>Coefficient of Variation (CV):</strong>
+            </span>
+            <span
+              class="text-h6 text-weight-bold"
+              :class="
+                (proposal.impact?.coefficientOfVariation || 0) >= 33 ? 'text-red' : 'text-orange'
+              "
+            >
+              {{ proposal.impact?.coefficientOfVariation }}%
+            </span>
+          </div>
+          <div class="text-caption text-grey-7 q-mt-xs">
+            Industry threshold: <strong>CV > 33%</strong> requires breakdown
+          </div>
+        </div>
+
+        <q-separator class="q-my-sm" />
+
+        <!-- Standard Deviation -->
+        <div class="row items-center justify-between q-mb-xs">
+          <span class="text-caption">Standard Deviation (σ):</span>
+          <span class="text-caption text-weight-bold">{{ proposal.impact?.stdDev }}d</span>
+        </div>
+
+        <!-- Variance -->
+        <div class="row items-center justify-between q-mb-xs">
+          <span class="text-caption">Variance (σ²):</span>
+          <span class="text-caption text-weight-bold">{{ proposal.impact?.variance }}</span>
+        </div>
+
+        <!-- Suggested Buffer -->
+        <div class="row items-center justify-between">
+          <span class="text-caption">Suggested Buffer:</span>
+          <span class="text-caption text-weight-bold text-primary">
+            {{ proposal.impact?.suggestedBuffer }}d
+          </span>
+        </div>
+      </div>
+
+      <!-- Confidence Intervals -->
+      <div class="q-mb-md">
+        <div class="text-caption text-grey-7 q-mb-sm">Confidence Intervals</div>
+
+        <!-- 68% Confidence -->
+        <div class="q-mb-sm">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption">
+              <q-icon name="show_chart" size="xs" class="q-mr-xs" />
+              68% Confidence (±1σ)
+            </span>
+            <span class="text-caption text-weight-bold">
+              {{ proposal.impact?.conf68Lower }}d - {{ proposal.impact?.conf68Upper }}d
+            </span>
+          </div>
+          <q-linear-progress :value="0.68" color="blue" size="6px" rounded />
+        </div>
+
+        <!-- 95% Confidence -->
+        <div class="q-mb-sm">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption">
+              <q-icon name="trending_flat" size="xs" class="q-mr-xs" />
+              95% Confidence (±2σ)
+            </span>
+            <span class="text-caption text-weight-bold">
+              {{ proposal.impact?.conf95Lower }}d - {{ proposal.impact?.conf95Upper }}d
+            </span>
+          </div>
+          <q-linear-progress :value="0.95" color="purple" size="6px" rounded />
+        </div>
+      </div>
+
+      <!-- Recommendation Banner -->
+      <q-banner dense class="bg-orange-1 text-orange-9">
+        <template v-slot:avatar>
+          <q-icon name="lightbulb" color="orange" />
+        </template>
+        <div class="text-caption">
+          <strong>Recommendation:</strong> Break down this task into smaller subtasks for more
+          accurate estimation and reduced uncertainty.
+        </div>
+      </q-banner>
+    </div>
+
+    <!-- Duration Risk Details (PERT+RACI) -->
+    <div v-else-if="proposal.type === 'duration_risk'">
+      <div class="text-subtitle2 text-weight-bold q-mb-sm">Duration Risk Analysis:</div>
+
+      <!-- Task Info -->
+      <div class="q-mb-md">
+        <strong>Task:</strong> {{ proposal.taskName || 'Task' }}
+        <span v-if="proposal.taskSp" class="text-primary text-weight-bold">
+          ({{ proposal.taskSp }} SP)
+        </span>
+      </div>
+
+      <!-- Duration Comparison -->
+      <div class="q-mb-md">
+        <div class="text-caption text-grey-7 q-mb-xs">Duration Analysis</div>
+        <div class="row q-gutter-sm">
+          <q-chip dense color="blue" text-color="white" icon="schedule">
+            PERT: {{ proposal.impact?.pertDuration }}d
+          </q-chip>
+          <q-icon name="arrow_forward" size="sm" />
+          <q-chip dense color="red" text-color="white" icon="schedule_send">
+            Adjusted: {{ proposal.impact?.adjustedDuration }}d
+          </q-chip>
+          <q-chip dense color="orange" text-color="white" icon="trending_up">
+            +{{ proposal.impact?.overhead }}%
+          </q-chip>
+        </div>
+      </div>
+
+      <!-- If there's a reassignment suggestion with new duration -->
+      <div
+        v-if="proposal.impact?.newAdjustedDuration"
+        class="q-mb-md bg-green-1 q-pa-md"
+        style="border-radius: 8px"
+      >
+        <div class="text-weight-bold q-mb-xs">
+          <q-icon name="check_circle" color="green" class="q-mr-xs" />
+          Proposed Solution: Reassignment
+        </div>
+        <div class="row items-center justify-between q-mb-xs">
+          <span class="text-caption">New Adjusted Duration:</span>
+          <span class="text-caption text-weight-bold text-green">
+            {{ proposal.impact.newAdjustedDuration }}d
+          </span>
+        </div>
+        <div class="row items-center justify-between">
+          <span class="text-caption">New Overhead:</span>
+          <span class="text-caption text-weight-bold text-green">
+            {{ proposal.impact.newOverhead }}%
+          </span>
+        </div>
+        <div class="row items-center justify-between q-mt-sm">
+          <span class="text-caption text-weight-bold">Improvement:</span>
+          <span class="text-caption text-weight-bold text-primary">
+            -{{ proposal.impact.improvement }}d
+          </span>
+        </div>
+      </div>
+
+      <!-- Overloaded Members -->
+      <div
+        v-if="proposal.impact?.overloadedMembers && proposal.impact.overloadedMembers.length > 0"
+        class="q-mb-md"
+      >
+        <div class="text-caption text-grey-7 q-mb-xs">Overloaded Team Members:</div>
+        <div class="row q-gutter-xs">
+          <q-chip
+            v-for="(member, idx) in proposal.impact.overloadedMembers"
+            :key="idx"
+            dense
+            color="red"
+            text-color="white"
+            icon="person"
+          >
+            {{ member }}
+          </q-chip>
+        </div>
+      </div>
+    </div>
+
+    <!-- RACI Overload Details -->
+    <div v-else-if="proposal.type === 'raci_overload'">
+      <div class="text-subtitle2 text-weight-bold q-mb-sm">RACI Overload:</div>
+
+      <!-- Task Info -->
+      <div class="q-mb-md">
+        <strong>Task:</strong> {{ proposal.taskName || 'Task' }}
+        <span v-if="proposal.taskSp" class="text-primary text-weight-bold">
+          ({{ proposal.taskSp }} SP)
+        </span>
+      </div>
+
+      <!-- Member Info (if applicable) -->
+      <div v-if="proposal.impact?.member" class="q-mb-md">
+        <div class="text-caption text-grey-7 q-mb-xs">Affected Member</div>
+        <div class="row items-center q-gutter-sm">
+          <q-avatar color="red" text-color="white" size="32px">
+            <q-icon name="person" />
+          </q-avatar>
+          <div>
+            <div class="text-body2 text-weight-bold">{{ proposal.impact.member }}</div>
+            <div class="text-caption text-grey-7">{{ proposal.impact.roleChange }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workload visualization if available -->
+      <div v-if="proposal.impact?.currentWorkload !== undefined">
+        <div class="text-caption text-grey-7 q-mb-xs">Workload Impact</div>
+        <div class="q-mb-xs">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption">Current</span>
+            <span class="text-caption text-weight-bold text-red">
+              {{ proposal.impact.currentWorkload }}%
+            </span>
+          </div>
+          <q-linear-progress
+            :value="proposal.impact.currentWorkload / 100"
+            color="red"
+            size="8px"
+            rounded
+          />
+        </div>
+        <div v-if="proposal.impact?.newWorkload !== undefined">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption">After</span>
+            <span
+              class="text-caption text-weight-bold"
+              :class="getWorkloadColorClass(proposal.impact.newWorkload)"
+            >
+              {{ proposal.impact.newWorkload }}%
+            </span>
+          </div>
+          <q-linear-progress
+            :value="proposal.impact.newWorkload / 100"
+            :color="getWorkloadColor(proposal.impact.newWorkload)"
+            size="8px"
+            rounded
+          />
+        </div>
+      </div>
+    </div>
+
     <!-- Generic Details -->
     <div v-else>
       <div class="text-subtitle2 text-weight-bold q-mb-sm">Details:</div>
       <div v-if="proposal.taskName">
         <strong>Task:</strong> {{ proposal.taskName }}
         <span v-if="proposal.taskSp"> ({{ proposal.taskSp }} SP)</span>
-      </div>
-    </div>
-
-    <!-- Impact Metrics (always shown) -->
-    <q-separator class="q-my-md" />
-    <div class="text-subtitle2 text-weight-bold q-mb-sm">
-      <q-icon name="insights" size="18px" class="q-mr-xs" />
-      Expected Impact:
-    </div>
-
-    <!-- Impact Description -->
-    <div
-      v-if="getImpactDescription(proposal.type)"
-      class="q-mb-md q-pa-sm bg-blue-1 rounded-borders"
-    >
-      <div class="text-body2 text-blue-9">
-        {{ getImpactDescription(proposal.type) }}
-      </div>
-    </div>
-
-    <div class="row q-col-gutter-sm">
-      <div class="col-6 col-md-3" v-if="proposal.impact?.durationChange">
-        <div class="impact-metric clickable">
-          <q-icon
-            :name="proposal.impact.durationChange < 0 ? 'trending_down' : 'trending_up'"
-            :color="proposal.impact.durationChange < 0 ? 'green' : 'red'"
-            size="20px"
-          />
-          <div class="text-caption text-grey-7">Duration</div>
-          <div class="text-body2 text-weight-bold">
-            {{ proposal.impact.durationChange > 0 ? '+' : '' }}{{ proposal.impact.durationChange }}d
-          </div>
-          <q-tooltip class="bg-dark text-body2">
-            <div class="text-weight-bold q-mb-xs">Project Duration Impact</div>
-            <div>Change in estimated project completion time</div>
-            <div class="q-mt-xs text-caption">
-              {{ proposal.impact.durationChange < 0 ? 'Faster delivery' : 'Slower delivery' }}
-            </div>
-          </q-tooltip>
-        </div>
-      </div>
-
-      <div class="col-6 col-md-3" v-if="proposal.impact?.workloadChange">
-        <div class="impact-metric clickable">
-          <q-icon
-            :name="
-              getWorkloadChangeValue(proposal.impact.workloadChange) < 0
-                ? 'trending_down'
-                : 'trending_up'
-            "
-            :color="getWorkloadChangeValue(proposal.impact.workloadChange) < 0 ? 'green' : 'red'"
-            size="20px"
-          />
-          <div class="text-caption text-grey-7">Workload</div>
-          <div class="text-body2 text-weight-bold">
-            {{ getWorkloadChangeValue(proposal.impact.workloadChange) > 0 ? '+' : ''
-            }}{{ getWorkloadChangeValue(proposal.impact.workloadChange) }}%
-          </div>
-          <q-tooltip class="bg-dark text-body2">
-            <div class="text-weight-bold q-mb-xs">Team Workload Impact</div>
-            <div>Change in average team member workload</div>
-            <div class="q-mt-xs text-caption">
-              {{
-                getWorkloadChangeValue(proposal.impact.workloadChange) < 0
-                  ? 'Reduced pressure'
-                  : 'Increased pressure'
-              }}
-            </div>
-          </q-tooltip>
-        </div>
-      </div>
-
-      <div class="col-6 col-md-3" v-if="proposal.impact?.riskChange">
-        <div class="impact-metric clickable">
-          <q-icon
-            :name="proposal.impact.riskChange < 0 ? 'trending_down' : 'trending_up'"
-            :color="proposal.impact.riskChange < 0 ? 'green' : 'red'"
-            size="20px"
-          />
-          <div class="text-caption text-grey-7">Risk</div>
-          <div class="text-body2 text-weight-bold">
-            {{ proposal.impact.riskChange > 0 ? '+' : '' }}{{ proposal.impact.riskChange }}
-          </div>
-          <q-tooltip class="bg-dark text-body2">
-            <div class="text-weight-bold q-mb-xs">Risk Score Impact</div>
-            <div>Change in overall project risk level</div>
-            <div class="q-mt-xs text-caption">
-              Scale: 0-10 ({{
-                proposal.impact.riskChange < 0 ? 'Lower is better' : 'Higher is worse'
-              }})
-            </div>
-          </q-tooltip>
-        </div>
-      </div>
-
-      <div class="col-6 col-md-3" v-if="proposal.impact?.balanceChange">
-        <div class="impact-metric clickable">
-          <q-icon
-            :name="proposal.impact.balanceChange > 0 ? 'trending_up' : 'trending_down'"
-            :color="proposal.impact.balanceChange > 0 ? 'green' : 'red'"
-            size="20px"
-          />
-          <div class="text-caption text-grey-7">Balance</div>
-          <div class="text-body2 text-weight-bold">
-            {{ proposal.impact.balanceChange > 0 ? '+' : '' }}{{ proposal.impact.balanceChange }}%
-          </div>
-          <q-tooltip class="bg-dark text-body2">
-            <div class="text-weight-bold q-mb-xs">Team Balance Impact</div>
-            <div>Change in workload distribution evenness</div>
-            <div class="q-mt-xs text-caption">
-              {{ proposal.impact.balanceChange > 0 ? 'More balanced team' : 'Less balanced team' }}
-            </div>
-          </q-tooltip>
-        </div>
       </div>
     </div>
   </div>
@@ -375,14 +575,6 @@ interface Props {
 
 defineProps<Props>();
 
-function getWorkloadChangeValue(
-  workloadChange: { before: number; after: number } | number | undefined,
-): number {
-  if (!workloadChange) return 0;
-  if (typeof workloadChange === 'number') return workloadChange;
-  return workloadChange.after - workloadChange.before;
-}
-
 function getWorkloadColor(workload: number): string {
   if (workload >= 90) return 'red';
   if (workload >= 75) return 'orange';
@@ -396,66 +588,9 @@ function getWorkloadColorClass(workload: number): string {
   if (workload >= 50) return 'text-yellow-8';
   return 'text-green';
 }
-
-function getImpactDescription(type: string): string {
-  const descriptions: Record<string, string> = {
-    split:
-      'Splitting this large task into smaller subtasks will improve estimation accuracy, reduce risk, and enable better parallelization of work. Smaller tasks are easier to manage and complete.',
-    merge:
-      'Merging these similar small tasks will improve efficiency by reducing management overhead and context switching. Combined tasks are easier to track and complete as a cohesive unit.',
-    reassign:
-      'Reassigning this task will improve workload distribution across the team, leading to better balance and preventing team member burnout. Work will be allocated more efficiently.',
-    bottleneck:
-      'Relieving this bottleneck will distribute critical tasks more evenly, reducing single points of failure and project risk. The team will be more resilient and balanced.',
-    priority_conflict:
-      'Resolving this priority conflict will ensure high-priority work gets appropriate attention and resources, reducing the risk of delays and improving delivery predictability.',
-    deadline_risk:
-      'Addressing this deadline risk will help ensure on-time delivery by prioritizing urgent work. Early action prevents last-minute rushes and quality compromises.',
-    skill_mismatch:
-      'Matching skills to task requirements will improve work quality, reduce completion time, and increase team member satisfaction. Better skill alignment leads to better outcomes.',
-    cross_sprint_dep:
-      'Fixing this cross-sprint dependency will improve sprint planning and reduce scheduling conflicts. Dependencies will be properly sequenced for smoother execution.',
-    sprint_move:
-      'Rebalancing sprint workload will improve team capacity utilization and prevent sprint overload. More even distribution leads to better predictability and sustainable pace.',
-    parallel_opportunity:
-      'Enabling parallel work will accelerate project timeline by allowing tasks to run simultaneously. Faster completion without adding resources or risk.',
-    idle_resource:
-      'Better utilizing available team capacity will improve resource efficiency and project velocity. Underutilized team members can contribute more effectively.',
-    add_task:
-      'Adding this task with optimal assignment will integrate new work smoothly while maintaining team balance and capacity constraints.',
-    increase_sp:
-      'Adjusting story points and assignments will ensure the team has appropriate capacity for the increased scope while maintaining healthy workload levels.',
-    priority_change:
-      'Changing task priority will align work with current business needs and ensure critical items receive appropriate focus and resources.',
-  };
-
-  return (
-    descriptions[type] ||
-    'This optimization will improve project planning, team balance, and delivery predictability through better resource allocation and risk management.'
-  );
-}
 </script>
 
 <style scoped>
-.impact-metric {
-  text-align: center;
-  padding: 8px;
-  border-radius: 4px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  transition: all 0.2s ease;
-}
-
-.impact-metric.clickable {
-  cursor: help;
-}
-
-.impact-metric.clickable:hover {
-  background: rgba(0, 0, 0, 0.02);
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .reassignment-member {
   text-align: center;
   min-width: 80px;

@@ -32,34 +32,10 @@
         <div class="col-12 col-md-3">
           <q-card class="text-center">
             <q-card-section>
-              <div class="text-h4 text-primary text-weight-bold">{{ criticalPathDuration }}h</div>
-              <div class="text-grey-7">Expected Duration</div>
-            </q-card-section>
-          </q-card>
-        </div>
-        <div class="col-12 col-md-3">
-          <q-card class="text-center">
-            <q-card-section>
               <div class="text-h4 text-green text-weight-bold">
                 {{ totalTasks }}
               </div>
               <div class="text-grey-7">Total Tasks</div>
-            </q-card-section>
-          </q-card>
-        </div>
-        <div class="col-12 col-md-3">
-          <q-card class="text-center">
-            <q-card-section>
-              <div class="text-h4 text-orange text-weight-bold">{{ optimisticDuration }}h</div>
-              <div class="text-grey-7">Optimistic</div>
-            </q-card-section>
-          </q-card>
-        </div>
-        <div class="col-12 col-md-3">
-          <q-card class="text-center">
-            <q-card-section>
-              <div class="text-h4 text-red text-weight-bold">{{ pessimisticDuration }}h</div>
-              <div class="text-grey-7">Pessimistic</div>
             </q-card-section>
           </q-card>
         </div>
@@ -295,66 +271,6 @@
 
         <!-- Task Details & Stats -->
         <div class="col-12 col-lg-4">
-          <!-- PERT Distribution Chart -->
-          <q-card class="q-mb-lg">
-            <q-card-section>
-              <div class="text-h6 text-weight-bold">Time Distribution</div>
-            </q-card-section>
-            <q-separator />
-            <q-card-section>
-              <div class="column q-gutter-md">
-                <div>
-                  <div class="text-caption text-grey-7 q-mb-xs">Optimistic (Best Case)</div>
-                  <q-linear-progress
-                    :value="optimisticPercentage"
-                    color="green"
-                    size="20px"
-                    class="q-mb-xs"
-                  >
-                    <div class="absolute-full flex flex-center">
-                      <q-badge
-                        color="white"
-                        text-color="accent"
-                        :label="`${optimisticDuration}h`"
-                      />
-                    </div>
-                  </q-linear-progress>
-                </div>
-
-                <div>
-                  <div class="text-caption text-grey-7 q-mb-xs">Expected (Weighted)</div>
-                  <q-linear-progress
-                    :value="expectedPercentage"
-                    color="primary"
-                    size="20px"
-                    class="q-mb-xs"
-                  >
-                    <div class="absolute-full flex flex-center">
-                      <q-badge
-                        color="white"
-                        text-color="accent"
-                        :label="`${criticalPathDuration}h`"
-                      />
-                    </div>
-                  </q-linear-progress>
-                </div>
-
-                <div>
-                  <div class="text-caption text-grey-7 q-mb-xs">Pessimistic (Worst Case)</div>
-                  <q-linear-progress :value="1" color="red" size="20px" class="q-mb-xs">
-                    <div class="absolute-full flex flex-center">
-                      <q-badge
-                        color="white"
-                        text-color="accent"
-                        :label="`${pessimisticDuration}h`"
-                      />
-                    </div>
-                  </q-linear-progress>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
           <!-- Status Breakdown -->
           <q-card>
             <q-card-section>
@@ -504,51 +420,6 @@ const taskEstimates = computed(() => {
 const totalTasks = computed(() => {
   if (!selectedProject.value?.tasks) return 0;
   return selectedProject.value.tasks.length;
-});
-
-const criticalPathDuration = computed(() => {
-  if (!selectedProject.value?.tasks) return 0;
-  return Number(
-    selectedProject.value.tasks
-      .reduce((sum, task) => {
-        return sum + (task.pert?.expected || 0);
-      }, 0)
-      .toFixed(2),
-  );
-});
-
-const optimisticDuration = computed(() => {
-  if (!selectedProject.value?.tasks) return 0;
-  return Number(
-    selectedProject.value.tasks
-      .reduce((sum, task) => {
-        return sum + (task.pert?.optimistic || 0);
-      }, 0)
-      .toFixed(2),
-  );
-});
-
-const pessimisticDuration = computed(() => {
-  if (!selectedProject.value?.tasks) return 0;
-  return Number(
-    selectedProject.value.tasks
-      .reduce((sum, task) => {
-        return sum + (task.pert?.pessimistic || 0);
-      }, 0)
-      .toFixed(2),
-  );
-});
-
-const optimisticPercentage = computed(() => {
-  const pessimistic = pessimisticDuration.value;
-  if (pessimistic === 0) return 0;
-  return optimisticDuration.value / pessimistic;
-});
-
-const expectedPercentage = computed(() => {
-  const pessimistic = pessimisticDuration.value;
-  if (pessimistic === 0) return 0;
-  return criticalPathDuration.value / pessimistic;
 });
 
 const statusBreakdown = computed(() => {
