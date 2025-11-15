@@ -213,17 +213,38 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  function updateMemberRole(projectId: number, memberId: number, role: ProjectRole['role']) {
-    const project = projects.value.find((p) => p.id === projectId);
-    if (project && project.roles) {
-      const roleIndex = project.roles.findIndex((r) => r.memberId === memberId);
-      if (roleIndex !== -1) {
-        project.roles[roleIndex] = {
-          memberId,
-          role,
-          permissions: getRolePermissions(role),
-        };
+  async function updateMemberRole(projectId: number, memberId: number, role: ProjectRole['role']) {
+    loading.value = true;
+    error.value = null;
+    try {
+      // Call API to update role
+      await api.put(`/projects/${projectId}/members/${memberId}/role`, { role });
+      
+      // Update local state
+      const project = projects.value.find((p) => p.id === projectId);
+      if (project && project.roles) {
+        const roleIndex = project.roles.findIndex((r) => r.memberId === memberId);
+        if (roleIndex !== -1) {
+          project.roles[roleIndex] = {
+            memberId,
+            role,
+            permissions: getRolePermissions(role),
+          };
+        } else {
+          // Add new role if doesn't exist
+          project.roles.push({
+            memberId,
+            role,
+            permissions: getRolePermissions(role),
+          });
+        }
       }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update member role';
+      console.error('Failed to update member role:', err);
+      throw err;
+    } finally {
+      loading.value = false;
     }
   }
 

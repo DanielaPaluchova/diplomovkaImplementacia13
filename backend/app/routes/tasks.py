@@ -41,6 +41,56 @@ def validate_team_members(project, raci_data=None):
     return True, None
 
 
+def cleanup_member_from_tasks(member_id, project_id=None):
+    """
+    Remove a team member from all RACI roles in tasks.
+    Called when a member is deleted or removed from a project.
+    
+    Args:
+        member_id: ID of the member to remove
+        project_id: Optional project ID to limit cleanup to specific project
+        
+    Returns:
+        int: Number of tasks updated
+    """
+    # Build query
+    query = Task.query
+    if project_id:
+        query = query.filter_by(project_id=project_id)
+    
+    tasks = query.all()
+    updated_count = 0
+    
+    for task in tasks:
+        task_updated = False
+        
+        # Remove from responsible (array)
+        if task.raci_responsible and member_id in task.raci_responsible:
+            task.raci_responsible = [m for m in task.raci_responsible if m != member_id]
+            task_updated = True
+        
+        # Remove from accountable (single value)
+        if task.raci_accountable == member_id:
+            task.raci_accountable = None
+            task_updated = True
+        
+        # Remove from consulted (array)
+        if task.raci_consulted and member_id in task.raci_consulted:
+            task.raci_consulted = [m for m in task.raci_consulted if m != member_id]
+            task_updated = True
+        
+        # Remove from informed (array)
+        if task.raci_informed and member_id in task.raci_informed:
+            task.raci_informed = [m for m in task.raci_informed if m != member_id]
+            task_updated = True
+        
+        if task_updated:
+            db.session.add(task)
+            updated_count += 1
+    
+    return updated_count
+
+
 def has_circular_dependency(task_id, dependencies, project_id):
     """
     Check if adding dependencies would create a circular dependency.

@@ -21,7 +21,7 @@
           <q-card class="summary-card">
             <q-card-section>
               <div class="text-h6 text-weight-bold text-primary">{{ totalTeamMembers }}</div>
-              <div class="text-caption text-grey-7">Total Team Members</div>
+              <div class="text-caption text-grey-7">Team Members with Projects</div>
             </q-card-section>
           </q-card>
         </div>
@@ -41,7 +41,33 @@
             </q-card-section>
           </q-card>
         </div>
+        <div class="col-12 col-md-3">
+          <q-card class="summary-card" :class="{ 'cursor-pointer': membersWithoutProjects > 0 }" @click="showUnassignedMembers">
+            <q-card-section>
+              <div class="text-h6 text-weight-bold text-grey-7">{{ membersWithoutProjects }}</div>
+              <div class="text-caption text-grey-7">Members Without Projects</div>
+            </q-card-section>
+          </q-card>
+        </div>
       </div>
+
+      <!-- Info Banner for Unassigned Members -->
+      <q-banner v-if="membersWithoutProjects > 0" class="bg-info text-white q-mb-lg" rounded>
+        <template v-slot:avatar>
+          <q-icon name="info" />
+        </template>
+        <div class="text-body2">
+          <strong>{{ membersWithoutProjects }}</strong> team member(s) are not assigned to any project and won't appear in the workload view below.
+          <q-btn 
+            flat 
+            dense 
+            color="white" 
+            label="View Unassigned" 
+            class="q-ml-sm"
+            @click="showUnassignedMembers"
+          />
+        </div>
+      </q-banner>
 
       <!-- Cross-Project Sprint Overview -->
       <q-card class="q-mb-lg">
@@ -460,6 +486,68 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Unassigned Members Dialog -->
+    <q-dialog v-model="showUnassignedDialog">
+      <q-card style="min-width: 500px">
+        <q-card-section>
+          <div class="text-h6">Team Members Without Projects</div>
+          <div class="text-caption text-grey-7">
+            These members are not assigned to any project yet
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section class="q-pt-none">
+          <q-list bordered separator>
+            <q-item v-for="member in unassignedMembersList" :key="member.id">
+              <q-item-section avatar>
+                <q-avatar>
+                  <img :src="member.avatar" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ member.name }}</q-item-label>
+                <q-item-label caption>{{ member.email }}</q-item-label>
+                <q-item-label caption class="q-mt-xs">
+                  <q-badge outline color="primary">{{ member.role }}</q-badge>
+                  <q-badge 
+                    v-for="skill in member.skills.slice(0, 3)" 
+                    :key="skill" 
+                    outline 
+                    color="grey" 
+                    class="q-ml-xs"
+                  >
+                    {{ skill }}
+                  </q-badge>
+                  <q-badge 
+                    v-if="member.skills.length > 3" 
+                    outline 
+                    color="grey" 
+                    class="q-ml-xs"
+                  >
+                    +{{ member.skills.length - 3 }}
+                  </q-badge>
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <div class="q-mt-md text-caption text-grey-7">
+            <q-icon name="info" size="xs" class="q-mr-xs" />
+            To assign members to projects, go to Projects page and add them to a project team.
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-actions align="right">
+          <q-btn flat color="primary" label="Go to Projects" @click="router.push('/projects')" />
+          <q-btn flat label="Close" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -789,6 +877,27 @@ const activeSprintsOverview = computed((): SprintOverview[] => {
 
 const activeSprintsCount = computed(() => activeSprintsOverview.value.length);
 
+// Members without projects
+const membersWithoutProjects = computed(() => {
+  return teamStore.teamMembers.filter((member) => {
+    const hasProjects = projectStore.projects.some(
+      (project) => project.teamMemberIds && project.teamMemberIds.includes(member.id)
+    );
+    return !hasProjects;
+  }).length;
+});
+
+const unassignedMembersList = computed(() => {
+  return teamStore.teamMembers.filter((member) => {
+    const hasProjects = projectStore.projects.some(
+      (project) => project.teamMemberIds && project.teamMemberIds.includes(member.id)
+    );
+    return !hasProjects;
+  });
+});
+
+const showUnassignedDialog = ref(false);
+
 // Methods
 function formatDate(date: Date): string {
   return format(date, 'MMM dd, yyyy');
@@ -836,6 +945,12 @@ function navigateToProject(projectId: number) {
   showDetailsDialog.value = false;
   router.push(`/projects/${projectId}`);
 }
+
+function showUnassignedMembers() {
+  if (membersWithoutProjects.value > 0) {
+    showUnassignedDialog.value = true;
+  }
+}
 </script>
 
 <style scoped>
@@ -848,6 +963,10 @@ function navigateToProject(projectId: number) {
 .summary-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 
 .workload-card {

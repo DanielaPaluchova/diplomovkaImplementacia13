@@ -95,3 +95,4 @@ ORDER BY t.sprint_id, t.id;
 
 -- Výsledok by mal byť len 1 riadok!
 
+

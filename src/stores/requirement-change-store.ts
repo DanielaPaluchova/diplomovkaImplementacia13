@@ -202,7 +202,7 @@ export const useRequirementChangeStore = defineStore('requirementChange', () => 
 
   async function autoOptimizeProject(
     projectId: number,
-    scope: 'current_sprint' | 'all_sprints' = 'all_sprints',
+    scope: 'current_sprint' | 'backlog' = 'backlog',
   ): Promise<AnalysisResult | null> {
     loading.value = true;
     error.value = null;
@@ -259,7 +259,7 @@ export const useRequirementChangeStore = defineStore('requirementChange', () => 
 
   async function analyzePertRaci(
     projectId: number,
-    scope: 'current_sprint' | 'all_sprints' = 'all_sprints',
+    scope: 'current_sprint' | 'backlog' = 'backlog',
   ): Promise<AnalysisResult | null> {
     loading.value = true;
     error.value = null;

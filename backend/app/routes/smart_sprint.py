@@ -464,20 +464,85 @@ def get_sprint_strategies(project_id):
             'recommended': 'When you have specialized tasks requiring specific skills'
         },
         {
-            'id': 'velocity-based',
-            'name': 'Velocity-Based',
-            'description': 'Use historical velocity for realistic capacity planning',
-            'parameters': [],
-            'icon': 'speed',
-            'recommended': 'When you want to plan based on actual team performance'
+            'id': 'skill-priority',
+            'name': 'Skill-Priority',
+            'description': 'Combine skill matching with priority - best skill match for high-priority tasks',
+            'parameters': [
+                {
+                    'name': 'skills',
+                    'label': 'Skills Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.6
+                },
+                {
+                    'name': 'priority',
+                    'label': 'Priority Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.4
+                }
+            ],
+            'icon': 'stars',
+            'recommended': 'When you have specialized tasks and clear priorities'
         },
         {
-            'id': 'risk-optimized',
-            'name': 'Risk-Optimized',
-            'description': 'Minimize risk by prioritizing low-risk tasks',
-            'parameters': [],
-            'icon': 'security',
-            'recommended': 'When you want to ensure sprint success with lower risk'
+            'id': 'skill-balanced',
+            'name': 'Skill-Balanced',
+            'description': 'Combine skill matching with workload balance - good skill match while keeping fair distribution',
+            'parameters': [
+                {
+                    'name': 'skills',
+                    'label': 'Skills Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.5
+                },
+                {
+                    'name': 'workload',
+                    'label': 'Workload Balance Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.5
+                }
+            ],
+            'icon': 'auto_awesome',
+            'recommended': 'When you want good skill matching with fair work distribution'
+        },
+        {
+            'id': 'skill-value',
+            'name': 'Skill-Value',
+            'description': 'Combine skill matching with business value - best skill match for high-value tasks',
+            'parameters': [
+                {
+                    'name': 'skills',
+                    'label': 'Skills Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.5
+                },
+                {
+                    'name': 'value',
+                    'label': 'Value Weight',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 1,
+                    'step': 0.05,
+                    'default': 0.5
+                }
+            ],
+            'icon': 'workspace_premium',
+            'recommended': 'When you want to maximize value delivery with proper skill matching'
         },
         {
             'id': 'value-driven',
@@ -513,33 +578,6 @@ def get_sprint_strategies(project_id):
             ],
             'icon': 'filter_list',
             'recommended': 'When you need to address important work while maintaining fair distribution'
-        },
-        {
-            'id': 'safe-value',
-            'name': 'Safe Value',
-            'description': 'Maximize business value while minimizing risk for predictable delivery',
-            'parameters': [
-                {
-                    'name': 'value',
-                    'label': 'Value Weight',
-                    'type': 'slider',
-                    'min': 0,
-                    'max': 1,
-                    'step': 0.05,
-                    'default': 0.5
-                },
-                {
-                    'name': 'risk',
-                    'label': 'Risk Mitigation Weight',
-                    'type': 'slider',
-                    'min': 0,
-                    'max': 1,
-                    'step': 0.05,
-                    'default': 0.5
-                }
-            ],
-            'icon': 'verified',
-            'recommended': 'When you want high value delivery with controlled risk'
         },
         {
             'id': 'hybrid',

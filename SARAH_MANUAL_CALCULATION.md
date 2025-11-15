@@ -199,3 +199,4 @@ Ak vidíš **priemer 13**, znamená to že:
 
 **Odporúčam spustiť SQL query vyššie a pozrieť sa na skutočné údaje v databáze!**
 
+

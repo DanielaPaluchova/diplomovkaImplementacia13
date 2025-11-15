@@ -284,49 +284,6 @@
               </div>
             </div>
 
-            <!-- RACI Workload Card -->
-            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.raciWorkload !== undefined">
-              <div class="stat-card clickable">
-                <q-icon name="people" size="32px" color="purple" class="q-mb-sm" />
-                <div class="text-h4 text-weight-bold">{{ currentState.raciWorkload }}%</div>
-                <div class="text-caption text-grey-7">RACI Workload</div>
-                <q-tooltip max-width="350px" class="bg-dark text-body2">
-                  <div class="text-weight-bold q-mb-sm">RACI-Weighted Workload</div>
-                  <div class="text-caption text-grey-6 q-mb-sm">
-                    Workload calculated using RACI weights:
-                  </div>
-                  <div class="q-mb-xs">
-                    <div class="row justify-between">
-                      <span>Responsible (R):</span>
-                      <span class="text-weight-bold">1.0x</span>
-                    </div>
-                  </div>
-                  <div class="q-mb-xs">
-                    <div class="row justify-between">
-                      <span>Accountable (A):</span>
-                      <span class="text-weight-bold">0.1x</span>
-                    </div>
-                  </div>
-                  <div class="q-mb-xs">
-                    <div class="row justify-between">
-                      <span>Consulted (C):</span>
-                      <span class="text-weight-bold">0.05x</span>
-                    </div>
-                  </div>
-                  <div class="q-mb-xs">
-                    <div class="row justify-between">
-                      <span>Informed (I):</span>
-                      <span class="text-weight-bold">0.01x</span>
-                    </div>
-                  </div>
-                  <q-separator class="q-my-sm" />
-                  <div class="text-caption text-grey-5">
-                    Average weighted workload across team
-                  </div>
-                </q-tooltip>
-              </div>
-            </div>
-
             <!-- PERT Uncertainty Card -->
             <div class="col-12 col-sm-6 col-md-3" v-if="currentState.avgPertUncertainty !== undefined">
               <div class="stat-card clickable">
@@ -348,6 +305,76 @@
                     <div v-else class="text-red">
                       ✗ High uncertainty - Consider breaking down tasks
                     </div>
+                  </div>
+                </q-tooltip>
+              </div>
+            </div>
+
+            <!-- RACI Workload Card (Current Project Only) -->
+            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.raciProjectWorkload !== undefined">
+              <div class="stat-card clickable">
+                <q-icon name="people" size="32px" color="teal" class="q-mb-sm" />
+                <div class="text-h4 text-weight-bold">{{ currentState.raciProjectWorkload }}%</div>
+                <div class="text-caption text-grey-7">RACI Workload</div>
+                <q-tooltip max-width="350px" class="bg-dark text-body2">
+                  <div class="text-weight-bold q-mb-sm">RACI-Weighted Workload</div>
+                  <div class="text-caption text-grey-6 q-mb-sm">Active sprint - current project only</div>
+                  <div v-if="raciProjectWorkloadDetails.length > 0">
+                    <div v-for="member in raciProjectWorkloadDetails" :key="member.id" class="q-mb-xs">
+                      <div class="row items-center justify-between">
+                        <span>{{ member.name }}:</span>
+                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                          {{ member.workload }}%
+                        </span>
+                      </div>
+                      <q-linear-progress 
+                        :value="Math.min(1, member.workload / 100)" 
+                        :color="getWorkloadColor(member.workload)"
+                        size="4px"
+                        class="q-mt-xs"
+                      />
+                    </div>
+                  </div>
+                  <div v-else class="text-caption text-grey-5">
+                    No active sprint or team members assigned
+                  </div>
+                  <div class="text-caption text-grey-6 q-mt-sm">
+                    Poznámka: Všetky hodnoty sú zaokrúhlené na celé čísla
+                  </div>
+                </q-tooltip>
+              </div>
+            </div>
+
+            <!-- RACI Cross-Project Workload Card -->
+            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.raciCrossProjectWorkload !== undefined">
+              <div class="stat-card clickable">
+                <q-icon name="groups" size="32px" color="deep-purple" class="q-mb-sm" />
+                <div class="text-h4 text-weight-bold">{{ currentState.raciCrossProjectWorkload }}%</div>
+                <div class="text-caption text-grey-7">RACI Cross-Project Workload</div>
+                <q-tooltip max-width="350px" class="bg-dark text-body2">
+                  <div class="text-weight-bold q-mb-sm">RACI-Weighted Workload Across All Projects</div>
+                  <div class="text-caption text-grey-6 q-mb-sm">Active sprint across all projects</div>
+                  <div v-if="raciCrossProjectWorkloadDetails.length > 0">
+                    <div v-for="member in raciCrossProjectWorkloadDetails" :key="member.id" class="q-mb-xs">
+                      <div class="row items-center justify-between">
+                        <span>{{ member.name }}:</span>
+                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                          {{ member.workload }}%
+                        </span>
+                      </div>
+                      <q-linear-progress 
+                        :value="Math.min(1, member.workload / 100)" 
+                        :color="getWorkloadColor(member.workload)"
+                        size="4px"
+                        class="q-mt-xs"
+                      />
+                    </div>
+                  </div>
+                  <div v-else class="text-caption text-grey-5">
+                    No active sprint or team members assigned
+                  </div>
+                  <div class="text-caption text-grey-6 q-mt-sm">
+                    Poznámka: Všetky hodnoty sú zaokrúhlené na celé čísla
                   </div>
                 </q-tooltip>
               </div>
@@ -389,7 +416,7 @@
                 <div>
                   <div class="text-h5 text-weight-bold">Backlog Analysis</div>
                   <div class="text-caption text-grey-7">
-                    Complete project optimization across all sprints
+                    Optimize tasks not assigned to any sprint
                           </div>
                         </div>
                 <div class="row q-gutter-sm">
@@ -397,7 +424,7 @@
                     color="secondary"
                     icon="auto_fix_high"
                     label="Analyze & Optimize"
-                    @click="analyzeTab('all_sprints')"
+                    @click="analyzeTab('backlog')"
                     :loading="requirementChangeStore.loading"
                     :disable="!selectedProjectId || initialLoading"
                     size="lg"
@@ -407,7 +434,7 @@
                     color="purple"
                     icon="schedule"
                     label="PERT+RACI Analysis"
-                    @click="analyzePertRaciTab('all_sprints')"
+                    @click="analyzePertRaciTab('backlog')"
                     :loading="requirementChangeStore.loading"
                     :disable="!selectedProjectId || initialLoading"
                     size="lg"
@@ -726,6 +753,20 @@ const currentState = computed(() => {
   // Calculate PERT/RACI metrics from analysis result if available
   const analysisState = requirementChangeStore.analysisResult?.currentState;
   
+  // Calculate RACI Workload average for current project only
+  let raciProjectWorkload = 0;
+  if (raciProjectWorkloadDetails.value.length > 0) {
+    const totalWorkload = raciProjectWorkloadDetails.value.reduce((sum, m) => sum + m.workload, 0);
+    raciProjectWorkload = Math.round(totalWorkload / raciProjectWorkloadDetails.value.length);
+  }
+
+  // Calculate RACI Workload average across all projects
+  let raciCrossProjectWorkload = 0;
+  if (raciCrossProjectWorkloadDetails.value.length > 0) {
+    const totalWorkload = raciCrossProjectWorkloadDetails.value.reduce((sum, m) => sum + m.workload, 0);
+    raciCrossProjectWorkload = Math.round(totalWorkload / raciCrossProjectWorkloadDetails.value.length);
+  }
+  
   return {
     workload,
     riskScore,
@@ -737,11 +778,12 @@ const currentState = computed(() => {
     teamCapacity: members.reduce((sum, m) => sum + (m.maxStoryPoints || 20), 0),
     taskCount: (selectedProject.value.tasks || []).length,
     sprintCount: sprints.length,
-    // PERT/RACI metrics from analysis (if available)
+    // PERT/RACI metrics - both project and cross-project RACI workloads
     totalPertDuration: analysisState?.totalPertDuration,
     totalAdjustedDuration: analysisState?.totalAdjustedDuration,
     avgPertUncertainty: analysisState?.avgPertUncertainty,
-    raciWorkload: analysisState?.raciWorkload,
+    raciProjectWorkload: raciProjectWorkload, // RACI workload for current project only
+    raciCrossProjectWorkload: raciCrossProjectWorkload, // RACI workload across all projects
     durationOverhead: analysisState?.durationOverhead,
   };
 });
@@ -835,6 +877,136 @@ const crossProjectWorkload = computed(() => {
   };
 });
 
+// RACI Weights (same as backend)
+const RACI_WEIGHTS = {
+  responsible: 1.0,
+  accountable: 0.1,
+  consulted: 0.05,
+  informed: 0.01,
+};
+
+// RACI Workload for current project only
+const raciProjectWorkloadDetails = computed(() => {
+  if (!selectedProject.value) return [];
+  
+  const projectMembers = teamStore.teamMembers.filter((member) =>
+    selectedProject.value?.teamMemberIds?.includes(member.id)
+  );
+
+  // Get active sprint for current project
+  const activeSprint = selectedProject.value.sprints?.find((s) => s.status === 'active');
+
+  return projectMembers.map((member) => {
+    const maxStoryPoints = member.maxStoryPoints || 20;
+    let weightedSP = 0;
+    
+    // Calculate RACI-weighted workload for CURRENT project only (if active sprint exists)
+    if (activeSprint) {
+      const sprintTasks = (selectedProject.value?.tasks || []).filter(
+        (task) => task.sprintId === activeSprint.id
+      );
+    
+      sprintTasks.forEach((task) => {
+        const sp = task.storyPoints || 0;
+        if (sp === 0) return;
+        
+        // Responsible
+        if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
+          weightedSP += sp * RACI_WEIGHTS.responsible;
+        }
+        
+        // Accountable
+        if (task.raci?.accountable === member.id) {
+          weightedSP += sp * RACI_WEIGHTS.accountable;
+        }
+        
+        // Consulted
+        if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
+          weightedSP += sp * RACI_WEIGHTS.consulted;
+        }
+        
+        // Informed
+        if (task.raci?.informed && task.raci.informed.includes(member.id)) {
+          weightedSP += sp * RACI_WEIGHTS.informed;
+        }
+      });
+    }
+    // If no active sprint, weightedSP stays 0 for all members
+    
+    const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
+    
+    return {
+      id: member.id,
+      name: member.name,
+      workload: workload, // Already rounded to whole number
+      weightedSP: Math.round(weightedSP), // Round weighted SP to whole number
+    };
+  })
+  // Show all members, even with 0% workload (for consistency with non-RACI workload displays)
+  .sort((a, b) => b.workload - a.workload);
+});
+
+// RACI Workload across all projects (cross-project)
+const raciCrossProjectWorkloadDetails = computed(() => {
+  if (!selectedProject.value) return [];
+  
+  // Get members from current project only (but calculate cross-project workload for them)
+  const projectMembers = teamStore.teamMembers.filter((member) =>
+    selectedProject.value?.teamMemberIds?.includes(member.id)
+  );
+
+  return projectMembers.map((member) => {
+    const maxStoryPoints = member.maxStoryPoints || 20;
+    let weightedSP = 0;
+    
+    // Calculate RACI-weighted workload across ALL projects (each with its own active sprint)
+    projectStore.projects.forEach((project) => {
+      // FIX: Find active sprint for EACH project (not just selected project)
+      const projectActiveSprint = project.sprints?.find((s) => s.status === 'active');
+      
+      if (project.tasks && projectActiveSprint) {
+        const sprintTasks = project.tasks.filter((task) => task.sprintId === projectActiveSprint.id);
+        
+        sprintTasks.forEach((task) => {
+          const sp = task.storyPoints || 0;
+          if (sp === 0) return;
+          
+          // Responsible
+          if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
+            weightedSP += sp * RACI_WEIGHTS.responsible;
+          }
+          
+          // Accountable
+          if (task.raci?.accountable === member.id) {
+            weightedSP += sp * RACI_WEIGHTS.accountable;
+          }
+          
+          // Consulted
+          if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
+            weightedSP += sp * RACI_WEIGHTS.consulted;
+          }
+          
+          // Informed
+          if (task.raci?.informed && task.raci.informed.includes(member.id)) {
+            weightedSP += sp * RACI_WEIGHTS.informed;
+          }
+        });
+      }
+    });
+    
+    const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
+    
+    return {
+      id: member.id,
+      name: member.name,
+      workload: workload, // Already rounded to whole number
+      weightedSP: Math.round(weightedSP), // Round weighted SP to whole number
+    };
+  })
+  // Show all members, even with 0% workload (for consistency with non-RACI workload displays)
+  .sort((a, b) => b.workload - a.workload);
+});
+
 const riskBreakdown = computed(() => {
   if (!selectedProject.value) {
     return {
@@ -892,7 +1064,7 @@ function getWorkloadColorClass(workload: number): string {
   return 'text-green';
 }
 
-async function analyzeTab(scope: 'current_sprint' | 'all_sprints') {
+async function analyzeTab(scope: 'current_sprint' | 'backlog') {
   if (!selectedProjectId.value) return;
 
   const result = await requirementChangeStore.autoOptimizeProject(
@@ -911,7 +1083,7 @@ async function analyzeTab(scope: 'current_sprint' | 'all_sprints') {
   }
 }
 
-async function analyzePertRaciTab(scope: 'current_sprint' | 'all_sprints') {
+async function analyzePertRaciTab(scope: 'current_sprint' | 'backlog') {
   if (!selectedProjectId.value) return;
 
   const result = await requirementChangeStore.analyzePertRaci(

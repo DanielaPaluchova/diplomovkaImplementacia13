@@ -20,14 +20,14 @@
 
     <div class="q-pa-lg">
       <!-- Team Stats -->
-      <div class="row q-gutter-md q-mb-lg">
-        <div class="col-12 col-md-3">
-          <q-card class="stat-card bg-primary-1">
+      <div class="row q-col-gutter-md q-mb-lg">
+        <div class="col-12 col-sm-6 col-md">
+          <q-card class="stat-card bg-primary-1 full-height">
             <q-card-section>
               <div class="row items-center no-wrap">
                 <div class="col">
                   <div class="text-h4 text-weight-bold text-primary">{{ teamMembers.length }}</div>
-                  <div class="text-caption text-grey-7">Team Members</div>
+                  <div class="text-caption text-grey-7">Total Members</div>
                 </div>
                 <div class="col-auto">
                   <q-icon name="group" size="32px" class="text-primary" />
@@ -36,13 +36,46 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-md-3">
-          <q-card class="stat-card bg-orange-1">
+        <div class="col-12 col-sm-6 col-md">
+          <q-card class="stat-card bg-green-1 full-height">
+            <q-card-section>
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-green">{{ activeMembersCount }}</div>
+                  <div class="text-caption text-grey-7">Active Members</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="work" size="32px" class="text-green" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+        <div class="col-12 col-sm-6 col-md">
+          <q-card class="stat-card bg-grey-3 full-height">
+            <q-card-section>
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="text-h4 text-weight-bold text-grey-8">{{ idleMembersCount }}</div>
+                  <div class="text-caption text-grey-7">Idle Members</div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="person_off" size="32px" class="text-grey-6" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+        <div class="col-12 col-sm-6 col-md">
+          <q-card class="stat-card bg-orange-1 full-height">
             <q-card-section>
               <div class="row items-center no-wrap">
                 <div class="col">
                   <div class="text-h4 text-weight-bold text-orange">{{ averageWorkload }}%</div>
-                  <div class="text-caption text-grey-7">Avg. Workload</div>
+                  <div class="text-caption text-grey-7">
+                    Avg. Workload (Active)
+                    <q-tooltip>Average workload of members with project assignments</q-tooltip>
+                  </div>
                 </div>
                 <div class="col-auto">
                   <q-icon name="speed" size="32px" class="text-orange" />
@@ -51,8 +84,8 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-md-3">
-          <q-card class="stat-card bg-blue-1">
+        <div class="col-12 col-sm-6 col-md">
+          <q-card class="stat-card bg-blue-1 full-height">
             <q-card-section>
               <div class="row items-center no-wrap">
                 <div class="col">
@@ -67,6 +100,17 @@
           </q-card>
         </div>
       </div>
+
+      <!-- Info Banner for Idle Members -->
+      <q-banner v-if="idleMembersCount > 0" class="bg-info text-white q-mb-lg" rounded dense>
+        <template v-slot:avatar>
+          <q-icon name="info" />
+        </template>
+        <div class="text-body2">
+          <strong>{{ idleMembersCount }}</strong> team member(s) are not assigned to any project.
+          Average workload is calculated only for active members with project assignments.
+        </div>
+      </q-banner>
 
       <!-- Team Overview Chart -->
       <div class="row q-gutter-lg q-mb-lg">
@@ -623,10 +667,26 @@ const skillOptions = ref([...availableSkills]);
 // Computed
 const teamMembers = computed(() => teamStore.teamMembers);
 
+// Members who have projects assigned (active members with workload)
+const activeMembers = computed(() => {
+  return teamMembers.value.filter((member) => {
+    // Check if member is assigned to any project
+    const hasProjects = projectStore.projects.some(
+      (project) => project.teamMemberIds && project.teamMemberIds.includes(member.id)
+    );
+    return hasProjects;
+  });
+});
+
+const activeMembersCount = computed(() => activeMembers.value.length);
+
+const idleMembersCount = computed(() => teamMembers.value.length - activeMembers.value.length);
+
+// Average workload - ONLY for active members (those with project assignments)
 const averageWorkload = computed(() => {
-  if (teamMembers.value.length === 0) return 0;
-  const total = teamMembers.value.reduce((sum, m) => sum + m.workload, 0);
-  return Math.round(total / teamMembers.value.length);
+  if (activeMembers.value.length === 0) return 0;
+  const total = activeMembers.value.reduce((sum, m) => sum + m.workload, 0);
+  return Math.round(total / activeMembers.value.length);
 });
 
 const totalActiveProjects = computed(() => {

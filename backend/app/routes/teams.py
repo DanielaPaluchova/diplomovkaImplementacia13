@@ -171,16 +171,34 @@ def update_team_member(member_id):
 @teams_bp.route('/<int:member_id>', methods=['DELETE'])
 @token_required
 def delete_team_member(member_id):
-    """Delete team member"""
+    """Delete team member and cleanup RACI assignments"""
     try:
         member = TeamMember.query.get(member_id)
         if not member:
             return jsonify({'error': 'Team member not found'}), 404
         
+        # Import cleanup function
+        from app.routes.tasks import cleanup_member_from_tasks
+        
+        # Remove member from all RACI roles in all tasks
+        updated_tasks = cleanup_member_from_tasks(member_id)
+        
+        # Remove member from all projects
+        from app.models.project import Project
+        projects = Project.query.all()
+        for project in projects:
+            if project.team_member_ids and member_id in project.team_member_ids:
+                project.team_member_ids = [m for m in project.team_member_ids if m != member_id]
+                db.session.add(project)
+        
+        # Delete member
         db.session.delete(member)
         db.session.commit()
         
-        return jsonify({'message': 'Team member deleted successfully'}), 200
+        return jsonify({
+            'message': 'Team member deleted successfully',
+            'tasksUpdated': updated_tasks
+        }), 200
         
     except Exception as e:
         db.session.rollback()

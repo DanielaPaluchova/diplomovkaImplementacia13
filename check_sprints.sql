@@ -45,3 +45,4 @@ ORDER BY t.sprint_id, t.id;
 -- SET status = 'completed'
 -- WHERE id = [id_stareho_aktivneho_sprintu];
 
+

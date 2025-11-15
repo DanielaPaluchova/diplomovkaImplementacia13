@@ -38,7 +38,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   Router.beforeEach((to, from, next) => {
     const authStore = useAuthStore();
 
-    // DON'T call initializeAuth() here - it's already called when store is created!
+    // DON'T call initializeAuth() here - it's already called in the auth boot file!
     // Calling it multiple times causes race conditions and clears the token.
 
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth !== false);

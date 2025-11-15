@@ -76,11 +76,12 @@ def calculate_cross_project_workload(
 
 def calculate_cross_project_raci_workload(
     team_members: List[TeamMember],
-    sprint_id: Optional[int] = None,
+    sprint_id: Optional[int] = None,  # DEPRECATED: Not used, kept for backward compatibility
     exclude_project_id: Optional[int] = None
 ) -> Dict[int, Dict[str, float]]:
     """
     Calculate RACI-weighted workload for team members across ALL projects.
+    Always calculates from ACTIVE sprints in all projects.
     Matches the frontend calculation in PertRaciOptimizationPage.vue
     
     RACI Weights (same as frontend):
@@ -90,9 +91,9 @@ def calculate_cross_project_raci_workload(
     - Informed: 0.01
     
     Args:
-        team_members: List of team members
-        sprint_id: Optional sprint ID to filter by (usually active sprint)
-        exclude_project_id: Optional project ID to exclude
+        team_members: List of team members to calculate workload for
+        sprint_id: DEPRECATED - Not used. Always uses active sprints.
+        exclude_project_id: Optional project ID to exclude from calculation
         
     Returns:
         Dict mapping member_id to {'weighted_sp': float, 'pct': float}
@@ -121,24 +122,18 @@ def calculate_cross_project_raci_workload(
         if exclude_project_id and proj.id == exclude_project_id:
             continue
         
-        # Get tasks from project
-        if sprint_id:
-            # Filter by specific sprint across all projects
-            tasks = Task.query.filter_by(
-                project_id=proj.id,
-                sprint_id=sprint_id
-            ).all()
-        else:
-            # Get tasks from active sprints in this project
-            active_sprints = Sprint.query.filter_by(
-                project_id=proj.id,
-                status='active'
-            ).all()
-            
-            tasks = []
-            for sprint in active_sprints:
-                sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).all()
-                tasks.extend(sprint_tasks)
+        # Get tasks from ACTIVE sprints in this project
+        # NOTE: sprint_id parameter is NOT used here because sprint IDs are unique per project
+        # We always want ACTIVE sprints across ALL projects for true cross-project workload
+        active_sprints = Sprint.query.filter_by(
+            project_id=proj.id,
+            status='active'
+        ).all()
+        
+        tasks = []
+        for sprint in active_sprints:
+            sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).all()
+            tasks.extend(sprint_tasks)
         
         # Calculate RACI weighted workload
         for task in tasks:

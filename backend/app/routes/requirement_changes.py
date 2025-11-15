@@ -40,11 +40,11 @@ pert_raci_analyzer = PertRaciAnalyzerService()
 def auto_optimize_project(project_id):
     """
     Automatically analyze entire project and suggest all possible improvements
-    Supports scope: current_sprint or all_sprints
+    Supports scope: current_sprint, backlog, or all_sprints
     """
     try:
         data = request.get_json() or {}
-        scope = data.get('scope', 'all_sprints')  # 'current_sprint' or 'all_sprints'
+        scope = data.get('scope', 'backlog')  # 'current_sprint', 'backlog', or 'all_sprints'
         
         # Validate project exists
         project = Project.query.get(project_id)
@@ -66,7 +66,10 @@ def auto_optimize_project(project_id):
                 tasks = [t for t in all_tasks if t.sprint_id == active_sprint.id]
             else:
                 tasks = []
-        else:
+        elif scope == 'backlog':
+            # Get only tasks not assigned to any sprint
+            tasks = [t for t in all_tasks if t.sprint_id is None]
+        else:  # all_sprints
             tasks = all_tasks
         
         # Calculate current state
@@ -78,41 +81,52 @@ def auto_optimize_project(project_id):
         # Generate all possible optimization proposals
         proposals = []
         
+        # Workload-based optimizations only make sense for current_sprint scope
+        # Backlog tasks are not in a sprint yet, so workload analysis is not applicable
+        is_sprint_scope = (scope == 'current_sprint')
+        
         # 1. CRITICAL: Deadline risks
         deadline_proposals = risk_analyzer.find_deadline_risks(tasks)
         proposals.extend(deadline_proposals)
         
-        # 2. CRITICAL: Priority conflicts  
-        priority_proposals = risk_analyzer.find_priority_conflicts(team_members, tasks, cross_project_workload)
-        proposals.extend(priority_proposals)
+        # 2. CRITICAL: Priority conflicts (only for sprint scope - backlog priority doesn't affect current workload)
+        if is_sprint_scope:
+            priority_proposals = risk_analyzer.find_priority_conflicts(team_members, tasks, cross_project_workload)
+            proposals.extend(priority_proposals)
         
-        # 3. CRITICAL: Resource bottlenecks
-        bottleneck_proposals = bottleneck_analyzer.find_resource_bottlenecks(team_members, tasks, cross_project_workload)
-        proposals.extend(bottleneck_proposals)
+        # 3. CRITICAL: Resource bottlenecks (only for sprint scope - backlog doesn't contribute to current workload)
+        if is_sprint_scope:
+            bottleneck_proposals = bottleneck_analyzer.find_resource_bottlenecks(team_members, tasks, cross_project_workload)
+            proposals.extend(bottleneck_proposals)
         
-        # 4. IMPORTANT: Task splits (21+ SP)
+        # 4. IMPORTANT: Task splits (21+ SP) - applies to both backlog and sprint
         split_proposals = task_splitter.create_split_proposals(tasks)
         proposals.extend(split_proposals)
         
-        # 6. IMPORTANT: Sprint overflow
-        sprint_proposals = sprint_analyzer.suggest_sprint_reallocation(sprints, all_tasks, team_members)
-        proposals.extend(sprint_proposals)
+        # 6. IMPORTANT: Sprint overflow (only for sprint scope)
+        if is_sprint_scope:
+            sprint_proposals = sprint_analyzer.suggest_sprint_reallocation(sprints, all_tasks, team_members)
+            proposals.extend(sprint_proposals)
         
-        # 7. IMPORTANT: Skill mismatches
+        # 7. IMPORTANT: Skill mismatches - applies to both backlog and sprint
+        # Better to detect skill mismatches BEFORE task goes into sprint
+        # Even though backlog assignments can be changed easily, it's preventive to flag them early
         skill_proposals = risk_analyzer.find_skill_mismatches(team_members, tasks, cross_project_workload)
         proposals.extend(skill_proposals)
         
-        # 8. RECOMMENDED: Workload rebalancing
-        rebalance_proposals = _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross_project_workload)
-        proposals.extend(rebalance_proposals)
+        # 8. RECOMMENDED: Workload rebalancing (only for sprint scope - backlog doesn't affect current workload)
+        if is_sprint_scope:
+            rebalance_proposals = _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross_project_workload)
+            proposals.extend(rebalance_proposals)
         
-        # 9. RECOMMENDED: Task merges
+        # 9. RECOMMENDED: Task merges - applies to both backlog and sprint
         merge_proposals = task_merger.create_merge_proposals(tasks)
         proposals.extend(merge_proposals)
         
-        # 10. RECOMMENDED: Idle resources
-        idle_proposals = risk_analyzer.find_idle_resources(team_members, tasks, cross_project_workload)
-        proposals.extend(idle_proposals)
+        # 10. RECOMMENDED: Idle resources (only for sprint scope - backlog doesn't show who is idle)
+        if is_sprint_scope:
+            idle_proposals = risk_analyzer.find_idle_resources(team_members, tasks, cross_project_workload)
+            proposals.extend(idle_proposals)
         
         # Categorize by severity
         categorized = {
@@ -277,11 +291,11 @@ def analyze_pert_raci(project_id):
     Generate specialized proposals for PERT uncertainty, RACI overload, and duration risks
     
     Body:
-        scope: "current_sprint" | "all_sprints" (default: "all_sprints")
+        scope: "current_sprint" | "backlog" | "all_sprints" (default: "backlog")
     """
     try:
         data = request.get_json() or {}
-        scope = data.get('scope', 'all_sprints')
+        scope = data.get('scope', 'backlog')
         
         # Validate project exists
         project = Project.query.get(project_id)
@@ -305,7 +319,11 @@ def analyze_pert_raci(project_id):
             else:
                 tasks = []
                 sprint_id = None
-        else:
+        elif scope == 'backlog':
+            # Get only tasks not assigned to any sprint
+            tasks = [t for t in all_tasks if t.sprint_id is None]
+            sprint_id = None
+        else:  # all_sprints
             tasks = all_tasks
             sprint_id = None
         
@@ -315,21 +333,28 @@ def analyze_pert_raci(project_id):
         # Generate PERT/RACI specific proposals
         proposals = []
         
-        # 1. PERT Uncertainty Risks (analyze filtered tasks)
+        # RACI workload-based analyses only make sense for current_sprint scope
+        # Backlog tasks are not in a sprint yet, so RACI workload and duration adjustments don't apply
+        is_sprint_scope = (scope == 'current_sprint')
+        
+        # 1. PERT Uncertainty Risks (analyze filtered tasks) - applies to ALL scopes
+        # Uncertainty in estimates is relevant regardless of whether task is in backlog or sprint
         pert_uncertainty_proposals = pert_raci_analyzer.find_pert_uncertainty_risks(tasks)
         proposals.extend(pert_uncertainty_proposals)
         
-        # 2. RACI Overload Risks (analyze filtered tasks, but use all_tasks for workload)
-        raci_overload_proposals = pert_raci_analyzer.find_raci_overload_risks(
-            team_members, tasks, sprint_id, all_tasks
-        )
-        proposals.extend(raci_overload_proposals)
+        # 2. RACI Overload Risks (only for sprint scope - backlog doesn't contribute to current workload)
+        if is_sprint_scope:
+            raci_overload_proposals = pert_raci_analyzer.find_raci_overload_risks(
+                team_members, tasks, sprint_id, all_tasks
+            )
+            proposals.extend(raci_overload_proposals)
         
-        # 3. Adjusted Duration Risks (analyze filtered tasks, but use all_tasks for workload)
-        duration_risk_proposals = pert_raci_analyzer.find_adjusted_duration_risks(
-            tasks, team_members, sprint_id, all_tasks
-        )
-        proposals.extend(duration_risk_proposals)
+        # 3. Adjusted Duration Risks (only for sprint scope - backlog doesn't affect current workload/duration)
+        if is_sprint_scope:
+            duration_risk_proposals = pert_raci_analyzer.find_adjusted_duration_risks(
+                tasks, team_members, sprint_id, all_tasks
+            )
+            proposals.extend(duration_risk_proposals)
         
         # Categorize by severity
         categorized = {
@@ -683,12 +708,15 @@ def _calculate_current_state(project, tasks, team_members, sprints):
     avg_pert_uncertainty = (sum(cv_values) / len(cv_values)) if cv_values else 0
     
     # 4. RACI Workload (average weighted workload percentage)
+    # Only count members with at least 1 weighted SP (same as frontend filter)
     raci_workload_percentages = []
     for member in team_members:
         if member.id in member_workloads_dict:
             weighted_sp = member_workloads_dict[member.id]['weighted_sp']
-            workload_pct = (weighted_sp / member.max_story_points * 100) if member.max_story_points > 0 else 0
-            raci_workload_percentages.append(workload_pct)
+            # Only include members with at least 1 weighted SP
+            if weighted_sp >= 1:
+                workload_pct = (weighted_sp / member.max_story_points * 100) if member.max_story_points > 0 else 0
+                raci_workload_percentages.append(workload_pct)
     avg_raci_workload = (sum(raci_workload_percentages) / len(raci_workload_percentages)) if raci_workload_percentages else 0
     
     # 5. Duration Overhead (percentage increase)

@@ -111,6 +111,18 @@ def update_project(project_id):
         if 'dueDate' in data:
             project.due_date = datetime.fromisoformat(data['dueDate']) if data['dueDate'] else None
         if 'teamMemberIds' in data:
+            old_member_ids = set(project.team_member_ids or [])
+            new_member_ids = set(data['teamMemberIds'])
+            
+            # Find removed members
+            removed_members = old_member_ids - new_member_ids
+            
+            # Cleanup RACI for removed members
+            if removed_members:
+                from app.routes.tasks import cleanup_member_from_tasks
+                for member_id in removed_members:
+                    cleanup_member_from_tasks(member_id, project_id=project_id)
+            
             project.team_member_ids = data['teamMemberIds']
         # tasksCompleted and totalTasks are now computed dynamically - no longer updated manually
         if 'totalStoryPoints' in data:
@@ -509,3 +521,86 @@ def get_optimization_logs(project_id):
         
     except Exception as e:
         return jsonify({'error': 'Failed to get optimization logs', 'message': str(e)}), 500
+
+
+@projects_bp.route('/<int:project_id>/members/<int:member_id>/role', methods=['PUT'])
+@token_required
+def update_member_role(project_id, member_id):
+    """Update member's role in project"""
+    try:
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        data = request.get_json()
+        new_role = data.get('role')
+        
+        if not new_role:
+            return jsonify({'error': 'Role is required'}), 400
+        
+        if new_role not in ['owner', 'admin', 'developer', 'viewer']:
+            return jsonify({'error': 'Invalid role'}), 400
+        
+        # Check if member is in project
+        if not project.team_member_ids or member_id not in project.team_member_ids:
+            return jsonify({'error': 'Member not found in project'}), 404
+        
+        # Find existing role or create new one
+        role = ProjectRole.query.filter_by(project_id=project_id, member_id=member_id).first()
+        
+        if role:
+            # Update existing role
+            role.role = new_role
+            # Update permissions based on new role
+            if new_role == 'owner':
+                role.can_edit = True
+                role.can_delete = True
+                role.can_manage_team = True
+                role.can_manage_sprints = True
+            elif new_role == 'admin':
+                role.can_edit = True
+                role.can_delete = True
+                role.can_manage_team = True
+                role.can_manage_sprints = True
+            elif new_role == 'developer':
+                role.can_edit = True
+                role.can_delete = False
+                role.can_manage_team = False
+                role.can_manage_sprints = False
+            elif new_role == 'viewer':
+                role.can_edit = False
+                role.can_delete = False
+                role.can_manage_team = False
+                role.can_manage_sprints = False
+        else:
+            # Create new role
+            role = ProjectRole(
+                project_id=project_id,
+                member_id=member_id,
+                role=new_role,
+                can_edit=new_role in ['owner', 'admin', 'developer'],
+                can_delete=new_role in ['owner', 'admin'],
+                can_manage_team=new_role in ['owner', 'admin'],
+                can_manage_sprints=new_role in ['owner', 'admin']
+            )
+            db.session.add(role)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Role updated successfully',
+            'role': {
+                'memberId': role.member_id,
+                'role': role.role,
+                'permissions': {
+                    'canEdit': role.can_edit,
+                    'canDelete': role.can_delete,
+                    'canManageTeam': role.can_manage_team,
+                    'canManageSprints': role.can_manage_sprints
+                }
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update member role', 'message': str(e)}), 500

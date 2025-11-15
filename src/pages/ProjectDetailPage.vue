@@ -261,22 +261,22 @@
                     <!-- Total Workload -->
                     <div>
                       <div class="row items-center justify-between q-mb-xs">
-                        <span class="text-caption text-weight-bold">Total Workload</span>
+                        <span class="text-caption text-weight-bold">Total Workload (All Projects)</span>
                         <span
                           class="text-caption text-weight-bold"
                           :class="{
-                            'text-green': member.workload <= 80,
-                            'text-orange': member.workload > 80 && member.workload <= 100,
-                            'text-red': member.workload > 100,
+                            'text-green': getTotalWorkload(member.id) <= 80,
+                            'text-orange': getTotalWorkload(member.id) > 80 && getTotalWorkload(member.id) <= 100,
+                            'text-red': getTotalWorkload(member.id) > 100,
                           }"
                         >
-                          {{ member.workload }}%
+                          {{ getTotalWorkload(member.id) }}%
                         </span>
                       </div>
                       <q-linear-progress
-                        :value="Math.min(1, member.workload / 100)"
+                        :value="Math.min(1, getTotalWorkload(member.id) / 100)"
                         :color="
-                          member.workload > 100 ? 'red' : member.workload > 80 ? 'orange' : 'green'
+                          getTotalWorkload(member.id) > 100 ? 'red' : getTotalWorkload(member.id) > 80 ? 'orange' : 'green'
                         "
                         size="8px"
                       />
@@ -1258,7 +1258,9 @@
                   </q-chip>
 
                   <div class="text-left">
-                    <div class="text-caption text-grey-7 q-mb-xs">Workload</div>
+                    <div class="text-caption text-grey-7 q-mb-xs">
+                      Total Workload (All Active Sprints)
+                    </div>
                     <q-linear-progress
                       :value="Math.min(1, member.workload / 100)"
                       :color="
@@ -1266,7 +1268,28 @@
                       "
                       class="q-mb-xs"
                     />
-                    <div class="text-caption text-right">{{ member.workload }}%</div>
+                    <div class="text-caption text-right q-mb-sm">
+                      {{ member.workload }}%
+                      <span class="text-grey-6">
+                        ({{ member.totalStoryPoints || 0 }}/{{ member.maxStoryPoints || 20 }} SP)
+                      </span>
+                    </div>
+                    
+                    <!-- Breakdown -->
+                    <div class="q-mt-sm q-pt-sm" style="border-top: 1px solid #e0e0e0">
+                      <div class="row items-center justify-between q-mb-xs">
+                        <span class="text-caption text-grey-7">This Project:</span>
+                        <span class="text-caption text-weight-medium text-primary">
+                          {{ member.thisProjectStoryPoints || 0 }} SP
+                        </span>
+                      </div>
+                      <div class="row items-center justify-between">
+                        <span class="text-caption text-grey-7">Other Projects:</span>
+                        <span class="text-caption text-weight-medium text-orange">
+                          {{ (member.totalStoryPoints || 0) - (member.thisProjectStoryPoints || 0) }} SP
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </q-card-section>
 
@@ -1971,7 +1994,8 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
 
 // Fetch data from API
 onMounted(async () => {
-  await Promise.all([projectStore.fetchProjects(), teamStore.fetchTeamMembers()]);
+  // Fetch all projects with full details (tasks, sprints, etc.) for workload calculation
+  await Promise.all([projectStore.fetchProjects(true), teamStore.fetchTeamMembers()]);
   // Load specific project if ID is in route
   if (route.params.id) {
     const id = parseInt(route.params.id as string);
@@ -2046,9 +2070,53 @@ const project = computed(() => {
   return p;
 });
 
-// Get team members for this project from team store
+// Get team members for this project from team store with calculated workload
 const projectTeamMembers = computed(() => {
-  return teamStore.teamMembers.filter((member) => project.value.teamMemberIds?.includes(member.id));
+  return teamStore.teamMembers
+    .filter((member) => project.value.teamMemberIds?.includes(member.id))
+    .map((member) => {
+      const maxStoryPoints = member.maxStoryPoints || 20;
+      
+      // Calculate TOTAL workload across ALL projects (all active sprints)
+      // This matches WorkloadDashboardPage logic
+      let totalStoryPoints = 0;
+      let thisProjectStoryPoints = 0;
+
+      // Iterate through all projects where member is assigned
+      projectStore.projects.forEach((proj) => {
+        if (proj.teamMemberIds && proj.teamMemberIds.includes(member.id)) {
+          // Get active sprint for this project
+          const activeSprint = projectStore.getActiveSprint(proj.id);
+          
+          // Calculate story points for CURRENT SPRINT only
+          let sprintStoryPoints = 0;
+          if (proj.tasks && activeSprint) {
+            const sprintTasks = proj.tasks.filter((task) => {
+              const isInSprint = task.sprintId === activeSprint.id;
+              const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
+              return isInSprint && isAssigned;
+            });
+            sprintStoryPoints = sprintTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+          }
+
+          totalStoryPoints += sprintStoryPoints;
+
+          // Track story points from THIS project
+          if (proj.id === project.value.id) {
+            thisProjectStoryPoints = sprintStoryPoints;
+          }
+        }
+      });
+
+      const workload = maxStoryPoints > 0 ? Math.round((totalStoryPoints / maxStoryPoints) * 100) : 0;
+
+      return {
+        ...member,
+        workload, // Total workload across all projects
+        totalStoryPoints, // Total SP across all active sprints
+        thisProjectStoryPoints, // SP from this project only
+      };
+    });
 });
 
 // Get tasks from project
@@ -3074,24 +3142,34 @@ function changeMemberRole(member: TeamMember) {
   showChangeRoleDialog.value = true;
 }
 
-function saveRoleChange() {
+async function saveRoleChange() {
   if (!memberToChangeRole.value) return;
 
-  projectStore.updateMemberRole(
-    projectId.value,
-    memberToChangeRole.value.id,
-    selectedRole.value as 'owner' | 'admin' | 'developer' | 'viewer',
-  );
+  try {
+    await projectStore.updateMemberRole(
+      projectId.value,
+      memberToChangeRole.value.id,
+      selectedRole.value as 'owner' | 'admin' | 'developer' | 'viewer',
+    );
 
-  $q.notify({
-    message: `${memberToChangeRole.value.name}'s role changed to ${selectedRole.value.toUpperCase()}`,
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
-  });
+    $q.notify({
+      message: `${memberToChangeRole.value.name}'s role changed to ${selectedRole.value.toUpperCase()}`,
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
 
-  showChangeRoleDialog.value = false;
-  cancelChangeRole();
+    showChangeRoleDialog.value = false;
+    cancelChangeRole();
+  } catch (err) {
+    console.error('Failed to update member role:', err);
+    $q.notify({
+      message: 'Failed to update member role',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 function cancelChangeRole() {
@@ -3203,6 +3281,11 @@ function getProjectWorkload(memberId: number): number {
   // Calculate workload percentage for this project based on tasks in ACTIVE SPRINT only
   // This matches the backend API calculation
 
+  const member = teamStore.teamMembers.find((m) => m.id === memberId);
+  if (!member) return 0;
+
+  const maxStoryPoints = member.maxStoryPoints || 20;
+
   // Get active sprint for this project
   const activeSprintForProject = project.value.sprints?.find((s) => s.status === 'active');
 
@@ -3220,20 +3303,44 @@ function getProjectWorkload(memberId: number): number {
 
   const totalSP = memberTasks.reduce((sum, t) => sum + t.storyPoints, 0);
 
-  // Assume 20 SP = 100% workload for one project
-  // Don't cap at 100% - show real overload
-  return Math.round((totalSP / 20) * 100);
+  // Calculate as percentage of member's total capacity
+  return maxStoryPoints > 0 ? Math.round((totalSP / maxStoryPoints) * 100) : 0;
 }
 
-function getOtherProjectsWorkload(memberId: number): number {
-  // Get member's total workload and subtract this project's workload
+function getTotalWorkload(memberId: number): number {
+  // Calculate total workload across ALL projects (all active sprints)
   const member = teamStore.teamMembers.find((m) => m.id === memberId);
   if (!member) return 0;
 
-  const thisProjectWorkload = getProjectWorkload(memberId);
-  const otherWorkload = member.workload - thisProjectWorkload;
+  const maxStoryPoints = member.maxStoryPoints || 20;
+  let totalStoryPoints = 0;
 
-  return Math.max(0, otherWorkload);
+  // Iterate through all projects
+  projectStore.projects.forEach((proj) => {
+    // Find active sprint for this project
+    const activeSprintForProject = proj.sprints?.find((s) => s.status === 'active');
+    
+    if (activeSprintForProject && proj.tasks) {
+      // Get tasks assigned to this member in active sprint
+      const memberTasks = proj.tasks.filter((task) => {
+        const isInActiveSprint = task.sprintId === activeSprintForProject.id;
+        const isResponsible = task.raci?.responsible && task.raci.responsible.includes(memberId);
+        return isInActiveSprint && isResponsible;
+      });
+
+      totalStoryPoints += memberTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+    }
+  });
+
+  return maxStoryPoints > 0 ? Math.round((totalStoryPoints / maxStoryPoints) * 100) : 0;
+}
+
+function getOtherProjectsWorkload(memberId: number): number {
+  // Get total workload and subtract this project's workload
+  const totalWorkload = getTotalWorkload(memberId);
+  const thisProjectWorkload = getProjectWorkload(memberId);
+  
+  return Math.max(0, totalWorkload - thisProjectWorkload);
 }
 
 function getResponsibleAvatar(memberId: number | null): string {

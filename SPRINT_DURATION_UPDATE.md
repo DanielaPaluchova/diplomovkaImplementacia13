@@ -143,3 +143,4 @@ Iba sme zmenili **UI zobrazenie**, výpočty zostali rovnaké.
 **Implementované pre:** Diplomová práca - PERT + RACI integrácia  
 **Autor zmeny:** Na základe analýzy paralelného vykonávania
 
+

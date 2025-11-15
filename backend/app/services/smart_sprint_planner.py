@@ -69,11 +69,11 @@ class SmartSprintPlannerService:
             'priority': self._plan_priority_based,
             'workload-balanced': self._plan_workload_balanced,
             'skill-match': self._plan_skill_match,
-            'velocity-based': self._plan_velocity_based,
-            'risk-optimized': self._plan_risk_optimized,
+            'skill-priority': self._plan_skill_priority,
+            'skill-balanced': self._plan_skill_balanced,
+            'skill-value': self._plan_skill_value,
             'value-driven': self._plan_value_driven,
             'balanced-priority': self._plan_balanced_priority,
-            'safe-value': self._plan_safe_value,
             'hybrid': self._plan_hybrid
         }
         
@@ -517,6 +517,492 @@ class SmartSprintPlannerService:
             'reasoning': reasoning
         }
     
+    def _plan_skill_priority(
+        self,
+        tasks: List[Task],
+        team_members: List[TeamMember],
+        target_capacity: float,
+        context: Dict
+    ) -> Dict:
+        """
+        Skill-Priority planning: Combine skill matching with priority
+        Best skill match for high-priority tasks
+        """
+        # Extract context
+        cross_project_workload = context.get('cross_project_workload', {})
+        consider_cross_project = context.get('consider_cross_project', False)
+        parameters = context.get('parameters', {})
+        
+        # Get weights from parameters or use defaults
+        weights = parameters.get('weights', {
+            'skills': 0.6,
+            'priority': 0.4
+        })
+        
+        priority_map = {'high': 3, 'medium': 2, 'low': 1}
+        
+        # Calculate composite score for each task
+        task_scores = []
+        member_workloads = {
+            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
+            for member in team_members
+        }
+        
+        for task in tasks:
+            task_sp = task.story_points or 0
+            
+            if task_sp == 0:
+                continue
+            
+            # Priority score (0-100)
+            priority_score = priority_map.get((task.priority or 'medium').lower(), 2) * 33.33
+            
+            # Get task requirements
+            task_requirements = {
+                'labels': task.labels or [],
+                'type': task.type,
+                'priority': task.priority,
+                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+            }
+            
+            # Score all members for this task
+            member_scores = self.team_scoring.rank_members_for_task(
+                team_members,
+                task_requirements,
+                [],
+                member_workloads
+            )
+            
+            if not member_scores:
+                continue
+            
+            best_score = member_scores[0]
+            skills_score = best_score['breakdown']['skills']
+            
+            # Calculate weighted composite score
+            composite_score = (
+                weights.get('skills', 0.6) * skills_score +
+                weights.get('priority', 0.4) * priority_score
+            )
+            
+            task_scores.append({
+                'task': task,
+                'score': composite_score,
+                'member_id': best_score['member_id'],
+                'member_name': best_score['member_name'],
+                'breakdown': {
+                    'skills': skills_score,
+                    'priority': priority_score
+                }
+            })
+        
+        # Sort by composite score (highest first)
+        task_scores.sort(key=lambda x: -x['score'])
+        
+        # Select tasks up to capacity
+        selected_tasks = []
+        assignments = {}
+        reasoning = {}
+        member_workloads = {
+            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
+            for member in team_members
+        }
+        selected_task_ids = set()
+        
+        total_sp = 0
+        
+        for item in task_scores:
+            task = item['task']
+            task_sp = task.story_points or 0
+            member_id = item['member_id']
+            
+            # Check dependencies first
+            deps_satisfied, deps_reason = self._check_dependencies_satisfied(task, tasks, selected_task_ids)
+            if not deps_satisfied:
+                reasoning[task.id] = {
+                    'selected': False,
+                    'reason': deps_reason
+                }
+                continue
+            
+            # Check capacity
+            if total_sp + task_sp > target_capacity:
+                reasoning[task.id] = {
+                    'selected': False,
+                    'reason': 'Would exceed sprint capacity'
+                }
+                continue
+            
+            # Check if this member still has capacity
+            member = next((m for m in team_members if m.id == member_id), None)
+            if not member:
+                continue
+            
+            if member_workloads[member_id] + task_sp <= member.max_story_points:
+                selected_tasks.append(task)
+                selected_task_ids.add(task.id)
+                assignments[task.id] = {
+                    'taskId': task.id,
+                    'taskName': task.name,
+                    'memberId': member_id,
+                    'memberName': item['member_name'],
+                    'role': 'responsible',
+                    'storyPoints': task_sp
+                }
+                member_workloads[member_id] += task_sp
+                total_sp += task_sp
+                
+                reasoning[task.id] = {
+                    'selected': True,
+                    'reason': f'Priority: {task.priority}, best skill match with {item["member_name"]} (score: {item["score"]:.1f})',
+                    'assignedTo': item['member_name'],
+                    'compositeScore': item['score'],
+                    'scoreBreakdown': item['breakdown']
+                }
+            else:
+                reasoning[task.id] = self._build_capacity_rejection_reason(
+                    task_sp, team_members, member_workloads,
+                    cross_project_workload, consider_cross_project
+                )
+        
+        metrics = self._calculate_metrics(
+            selected_tasks, member_workloads, team_members,
+            cross_project_workload, consider_cross_project
+        )
+        metrics['weights'] = weights
+        
+        return {
+            'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],
+            'assignments': assignments,
+            'metrics': metrics,
+            'reasoning': reasoning
+        }
+    
+    def _plan_skill_balanced(
+        self,
+        tasks: List[Task],
+        team_members: List[TeamMember],
+        target_capacity: float,
+        context: Dict
+    ) -> Dict:
+        """
+        Skill-Balanced planning: Combine skill matching with workload balance
+        Good skill match while keeping fair distribution
+        """
+        # Extract context
+        cross_project_workload = context.get('cross_project_workload', {})
+        consider_cross_project = context.get('consider_cross_project', False)
+        parameters = context.get('parameters', {})
+        
+        # Get weights from parameters or use defaults
+        weights = parameters.get('weights', {
+            'skills': 0.5,
+            'workload': 0.5
+        })
+        
+        # Calculate composite score for each task
+        task_scores = []
+        member_workloads = {
+            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
+            for member in team_members
+        }
+        
+        for task in tasks:
+            task_sp = task.story_points or 0
+            
+            if task_sp == 0:
+                continue
+            
+            # Get task requirements
+            task_requirements = {
+                'labels': task.labels or [],
+                'type': task.type,
+                'priority': task.priority,
+                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+            }
+            
+            # Score all members for this task
+            member_scores = self.team_scoring.rank_members_for_task(
+                team_members,
+                task_requirements,
+                [],
+                member_workloads
+            )
+            
+            if not member_scores:
+                continue
+            
+            best_score = member_scores[0]
+            skills_score = best_score['breakdown']['skills']
+            workload_score = best_score['breakdown']['workload']
+            
+            # Calculate weighted composite score
+            composite_score = (
+                weights.get('skills', 0.5) * skills_score +
+                weights.get('workload', 0.5) * workload_score
+            )
+            
+            task_scores.append({
+                'task': task,
+                'score': composite_score,
+                'member_id': best_score['member_id'],
+                'member_name': best_score['member_name'],
+                'breakdown': {
+                    'skills': skills_score,
+                    'workload': workload_score
+                }
+            })
+        
+        # Sort by composite score (highest first)
+        task_scores.sort(key=lambda x: -x['score'])
+        
+        # Select tasks up to capacity
+        selected_tasks = []
+        assignments = {}
+        reasoning = {}
+        member_workloads = {
+            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
+            for member in team_members
+        }
+        selected_task_ids = set()
+        
+        total_sp = 0
+        
+        for item in task_scores:
+            task = item['task']
+            task_sp = task.story_points or 0
+            member_id = item['member_id']
+            
+            # Check dependencies first
+            deps_satisfied, deps_reason = self._check_dependencies_satisfied(task, tasks, selected_task_ids)
+            if not deps_satisfied:
+                reasoning[task.id] = {
+                    'selected': False,
+                    'reason': deps_reason
+                }
+                continue
+            
+            # Check capacity
+            if total_sp + task_sp > target_capacity:
+                reasoning[task.id] = {
+                    'selected': False,
+                    'reason': 'Would exceed sprint capacity'
+                }
+                continue
+            
+            # Check if this member still has capacity
+            member = next((m for m in team_members if m.id == member_id), None)
+            if not member:
+                continue
+            
+            if member_workloads[member_id] + task_sp <= member.max_story_points:
+                selected_tasks.append(task)
+                selected_task_ids.add(task.id)
+                assignments[task.id] = {
+                    'taskId': task.id,
+                    'taskName': task.name,
+                    'memberId': member_id,
+                    'memberName': item['member_name'],
+                    'role': 'responsible',
+                    'storyPoints': task_sp
+                }
+                member_workloads[member_id] += task_sp
+                total_sp += task_sp
+                
+                reasoning[task.id] = {
+                    'selected': True,
+                    'reason': f'Skill match with {item["member_name"]}, balanced workload (score: {item["score"]:.1f})',
+                    'assignedTo': item['member_name'],
+                    'compositeScore': item['score'],
+                    'scoreBreakdown': item['breakdown']
+                }
+            else:
+                reasoning[task.id] = self._build_capacity_rejection_reason(
+                    task_sp, team_members, member_workloads,
+                    cross_project_workload, consider_cross_project
+                )
+        
+        metrics = self._calculate_metrics(
+            selected_tasks, member_workloads, team_members,
+            cross_project_workload, consider_cross_project
+        )
+        metrics['weights'] = weights
+        
+        return {
+            'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],
+            'assignments': assignments,
+            'metrics': metrics,
+            'reasoning': reasoning
+        }
+    
+    def _plan_skill_value(
+        self,
+        tasks: List[Task],
+        team_members: List[TeamMember],
+        target_capacity: float,
+        context: Dict
+    ) -> Dict:
+        """
+        Skill-Value planning: Combine skill matching with business value
+        Best skill match for high-value tasks
+        """
+        # Extract context
+        cross_project_workload = context.get('cross_project_workload', {})
+        consider_cross_project = context.get('consider_cross_project', False)
+        parameters = context.get('parameters', {})
+        
+        # Get weights from parameters or use defaults
+        weights = parameters.get('weights', {
+            'skills': 0.5,
+            'value': 0.5
+        })
+        
+        priority_weights = {'high': 3.0, 'medium': 2.0, 'low': 1.0}
+        
+        # Calculate composite score for each task
+        task_scores = []
+        member_workloads = {
+            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
+            for member in team_members
+        }
+        
+        for task in tasks:
+            task_sp = task.story_points or 0
+            
+            if task_sp == 0:
+                continue
+            
+            # Value score (0-100)
+            priority_weight = priority_weights.get((task.priority or 'medium').lower(), 2.0)
+            value_score = min(100, (task_sp * priority_weight * 3.33))
+            
+            # Get task requirements
+            task_requirements = {
+                'labels': task.labels or [],
+                'type': task.type,
+                'priority': task.priority,
+                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+            }
+            
+            # Score all members for this task
+            member_scores = self.team_scoring.rank_members_for_task(
+                team_members,
+                task_requirements,
+                [],
+                member_workloads
+            )
+            
+            if not member_scores:
+                continue
+            
+            best_score = member_scores[0]
+            skills_score = best_score['breakdown']['skills']
+            
+            # Calculate weighted composite score
+            composite_score = (
+                weights.get('skills', 0.5) * skills_score +
+                weights.get('value', 0.5) * value_score
+            )
+            
+            task_scores.append({
+                'task': task,
+                'score': composite_score,
+                'member_id': best_score['member_id'],
+                'member_name': best_score['member_name'],
+                'value': task_sp * priority_weight,
+                'breakdown': {
+                    'skills': skills_score,
+                    'value': value_score
+                }
+            })
+        
+        # Sort by composite score (highest first)
+        task_scores.sort(key=lambda x: -x['score'])
+        
+        # Select tasks up to capacity
+        selected_tasks = []
+        assignments = {}
+        reasoning = {}
+        member_workloads = {
+            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
+            for member in team_members
+        }
+        selected_task_ids = set()
+        
+        total_sp = 0
+        total_value = 0
+        
+        for item in task_scores:
+            task = item['task']
+            task_sp = task.story_points or 0
+            member_id = item['member_id']
+            
+            # Check dependencies first
+            deps_satisfied, deps_reason = self._check_dependencies_satisfied(task, tasks, selected_task_ids)
+            if not deps_satisfied:
+                reasoning[task.id] = {
+                    'selected': False,
+                    'reason': deps_reason
+                }
+                continue
+            
+            # Check capacity
+            if total_sp + task_sp > target_capacity:
+                reasoning[task.id] = {
+                    'selected': False,
+                    'reason': 'Would exceed sprint capacity'
+                }
+                continue
+            
+            # Check if this member still has capacity
+            member = next((m for m in team_members if m.id == member_id), None)
+            if not member:
+                continue
+            
+            if member_workloads[member_id] + task_sp <= member.max_story_points:
+                selected_tasks.append(task)
+                selected_task_ids.add(task.id)
+                assignments[task.id] = {
+                    'taskId': task.id,
+                    'taskName': task.name,
+                    'memberId': member_id,
+                    'memberName': item['member_name'],
+                    'role': 'responsible',
+                    'storyPoints': task_sp
+                }
+                member_workloads[member_id] += task_sp
+                total_sp += task_sp
+                total_value += item['value']
+                
+                reasoning[task.id] = {
+                    'selected': True,
+                    'reason': f'High-value task ({item["value"]:.1f}), best skill match with {item["member_name"]} (score: {item["score"]:.1f})',
+                    'assignedTo': item['member_name'],
+                    'compositeScore': item['score'],
+                    'scoreBreakdown': item['breakdown'],
+                    'value': item['value']
+                }
+            else:
+                reasoning[task.id] = self._build_capacity_rejection_reason(
+                    task_sp, team_members, member_workloads,
+                    cross_project_workload, consider_cross_project
+                )
+        
+        metrics = self._calculate_metrics(
+            selected_tasks, member_workloads, team_members,
+            cross_project_workload, consider_cross_project
+        )
+        metrics['weights'] = weights
+        metrics['totalValue'] = total_value
+        metrics['averageValue'] = total_value / len(selected_tasks) if selected_tasks else 0
+        
+        return {
+            'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],
+            'assignments': assignments,
+            'metrics': metrics,
+            'reasoning': reasoning
+        }
+    
     def _check_dependencies_satisfied(
         self,
         task: Task,
@@ -549,255 +1035,6 @@ class SmartSprintPlannerService:
             return False, f'Cannot add - has {len(unsatisfied_deps)} unsatisfied dependencies (tasks must be completed or included in sprint first)'
         
         return True, ""
-    
-    def _plan_velocity_based(
-        self,
-        tasks: List[Task],
-        team_members: List[TeamMember],
-        target_capacity: float,
-        context: Dict
-    ) -> Dict:
-        """
-        Velocity-based planning: Use historical velocity for capacity planning
-        """
-        # Extract context
-        cross_project_workload = context.get('cross_project_workload', {})
-        consider_cross_project = context.get('consider_cross_project', False)
-        
-        # Calculate adjusted capacity based on velocity
-        adjusted_member_capacity = {}
-        total_adjusted_capacity = 0
-        
-        for member in team_members:
-            velocity = member.historical_velocity or member.max_story_points
-            # If velocity is 0, use 80% of max capacity as estimate
-            if velocity == 0:
-                velocity = member.max_story_points * 0.8
-            
-            adjusted_member_capacity[member.id] = velocity
-            total_adjusted_capacity += velocity
-        
-        # Use velocity-adjusted capacity instead of target_capacity
-        effective_capacity = min(target_capacity, total_adjusted_capacity)
-        
-        # Sort tasks by priority and story points
-        priority_map = {'high': 3, 'medium': 2, 'low': 1}
-        sorted_tasks = sorted(
-            tasks,
-            key=lambda t: (
-                -priority_map.get((t.priority or 'medium').lower(), 2),
-                -(t.story_points or 0)
-            )
-        )
-        
-        selected_tasks = []
-        assignments = {}
-        reasoning = {}
-        member_workloads = {
-            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
-            for member in team_members
-        }
-        selected_task_ids = set()
-        
-        total_sp = 0
-        
-        for task in sorted_tasks:
-            task_sp = task.story_points or 0
-            
-            if task_sp == 0:
-                continue
-            
-            # Check dependencies first
-            deps_satisfied, deps_reason = self._check_dependencies_satisfied(task, tasks, selected_task_ids)
-            if not deps_satisfied:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': deps_reason
-                }
-                continue
-            
-            # Check against effective capacity
-            if total_sp + task_sp > effective_capacity:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': f'Would exceed velocity-adjusted capacity ({total_sp + task_sp:.0f} > {effective_capacity:.0f} SP)'
-                }
-                continue
-            
-            # Find member with highest remaining velocity capacity
-            eligible_members = [
-                m for m in team_members
-                if member_workloads[m.id] + task_sp <= adjusted_member_capacity[m.id]
-            ]
-            
-            if not eligible_members:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': 'No team member has sufficient velocity capacity'
-                }
-                continue
-            
-            # Prefer members with higher velocity (more productive)
-            best_member = max(
-                eligible_members,
-                key=lambda m: adjusted_member_capacity[m.id] - member_workloads[m.id]
-            )
-            
-            selected_tasks.append(task)
-            selected_task_ids.add(task.id)
-            assignments[task.id] = {
-                'taskId': task.id,
-                'taskName': task.name,
-                'memberId': best_member.id,
-                'memberName': best_member.name,
-                'role': 'responsible',
-                'storyPoints': task_sp
-            }
-            member_workloads[best_member.id] += task_sp
-            total_sp += task_sp
-            
-            velocity_util = (member_workloads[best_member.id] / adjusted_member_capacity[best_member.id]) * 100
-            
-            reasoning[task.id] = {
-                'selected': True,
-                'reason': f'Assigned to {best_member.name} based on velocity (capacity: {adjusted_member_capacity[best_member.id]:.0f} SP, now {velocity_util:.0f}% utilized)',
-                'assignedTo': best_member.name,
-                'memberVelocity': adjusted_member_capacity[best_member.id],
-                'memberUtilization': velocity_util
-            }
-        
-        metrics = self._calculate_metrics(
-            selected_tasks, member_workloads, team_members,
-            cross_project_workload, consider_cross_project
-        )
-        metrics['velocityAdjustedCapacity'] = effective_capacity
-        metrics['velocityUtilization'] = (total_sp / effective_capacity * 100) if effective_capacity > 0 else 0
-        
-        return {
-            'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],
-            'assignments': assignments,
-            'metrics': metrics,
-            'reasoning': reasoning
-        }
-    
-    def _plan_risk_optimized(
-        self,
-        tasks: List[Task],
-        team_members: List[TeamMember],
-        target_capacity: float,
-        context: Dict
-    ) -> Dict:
-        """
-        Risk-optimized planning: Minimize risk by prioritizing low-risk tasks
-        """
-        # Extract context
-        cross_project_workload = context.get('cross_project_workload', {})
-        consider_cross_project = context.get('consider_cross_project', False)
-        
-        # Risk level mapping
-        risk_map = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
-        
-        # Sort tasks by risk (low risk first), then by priority
-        priority_map = {'high': 3, 'medium': 2, 'low': 1}
-        sorted_tasks = sorted(
-            tasks,
-            key=lambda t: (
-                risk_map.get((t.risk_level if hasattr(t, 'risk_level') else 'medium').lower(), 2),
-                -priority_map.get((t.priority or 'medium').lower(), 2)
-            )
-        )
-        
-        selected_tasks = []
-        assignments = {}
-        reasoning = {}
-        member_workloads = {
-            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
-            for member in team_members
-        }
-        selected_task_ids = set()
-        
-        total_sp = 0
-        
-        for task in sorted_tasks:
-            task_sp = task.story_points or 0
-            
-            if task_sp == 0:
-                continue
-            
-            # Check dependencies first
-            deps_satisfied, deps_reason = self._check_dependencies_satisfied(task, tasks, selected_task_ids)
-            if not deps_satisfied:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': deps_reason
-                }
-                continue
-            
-            # Check capacity
-            if total_sp + task_sp > target_capacity:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': 'Would exceed sprint capacity'
-                }
-                continue
-            
-            # Assign to best available member
-            eligible_members = [
-                m for m in team_members
-                if member_workloads[m.id] + task_sp <= m.max_story_points
-            ]
-            
-            if not eligible_members:
-                reasoning[task.id] = self._build_capacity_rejection_reason(
-                    task_sp, team_members, member_workloads,
-                    cross_project_workload, consider_cross_project
-                )
-                continue
-            
-            best_member = min(eligible_members, key=lambda m: member_workloads[m.id])
-            
-            selected_tasks.append(task)
-            selected_task_ids.add(task.id)
-            assignments[task.id] = {
-                'taskId': task.id,
-                'taskName': task.name,
-                'memberId': best_member.id,
-                'memberName': best_member.name,
-                'role': 'responsible',
-                'storyPoints': task_sp
-            }
-            member_workloads[best_member.id] += task_sp
-            total_sp += task_sp
-            
-            task_risk = getattr(task, 'risk_level', 'medium')
-            
-            reasoning[task.id] = {
-                'selected': True,
-                'reason': f'Low-risk task ({task_risk}) assigned to {best_member.name}',
-                'assignedTo': best_member.name,
-                'riskLevel': task_risk,
-                'priority': task.priority
-            }
-        
-        metrics = self._calculate_metrics(
-            selected_tasks, member_workloads, team_members,
-            cross_project_workload, consider_cross_project
-        )
-        
-        # Add risk metrics
-        risk_counts = {'low': 0, 'medium': 0, 'high': 0, 'critical': 0}
-        for task in selected_tasks:
-            risk_level = getattr(task, 'risk_level', 'medium').lower()
-            risk_counts[risk_level] = risk_counts.get(risk_level, 0) + 1
-        
-        metrics['riskBreakdown'] = risk_counts
-        
-        return {
-            'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],
-            'assignments': assignments,
-            'metrics': metrics,
-            'reasoning': reasoning
-        }
     
     def _plan_value_driven(
         self,
@@ -1054,178 +1291,6 @@ class SmartSprintPlannerService:
             cross_project_workload, consider_cross_project
         )
         metrics['weights'] = weights
-        
-        return {
-            'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],
-            'assignments': assignments,
-            'metrics': metrics,
-            'reasoning': reasoning
-        }
-    
-    def _plan_safe_value(
-        self,
-        tasks: List[Task],
-        team_members: List[TeamMember],
-        target_capacity: float,
-        context: Dict
-    ) -> Dict:
-        """
-        Safe Value planning: Maximize business value while minimizing risk for predictable delivery
-        Combines value-driven and risk-optimized strategies
-        """
-        # Extract context
-        cross_project_workload = context.get('cross_project_workload', {})
-        consider_cross_project = context.get('consider_cross_project', False)
-        parameters = context.get('parameters', {})
-        
-        # Get weights from parameters or use defaults
-        weights = parameters.get('weights', {
-            'value': 0.5,
-            'risk': 0.5
-        })
-        
-        priority_weights = {'high': 3.0, 'medium': 2.0, 'low': 1.0}
-        risk_map = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
-        
-        # Calculate composite score for each task
-        task_scores = []
-        member_workloads = {
-            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
-            for member in team_members
-        }
-        
-        for task in tasks:
-            task_sp = task.story_points or 0
-            
-            if task_sp == 0:
-                continue
-            
-            # Value score (0-100)
-            priority_weight = priority_weights.get((task.priority or 'medium').lower(), 2.0)
-            # Normalize value: (SP * priority_weight) scaled to 0-100
-            # Assuming max SP is around 20-30, max value would be ~90
-            value_score = min(100, (task_sp * priority_weight * 3.33))
-            
-            # Risk score (0-100, inverse - lower risk = higher score)
-            risk_level = getattr(task, 'risk_level', 'medium').lower()
-            risk_score = 100 - (risk_map.get(risk_level, 2) * 25)
-            
-            # Calculate weighted composite score
-            composite_score = (
-                weights.get('value', 0.5) * value_score +
-                weights.get('risk', 0.5) * risk_score
-            )
-            
-            # Find best member (lowest workload)
-            best_member = min(team_members, key=lambda m: member_workloads[m.id])
-            
-            task_scores.append({
-                'task': task,
-                'score': composite_score,
-                'member_id': best_member.id,
-                'member_name': best_member.name,
-                'breakdown': {
-                    'value': value_score,
-                    'risk': risk_score
-                }
-            })
-        
-        # Sort by composite score (highest first)
-        task_scores.sort(key=lambda x: -x['score'])
-        
-        # Select tasks up to capacity
-        selected_tasks = []
-        assignments = {}
-        reasoning = {}
-        member_workloads = {
-            member.id: cross_project_workload.get(member.id, 0) if consider_cross_project else 0
-            for member in team_members
-        }
-        selected_task_ids = set()
-        
-        total_sp = 0
-        total_value = 0
-        
-        for item in task_scores:
-            task = item['task']
-            task_sp = task.story_points or 0
-            
-            # Check dependencies first
-            deps_satisfied, deps_reason = self._check_dependencies_satisfied(task, tasks, selected_task_ids)
-            if not deps_satisfied:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': deps_reason
-                }
-                continue
-            
-            # Check capacity
-            if total_sp + task_sp > target_capacity:
-                reasoning[task.id] = {
-                    'selected': False,
-                    'reason': 'Would exceed sprint capacity'
-                }
-                continue
-            
-            # Find member with lowest workload who can handle this task
-            eligible_members = [
-                m for m in team_members
-                if member_workloads[m.id] + task_sp <= m.max_story_points
-            ]
-            
-            if not eligible_members:
-                reasoning[task.id] = self._build_capacity_rejection_reason(
-                    task_sp, team_members, member_workloads,
-                    cross_project_workload, consider_cross_project
-                )
-                continue
-            
-            best_member = min(eligible_members, key=lambda m: member_workloads[m.id])
-            
-            selected_tasks.append(task)
-            selected_task_ids.add(task.id)
-            assignments[task.id] = {
-                'taskId': task.id,
-                'taskName': task.name,
-                'memberId': best_member.id,
-                'memberName': best_member.name,
-                'role': 'responsible',
-                'storyPoints': task_sp
-            }
-            member_workloads[best_member.id] += task_sp
-            total_sp += task_sp
-            
-            # Calculate actual value
-            priority_weight = priority_weights.get((task.priority or 'medium').lower(), 2.0)
-            task_value = task_sp * priority_weight
-            total_value += task_value
-            
-            task_risk = getattr(task, 'risk_level', 'medium')
-            
-            reasoning[task.id] = {
-                'selected': True,
-                'reason': f'Value: {item["breakdown"]["value"]:.1f}, Risk: {task_risk}, assigned to {best_member.name}',
-                'assignedTo': best_member.name,
-                'compositeScore': item['score'],
-                'scoreBreakdown': item['breakdown'],
-                'riskLevel': task_risk
-            }
-        
-        metrics = self._calculate_metrics(
-            selected_tasks, member_workloads, team_members,
-            cross_project_workload, consider_cross_project
-        )
-        metrics['weights'] = weights
-        metrics['totalValue'] = total_value
-        metrics['averageValue'] = total_value / len(selected_tasks) if selected_tasks else 0
-        
-        # Add risk metrics
-        risk_counts = {'low': 0, 'medium': 0, 'high': 0, 'critical': 0}
-        for task in selected_tasks:
-            risk_level = getattr(task, 'risk_level', 'medium').lower()
-            risk_counts[risk_level] = risk_counts.get(risk_level, 0) + 1
-        
-        metrics['riskBreakdown'] = risk_counts
         
         return {
             'suggestedTasks': [self._task_to_dict(t) for t in selected_tasks],

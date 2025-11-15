@@ -192,3 +192,4 @@ A používa sa na:
 - Plánovanie kapacity pre budúce šprinty
 - Identifikáciu preťažených/podvyťažených členov tímu
 
+
