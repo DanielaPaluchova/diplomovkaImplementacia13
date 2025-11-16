@@ -274,33 +274,28 @@
                     <div class="text-caption text-grey-7 q-mb-md">
                       Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
                         raciWorkloadWeights.accountable
-                      }}, C={{ raciWorkloadWeights.consulted }}, I={{ raciWorkloadWeights.informed }}
+                      }}, C={{ raciWorkloadWeights.consulted }}, I={{
+                        raciWorkloadWeights.informed
+                      }}
                     </div>
 
                     <div v-if="raciWeightedWorkload.length > 0" class="q-gutter-md">
-                      <div
+                      <q-expansion-item
                         v-for="member in raciWeightedWorkload"
                         :key="member.memberId"
-                        class="row items-center"
+                        expand-separator
+                        :label="member.memberName"
+                        :caption="`${member.weightedSP} SP (${member.workload}%)`"
+                        header-class="bg-grey-2"
                       >
-                        <div class="col-2 text-weight-medium">
-                          {{ member.memberName }}
-                        </div>
-                        <div class="col-8">
-                          <q-linear-progress
-                            :value="member.workload / 100"
-                            :color="
-                              member.workload > 100
-                                ? 'negative'
-                                : member.workload > 80
-                                  ? 'warning'
-                                  : 'positive'
-                            "
-                            size="25px"
-                            rounded
-                          >
-                            <div class="absolute-full flex flex-center">
-                              <q-badge
+                        <template v-slot:header>
+                          <div class="row items-center full-width">
+                            <div class="col-2 text-weight-medium">
+                              {{ member.memberName }}
+                            </div>
+                            <div class="col-8">
+                              <q-linear-progress
+                                :value="member.workload / 100"
                                 :color="
                                   member.workload > 100
                                     ? 'negative'
@@ -308,21 +303,98 @@
                                       ? 'warning'
                                       : 'positive'
                                 "
-                                text-color="white"
-                                :label="`${member.weightedSP} SP`"
-                              />
+                                size="25px"
+                                rounded
+                              >
+                                <div class="absolute-full flex flex-center">
+                                  <q-badge
+                                    :color="
+                                      member.workload > 100
+                                        ? 'negative'
+                                        : member.workload > 80
+                                          ? 'warning'
+                                          : 'positive'
+                                    "
+                                    text-color="white"
+                                    :label="`${member.weightedSP} SP`"
+                                  />
+                                </div>
+                              </q-linear-progress>
                             </div>
-                          </q-linear-progress>
-                        </div>
-                        <div class="col-2 text-right text-weight-bold">{{ member.workload }}%</div>
-                      </div>
+                            <div class="col-2 text-right text-weight-bold">
+                              {{ member.workload }}%
+                            </div>
+                          </div>
+                        </template>
+
+                        <!-- Task Details -->
+                        <q-card flat bordered class="q-ma-sm">
+                          <q-card-section>
+                            <div class="text-subtitle2 text-weight-bold q-mb-md">
+                              Tasky v aktívnych šprintoch naprieč projektami:
+                            </div>
+                            <q-list separator>
+                              <q-item
+                                v-for="task in getMemberActiveSprintTasks(member.memberId)"
+                                :key="`${task.projectName}-${task.taskId}`"
+                                dense
+                              >
+                                <q-item-section>
+                                  <q-item-label>
+                                    <strong>{{ task.taskName }}</strong>
+                                  </q-item-label>
+                                  <q-item-label caption>
+                                    {{ task.projectName }} - {{ task.sprintName }}
+                                  </q-item-label>
+                                </q-item-section>
+                                <q-item-section side>
+                                  <q-badge color="primary" :label="`${task.storyPoints} SP`" />
+                                </q-item-section>
+                                <q-item-section side>
+                                  <div class="row q-gutter-xs">
+                                    <q-badge
+                                      v-if="task.roles.includes('R')"
+                                      color="negative"
+                                      label="R"
+                                    />
+                                    <q-badge
+                                      v-if="task.roles.includes('A')"
+                                      color="warning"
+                                      label="A"
+                                    />
+                                    <q-badge
+                                      v-if="task.roles.includes('C')"
+                                      color="info"
+                                      label="C"
+                                    />
+                                    <q-badge
+                                      v-if="task.roles.includes('I')"
+                                      color="grey"
+                                      label="I"
+                                    />
+                                  </div>
+                                </q-item-section>
+                              </q-item>
+                            </q-list>
+                            <div
+                              v-if="getMemberActiveSprintTasks(member.memberId).length === 0"
+                              class="text-center text-grey-6 q-pa-md"
+                            >
+                              Žiadne tasky v aktívnych šprintoch
+                            </div>
+                          </q-card-section>
+                        </q-card>
+                      </q-expansion-item>
                     </div>
 
                     <div v-else class="text-center text-grey-7 q-pa-md">
                       Žiadni členovia v projekte
                     </div>
 
-                    <div v-if="raciWeightedWorkload.length > 0" class="text-caption text-grey-6 q-mt-md">
+                    <div
+                      v-if="raciWeightedWorkload.length > 0"
+                      class="text-caption text-grey-6 q-mt-md"
+                    >
                       Kapacita: {{ maxStoryPointsPerPerson }} SP na člena
                       <br />
                       <span class="text-grey-5"
@@ -422,6 +494,9 @@
                       </q-td>
                       <q-td>{{ props.row.name }}</q-td>
                       <q-td>{{ props.row.storyPoints }}</q-td>
+                      <q-td>{{ props.row.optimistic }}</q-td>
+                      <q-td>{{ props.row.mostLikely }}</q-td>
+                      <q-td>{{ props.row.pessimistic }}</q-td>
                       <q-td>
                         <div class="text-weight-medium">
                           {{ props.row.pertDuration.toFixed(2) }}d
@@ -447,23 +522,11 @@
                           />
                         </div>
                       </q-td>
-                      <q-td>
-                        <div class="row q-gutter-xs">
-                          <q-btn flat icon="edit" size="sm" @click="editTask(props.row)" />
-                          <q-btn
-                            flat
-                            icon="delete"
-                            size="sm"
-                            color="negative"
-                            @click="deleteTask(props.row.id)"
-                          />
-                        </div>
-                      </q-td>
                     </q-tr>
 
                     <!-- Expanded content -->
                     <q-tr v-if="expandedRows.includes(props.row.id.toString())" :props="props">
-                      <q-td colspan="7" class="q-pa-none">
+                      <q-td colspan="9" class="q-pa-none">
                         <q-card class="q-ma-sm">
                           <q-card-section>
                             <div class="text-h6 text-weight-bold q-mb-md">
@@ -502,54 +565,22 @@
                                         </div>
                                       </div>
 
-                                      <q-separator class="q-my-sm" />
-
-                                      <div class="row q-col-gutter-sm">
-                                        <div class="col-6">
-                                          <div class="text-caption text-grey-7">
-                                            Weighted SP v tomto projekte:
-                                          </div>
-                                          <div class="text-body1 text-weight-bold text-green">
-                                            {{ getMemberSprintStoryPointsInProject(memberId) }}
-                                            SP
-                                          </div>
-                                          <div class="text-caption text-grey-6">
-                                            (vážené podľa RACI rolí)
-                                          </div>
+                                      <div class="col-12">
+                                        <div class="text-caption text-grey-7">
+                                          Aktívne projekty:
                                         </div>
-                                        <div class="col-6">
-                                          <div class="text-caption text-grey-7">
-                                            Weighted SP naprieč projektami:
-                                          </div>
-                                          <div class="text-body1 text-weight-bold text-primary">
-                                            {{ getMemberSprintStoryPointsAcrossProjects(memberId) }}
-                                            SP
-                                          </div>
-                                          <div class="text-caption text-grey-6">
-                                            (vážené podľa RACI rolí)
-                                          </div>
+                                        <div class="text-body2" style="word-break: break-word">
+                                          {{
+                                            getMemberActiveProjects(memberId).join(', ') || 'Žiadne'
+                                          }}
                                         </div>
-                                        <div class="col-12 q-mt-sm">
-                                          <div class="text-caption text-grey-7">
-                                            Aktívne projekty:
-                                          </div>
-                                          <div class="text-body2" style="word-break: break-word">
-                                            {{
-                                              getMemberActiveProjects(memberId).join(', ') ||
-                                              'Žiadne'
-                                            }}
-                                          </div>
-                                        </div>
-                                        <div class="col-12 q-mt-sm">
-                                          <div class="text-caption text-grey-7">
-                                            Aktívne šprinty:
-                                          </div>
-                                          <div class="text-body2" style="word-break: break-word">
-                                            {{
-                                              getMemberActiveSprints(memberId).join(', ') ||
-                                              'Žiadne'
-                                            }}
-                                          </div>
+                                      </div>
+                                      <div class="col-12 q-mt-sm">
+                                        <div class="text-caption text-grey-7">Aktívne šprinty:</div>
+                                        <div class="text-body2" style="word-break: break-word">
+                                          {{
+                                            getMemberActiveSprints(memberId).join(', ') || 'Žiadne'
+                                          }}
                                         </div>
                                       </div>
 
@@ -562,7 +593,7 @@
                                         :label="
                                           getMemberExpanded(memberId)
                                             ? 'Skryť tasky'
-                                            : 'Zobraziť tasky v aktívnom šprinte'
+                                            : 'Zobraziť tasky v tomto projekte'
                                         "
                                         :icon="
                                           getMemberExpanded(memberId)
@@ -624,62 +655,24 @@
                                       </div>
                                     </div>
 
-                                    <q-separator class="q-my-sm" />
-
-                                    <div class="row q-col-gutter-sm">
-                                      <div class="col-6">
-                                        <div class="text-caption text-grey-7">
-                                          Weighted SP v tomto projekte:
-                                        </div>
-                                        <div class="text-body1 text-weight-bold text-green">
-                                          {{
-                                            getMemberSprintStoryPointsInProject(
-                                              props.row.raciMembers.accountable,
-                                            )
-                                          }}
-                                          SP
-                                        </div>
-                                        <div class="text-caption text-grey-6">
-                                          (vážené podľa RACI rolí)
-                                        </div>
+                                    <div class="col-12">
+                                      <div class="text-caption text-grey-7">Aktívne projekty:</div>
+                                      <div class="text-body2" style="word-break: break-word">
+                                        {{
+                                          getMemberActiveProjects(
+                                            props.row.raciMembers.accountable,
+                                          ).join(', ') || 'Žiadne'
+                                        }}
                                       </div>
-                                      <div class="col-6">
-                                        <div class="text-caption text-grey-7">
-                                          Weighted SP naprieč projektami:
-                                        </div>
-                                        <div class="text-body1 text-weight-bold text-primary">
-                                          {{
-                                            getMemberSprintStoryPointsAcrossProjects(
-                                              props.row.raciMembers.accountable,
-                                            )
-                                          }}
-                                          SP
-                                        </div>
-                                        <div class="text-caption text-grey-6">
-                                          (vážené podľa RACI rolí)
-                                        </div>
-                                      </div>
-                                      <div class="col-12 q-mt-sm">
-                                        <div class="text-caption text-grey-7">
-                                          Aktívne projekty:
-                                        </div>
-                                        <div class="text-body2" style="word-break: break-word">
-                                          {{
-                                            getMemberActiveProjects(
-                                              props.row.raciMembers.accountable,
-                                            ).join(', ') || 'Žiadne'
-                                          }}
-                                        </div>
-                                      </div>
-                                      <div class="col-12 q-mt-sm">
-                                        <div class="text-caption text-grey-7">Aktívne šprinty:</div>
-                                        <div class="text-body2" style="word-break: break-word">
-                                          {{
-                                            getMemberActiveSprints(
-                                              props.row.raciMembers.accountable,
-                                            ).join(', ') || 'Žiadne'
-                                          }}
-                                        </div>
+                                    </div>
+                                    <div class="col-12 q-mt-sm">
+                                      <div class="text-caption text-grey-7">Aktívne šprinty:</div>
+                                      <div class="text-body2" style="word-break: break-word">
+                                        {{
+                                          getMemberActiveSprints(
+                                            props.row.raciMembers.accountable,
+                                          ).join(', ') || 'Žiadne'
+                                        }}
                                       </div>
                                     </div>
 
@@ -692,7 +685,7 @@
                                       :label="
                                         getMemberExpanded(props.row.raciMembers.accountable)
                                           ? 'Skryť tasky'
-                                          : 'Zobraziť tasky v aktívnom šprinte'
+                                          : 'Zobraziť tasky v tomto projekte'
                                       "
                                       :icon="
                                         getMemberExpanded(props.row.raciMembers.accountable)
@@ -773,54 +766,22 @@
                                         </div>
                                       </div>
 
-                                      <q-separator class="q-my-sm" />
-
-                                      <div class="row q-col-gutter-sm">
-                                        <div class="col-6">
-                                          <div class="text-caption text-grey-7">
-                                            Weighted SP v tomto projekte:
-                                          </div>
-                                          <div class="text-body1 text-weight-bold text-green">
-                                            {{ getMemberSprintStoryPointsInProject(memberId) }}
-                                            SP
-                                          </div>
-                                          <div class="text-caption text-grey-6">
-                                            (vážené podľa RACI rolí)
-                                          </div>
+                                      <div class="col-12">
+                                        <div class="text-caption text-grey-7">
+                                          Aktívne projekty:
                                         </div>
-                                        <div class="col-6">
-                                          <div class="text-caption text-grey-7">
-                                            Weighted SP naprieč projektami:
-                                          </div>
-                                          <div class="text-body1 text-weight-bold text-primary">
-                                            {{ getMemberSprintStoryPointsAcrossProjects(memberId) }}
-                                            SP
-                                          </div>
-                                          <div class="text-caption text-grey-6">
-                                            (vážené podľa RACI rolí)
-                                          </div>
+                                        <div class="text-body2" style="word-break: break-word">
+                                          {{
+                                            getMemberActiveProjects(memberId).join(', ') || 'Žiadne'
+                                          }}
                                         </div>
-                                        <div class="col-12 q-mt-sm">
-                                          <div class="text-caption text-grey-7">
-                                            Aktívne projekty:
-                                          </div>
-                                          <div class="text-body2" style="word-break: break-word">
-                                            {{
-                                              getMemberActiveProjects(memberId).join(', ') ||
-                                              'Žiadne'
-                                            }}
-                                          </div>
-                                        </div>
-                                        <div class="col-12 q-mt-sm">
-                                          <div class="text-caption text-grey-7">
-                                            Aktívne šprinty:
-                                          </div>
-                                          <div class="text-body2" style="word-break: break-word">
-                                            {{
-                                              getMemberActiveSprints(memberId).join(', ') ||
-                                              'Žiadne'
-                                            }}
-                                          </div>
+                                      </div>
+                                      <div class="col-12 q-mt-sm">
+                                        <div class="text-caption text-grey-7">Aktívne šprinty:</div>
+                                        <div class="text-body2" style="word-break: break-word">
+                                          {{
+                                            getMemberActiveSprints(memberId).join(', ') || 'Žiadne'
+                                          }}
                                         </div>
                                       </div>
 
@@ -833,7 +794,7 @@
                                         :label="
                                           getMemberExpanded(memberId)
                                             ? 'Skryť tasky'
-                                            : 'Zobraziť tasky v aktívnom šprinte'
+                                            : 'Zobraziť tasky v tomto projekte'
                                         "
                                         :icon="
                                           getMemberExpanded(memberId)
@@ -900,54 +861,22 @@
                                         </div>
                                       </div>
 
-                                      <q-separator class="q-my-sm" />
-
-                                      <div class="row q-col-gutter-sm">
-                                        <div class="col-6">
-                                          <div class="text-caption text-grey-7">
-                                            Weighted SP v tomto projekte:
-                                          </div>
-                                          <div class="text-body1 text-weight-bold text-green">
-                                            {{ getMemberSprintStoryPointsInProject(memberId) }}
-                                            SP
-                                          </div>
-                                          <div class="text-caption text-grey-6">
-                                            (vážené podľa RACI rolí)
-                                          </div>
+                                      <div class="col-12">
+                                        <div class="text-caption text-grey-7">
+                                          Aktívne projekty:
                                         </div>
-                                        <div class="col-6">
-                                          <div class="text-caption text-grey-7">
-                                            Weighted SP naprieč projektami:
-                                          </div>
-                                          <div class="text-body1 text-weight-bold text-primary">
-                                            {{ getMemberSprintStoryPointsAcrossProjects(memberId) }}
-                                            SP
-                                          </div>
-                                          <div class="text-caption text-grey-6">
-                                            (vážené podľa RACI rolí)
-                                          </div>
+                                        <div class="text-body2" style="word-break: break-word">
+                                          {{
+                                            getMemberActiveProjects(memberId).join(', ') || 'Žiadne'
+                                          }}
                                         </div>
-                                        <div class="col-12 q-mt-sm">
-                                          <div class="text-caption text-grey-7">
-                                            Aktívne projekty:
-                                          </div>
-                                          <div class="text-body2" style="word-break: break-word">
-                                            {{
-                                              getMemberActiveProjects(memberId).join(', ') ||
-                                              'Žiadne'
-                                            }}
-                                          </div>
-                                        </div>
-                                        <div class="col-12 q-mt-sm">
-                                          <div class="text-caption text-grey-7">
-                                            Aktívne šprinty:
-                                          </div>
-                                          <div class="text-body2" style="word-break: break-word">
-                                            {{
-                                              getMemberActiveSprints(memberId).join(', ') ||
-                                              'Žiadne'
-                                            }}
-                                          </div>
+                                      </div>
+                                      <div class="col-12 q-mt-sm">
+                                        <div class="text-caption text-grey-7">Aktívne šprinty:</div>
+                                        <div class="text-body2" style="word-break: break-word">
+                                          {{
+                                            getMemberActiveSprints(memberId).join(', ') || 'Žiadne'
+                                          }}
                                         </div>
                                       </div>
 
@@ -960,7 +889,7 @@
                                         :label="
                                           getMemberExpanded(memberId)
                                             ? 'Skryť tasky'
-                                            : 'Zobraziť tasky v aktívnom šprinte'
+                                            : 'Zobraziť tasky v tomto projekte'
                                         "
                                         :icon="
                                           getMemberExpanded(memberId)
@@ -1355,7 +1284,7 @@
 
                         <!-- Expanded content -->
                         <q-tr v-if="expandedRows.includes(props.row.id.toString())" :props="props">
-                          <q-td colspan="6" class="q-pa-none">
+                          <q-td colspan="9" class="q-pa-none">
                             <q-card class="q-ma-sm">
                               <q-card-section>
                                 <div class="text-h6 text-weight-bold q-mb-md">
@@ -1394,70 +1323,26 @@
                                             </div>
                                           </div>
 
-                                          <q-separator class="q-my-sm" />
-
-                                          <div class="row q-col-gutter-sm">
-                                            <div class="col-6">
-                                              <div class="text-caption text-grey-7">
-                                                Weighted SP v tomto projekte:
-                                              </div>
-                                              <div class="text-body1 text-weight-bold text-green">
-                                                {{
-                                                  getMemberSprintStoryPointsInProjectForSprint(
-                                                    memberId,
-                                                    props.row.sprintId,
-                                                  )
-                                                }}
-                                                SP
-                                              </div>
-                                              <div class="text-caption text-grey-6">
-                                                (vážené podľa RACI rolí v tomto šprinte)
-                                              </div>
+                                          <div class="col-12">
+                                            <div class="text-caption text-grey-7">
+                                              Aktívne projekty:
                                             </div>
-                                            <div class="col-6">
-                                              <div class="text-caption text-grey-7">
-                                                Weighted SP naprieč projektami:
-                                              </div>
-                                              <div class="text-body1 text-weight-bold text-primary">
-                                                {{
-                                                  getMemberSprintStoryPointsAcrossProjectsForSprint(
-                                                    memberId,
-                                                    props.row.sprintId,
-                                                  )
-                                                }}
-                                                SP
-                                              </div>
-                                              <div class="text-caption text-grey-6">
-                                                (vážené podľa RACI rolí v tomto šprinte)
-                                              </div>
+                                            <div class="text-body2" style="word-break: break-word">
+                                              {{
+                                                getMemberActiveProjects(memberId).join(', ') ||
+                                                'Žiadne'
+                                              }}
                                             </div>
-                                            <div class="col-12 q-mt-sm">
-                                              <div class="text-caption text-grey-7">
-                                                Aktívne projekty:
-                                              </div>
-                                              <div
-                                                class="text-body2"
-                                                style="word-break: break-word"
-                                              >
-                                                {{
-                                                  getMemberActiveProjects(memberId).join(', ') ||
-                                                  'Žiadne'
-                                                }}
-                                              </div>
+                                          </div>
+                                          <div class="col-12 q-mt-sm">
+                                            <div class="text-caption text-grey-7">
+                                              Aktívne šprinty:
                                             </div>
-                                            <div class="col-12 q-mt-sm">
-                                              <div class="text-caption text-grey-7">
-                                                Aktívne šprinty:
-                                              </div>
-                                              <div
-                                                class="text-body2"
-                                                style="word-break: break-word"
-                                              >
-                                                {{
-                                                  getMemberActiveSprints(memberId).join(', ') ||
-                                                  'Žiadne'
-                                                }}
-                                              </div>
+                                            <div class="text-body2" style="word-break: break-word">
+                                              {{
+                                                getMemberActiveSprints(memberId).join(', ') ||
+                                                'Žiadne'
+                                              }}
                                             </div>
                                           </div>
                                         </q-card-section>
@@ -1493,66 +1378,28 @@
                                           </div>
                                         </div>
 
-                                        <q-separator class="q-my-sm" />
-
-                                        <div class="row q-col-gutter-sm">
-                                          <div class="col-6">
-                                            <div class="text-caption text-grey-7">
-                                              Weighted SP v tomto projekte:
-                                            </div>
-                                            <div class="text-body1 text-weight-bold text-green">
-                                              {{
-                                                getMemberSprintStoryPointsInProjectForSprint(
-                                                  props.row.raciMembers.accountable,
-                                                  props.row.sprintId,
-                                                )
-                                              }}
-                                              SP
-                                            </div>
-                                            <div class="text-caption text-grey-6">
-                                              (vážené podľa RACI rolí v tomto šprinte)
-                                            </div>
+                                        <div class="col-12">
+                                          <div class="text-caption text-grey-7">
+                                            Aktívne projekty:
                                           </div>
-                                          <div class="col-6">
-                                            <div class="text-caption text-grey-7">
-                                              Weighted SP naprieč projektami:
-                                            </div>
-                                            <div class="text-body1 text-weight-bold text-primary">
-                                              {{
-                                                getMemberSprintStoryPointsAcrossProjectsForSprint(
-                                                  props.row.raciMembers.accountable,
-                                                  props.row.sprintId,
-                                                )
-                                              }}
-                                              SP
-                                            </div>
-                                            <div class="text-caption text-grey-6">
-                                              (vážené podľa RACI rolí v tomto šprinte)
-                                            </div>
+                                          <div class="text-body2" style="word-break: break-word">
+                                            {{
+                                              getMemberActiveProjects(
+                                                props.row.raciMembers.accountable,
+                                              ).join(', ') || 'Žiadne'
+                                            }}
                                           </div>
-                                          <div class="col-12 q-mt-sm">
-                                            <div class="text-caption text-grey-7">
-                                              Aktívne projekty:
-                                            </div>
-                                            <div class="text-body2" style="word-break: break-word">
-                                              {{
-                                                getMemberActiveProjects(
-                                                  props.row.raciMembers.accountable,
-                                                ).join(', ') || 'Žiadne'
-                                              }}
-                                            </div>
+                                        </div>
+                                        <div class="col-12 q-mt-sm">
+                                          <div class="text-caption text-grey-7">
+                                            Aktívne šprinty:
                                           </div>
-                                          <div class="col-12 q-mt-sm">
-                                            <div class="text-caption text-grey-7">
-                                              Aktívne šprinty:
-                                            </div>
-                                            <div class="text-body2" style="word-break: break-word">
-                                              {{
-                                                getMemberActiveSprints(
-                                                  props.row.raciMembers.accountable,
-                                                ).join(', ') || 'Žiadne'
-                                              }}
-                                            </div>
+                                          <div class="text-body2" style="word-break: break-word">
+                                            {{
+                                              getMemberActiveSprints(
+                                                props.row.raciMembers.accountable,
+                                              ).join(', ') || 'Žiadne'
+                                            }}
                                           </div>
                                         </div>
                                       </q-card-section>
@@ -1592,70 +1439,26 @@
                                             </div>
                                           </div>
 
-                                          <q-separator class="q-my-sm" />
-
-                                          <div class="row q-col-gutter-sm">
-                                            <div class="col-6">
-                                              <div class="text-caption text-grey-7">
-                                                Weighted SP v tomto projekte:
-                                              </div>
-                                              <div class="text-body1 text-weight-bold text-green">
-                                                {{
-                                                  getMemberSprintStoryPointsInProjectForSprint(
-                                                    memberId,
-                                                    props.row.sprintId,
-                                                  )
-                                                }}
-                                                SP
-                                              </div>
-                                              <div class="text-caption text-grey-6">
-                                                (vážené podľa RACI rolí v tomto šprinte)
-                                              </div>
+                                          <div class="col-12">
+                                            <div class="text-caption text-grey-7">
+                                              Aktívne projekty:
                                             </div>
-                                            <div class="col-6">
-                                              <div class="text-caption text-grey-7">
-                                                Weighted SP naprieč projektami:
-                                              </div>
-                                              <div class="text-body1 text-weight-bold text-primary">
-                                                {{
-                                                  getMemberSprintStoryPointsAcrossProjectsForSprint(
-                                                    memberId,
-                                                    props.row.sprintId,
-                                                  )
-                                                }}
-                                                SP
-                                              </div>
-                                              <div class="text-caption text-grey-6">
-                                                (vážené podľa RACI rolí v tomto šprinte)
-                                              </div>
+                                            <div class="text-body2" style="word-break: break-word">
+                                              {{
+                                                getMemberActiveProjects(memberId).join(', ') ||
+                                                'Žiadne'
+                                              }}
                                             </div>
-                                            <div class="col-12 q-mt-sm">
-                                              <div class="text-caption text-grey-7">
-                                                Aktívne projekty:
-                                              </div>
-                                              <div
-                                                class="text-body2"
-                                                style="word-break: break-word"
-                                              >
-                                                {{
-                                                  getMemberActiveProjects(memberId).join(', ') ||
-                                                  'Žiadne'
-                                                }}
-                                              </div>
+                                          </div>
+                                          <div class="col-12 q-mt-sm">
+                                            <div class="text-caption text-grey-7">
+                                              Aktívne šprinty:
                                             </div>
-                                            <div class="col-12 q-mt-sm">
-                                              <div class="text-caption text-grey-7">
-                                                Aktívne šprinty:
-                                              </div>
-                                              <div
-                                                class="text-body2"
-                                                style="word-break: break-word"
-                                              >
-                                                {{
-                                                  getMemberActiveSprints(memberId).join(', ') ||
-                                                  'Žiadne'
-                                                }}
-                                              </div>
+                                            <div class="text-body2" style="word-break: break-word">
+                                              {{
+                                                getMemberActiveSprints(memberId).join(', ') ||
+                                                'Žiadne'
+                                              }}
                                             </div>
                                           </div>
                                         </q-card-section>
@@ -1696,70 +1499,26 @@
                                             </div>
                                           </div>
 
-                                          <q-separator class="q-my-sm" />
-
-                                          <div class="row q-col-gutter-sm">
-                                            <div class="col-6">
-                                              <div class="text-caption text-grey-7">
-                                                Weighted SP v tomto projekte:
-                                              </div>
-                                              <div class="text-body1 text-weight-bold text-green">
-                                                {{
-                                                  getMemberSprintStoryPointsInProjectForSprint(
-                                                    memberId,
-                                                    props.row.sprintId,
-                                                  )
-                                                }}
-                                                SP
-                                              </div>
-                                              <div class="text-caption text-grey-6">
-                                                (vážené podľa RACI rolí v tomto šprinte)
-                                              </div>
+                                          <div class="col-12">
+                                            <div class="text-caption text-grey-7">
+                                              Aktívne projekty:
                                             </div>
-                                            <div class="col-6">
-                                              <div class="text-caption text-grey-7">
-                                                Weighted SP naprieč projektami:
-                                              </div>
-                                              <div class="text-body1 text-weight-bold text-primary">
-                                                {{
-                                                  getMemberSprintStoryPointsAcrossProjectsForSprint(
-                                                    memberId,
-                                                    props.row.sprintId,
-                                                  )
-                                                }}
-                                                SP
-                                              </div>
-                                              <div class="text-caption text-grey-6">
-                                                (vážené podľa RACI rolí v tomto šprinte)
-                                              </div>
+                                            <div class="text-body2" style="word-break: break-word">
+                                              {{
+                                                getMemberActiveProjects(memberId).join(', ') ||
+                                                'Žiadne'
+                                              }}
                                             </div>
-                                            <div class="col-12 q-mt-sm">
-                                              <div class="text-caption text-grey-7">
-                                                Aktívne projekty:
-                                              </div>
-                                              <div
-                                                class="text-body2"
-                                                style="word-break: break-word"
-                                              >
-                                                {{
-                                                  getMemberActiveProjects(memberId).join(', ') ||
-                                                  'Žiadne'
-                                                }}
-                                              </div>
+                                          </div>
+                                          <div class="col-12 q-mt-sm">
+                                            <div class="text-caption text-grey-7">
+                                              Aktívne šprinty:
                                             </div>
-                                            <div class="col-12 q-mt-sm">
-                                              <div class="text-caption text-grey-7">
-                                                Aktívne šprinty:
-                                              </div>
-                                              <div
-                                                class="text-body2"
-                                                style="word-break: break-word"
-                                              >
-                                                {{
-                                                  getMemberActiveSprints(memberId).join(', ') ||
-                                                  'Žiadne'
-                                                }}
-                                              </div>
+                                            <div class="text-body2" style="word-break: break-word">
+                                              {{
+                                                getMemberActiveSprints(memberId).join(', ') ||
+                                                'Žiadne'
+                                              }}
                                             </div>
                                           </div>
                                         </q-card-section>
@@ -1803,9 +1562,8 @@
                         <q-icon name="info" color="white" />
                       </template>
                       Priemer vypočítaný z ukončených šprintov tohto projektu a zahŕňa celé RACI
-                      zaťaženie (R+A+C+I) naprieč projektami. Celkovo {{
-                        completedSprintsInCurrentProject
-                      }}
+                      zaťaženie (R+A+C+I) naprieč projektami. Celkovo
+                      {{ completedSprintsInCurrentProject }}
                       {{
                         completedSprintsInCurrentProject === 1
                           ? 'ukončený šprit'
@@ -1876,9 +1634,7 @@
                             </div>
                           </q-linear-progress>
                         </div>
-                        <div class="col-2 text-right text-weight-bold">
-                          {{ member.workload }}%
-                        </div>
+                        <div class="col-2 text-right text-weight-bold">{{ member.workload }}%</div>
                       </div>
                     </div>
                     <div
@@ -2004,6 +1760,9 @@
                       </q-td>
                       <q-td>{{ props.row.name }}</q-td>
                       <q-td>{{ props.row.storyPoints }}</q-td>
+                      <q-td>{{ props.row.optimistic }}</q-td>
+                      <q-td>{{ props.row.mostLikely }}</q-td>
+                      <q-td>{{ props.row.pessimistic }}</q-td>
                       <q-td>
                         <div class="text-weight-medium">
                           {{ props.row.pertDuration.toFixed(2) }}d
@@ -2465,6 +2224,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
+import { raciWeightsApi } from 'src/services/api';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
@@ -2482,7 +2242,14 @@ const projectOptions = computed(() => {
 
 const selectedProject = computed(() => {
   if (!selectedProjectId.value) return null;
-  return projectStore.projects.find((p) => p.id === selectedProjectId.value);
+  const project = projectStore.projects.find((p) => p.id === selectedProjectId.value);
+  if (!project) return null;
+
+  // Filter out Split tasks (they should not be displayed in normal views)
+  return {
+    ...project,
+    tasks: projectStore.filterActiveTasks(project.tasks || []),
+  };
 });
 
 // Interfaces
@@ -2541,37 +2308,85 @@ const expandedRows = ref<string[]>([]);
 const expandedMembers = ref<string[]>([]);
 const activeTab = ref('active'); // Tab navigation: 'active', 'past', 'future'
 
-// Load RACI weights for adjusted duration formula from localStorage or use defaults
-const loadRaciWeights = (): RaciWeights => {
-  const stored = localStorage.getItem('raci_weights');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return {
-        responsible: 1.0,
-        accountable: 0.1,
-        consulted: 0.05,
-        informed: 0.01,
-      };
-    }
-  }
-  return {
-    responsible: 1.0,
-    accountable: 0.1,
-    consulted: 0.05,
-    informed: 0.01,
-  };
-};
-
-const raciWeights = ref<RaciWeights>(loadRaciWeights());
-
-// RACI Workload Weights - hardcoded constants (not configurable via UI)
-const raciWorkloadWeights: RaciWorkloadWeights = {
+// RACI weights - loaded from database (both duration and workload)
+const raciWeights = ref<RaciWeights>({
   responsible: 1.0,
   accountable: 0.1,
   consulted: 0.05,
   informed: 0.01,
+});
+
+const raciWorkloadWeights = ref<RaciWorkloadWeights>({
+  responsible: 1.0,
+  accountable: 0.1,
+  consulted: 0.05,
+  informed: 0.01,
+});
+
+// Load RACI weights from database
+const loadRaciWeightsFromApi = async () => {
+  try {
+    const config = await raciWeightsApi.getRaciWeights();
+
+    // Update duration weights (for adjusted duration formula)
+    raciWeights.value = {
+      responsible: config.duration.responsible,
+      accountable: config.duration.accountable,
+      consulted: config.duration.consulted,
+      informed: config.duration.informed,
+    };
+
+    // Update workload weights
+    raciWorkloadWeights.value = {
+      responsible: config.workload.responsible,
+      accountable: config.workload.accountable,
+      consulted: config.workload.consulted,
+      informed: config.workload.informed,
+    };
+
+    console.log('✅ RACI weights loaded from database', config);
+  } catch (error) {
+    console.error('❌ Failed to load RACI weights from database:', error);
+    $q.notify({
+      type: 'warning',
+      message: 'Nepodarilo sa načítať RACI váhy z databázy, používam predvolené hodnoty',
+      position: 'top',
+    });
+  }
+};
+
+// Save RACI weights to database
+const saveRaciWeightsToApi = async () => {
+  try {
+    const updatedConfig = await raciWeightsApi.updateRaciWeights({
+      duration: {
+        responsible: raciWeights.value.responsible,
+        accountable: raciWeights.value.accountable,
+        consulted: raciWeights.value.consulted,
+        informed: raciWeights.value.informed,
+      },
+      workload: {
+        responsible: raciWorkloadWeights.value.responsible,
+        accountable: raciWorkloadWeights.value.accountable,
+        consulted: raciWorkloadWeights.value.consulted,
+        informed: raciWorkloadWeights.value.informed,
+      },
+    });
+
+    console.log('✅ RACI weights saved to database', updatedConfig);
+    $q.notify({
+      type: 'positive',
+      message: 'RACI váhy boli úspešne uložené',
+      position: 'top',
+    });
+  } catch (error) {
+    console.error('❌ Failed to save RACI weights to database:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Nepodarilo sa uložiť RACI váhy do databázy',
+      position: 'top',
+    });
+  }
 };
 
 // Maximum story points per person (global setting)
@@ -2725,6 +2540,27 @@ const taskColumns = [
     align: 'center' as const,
   },
   {
+    name: 'optimistic',
+    label: 'Optimistic',
+    field: 'optimistic',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'mostLikely',
+    label: 'Most Likely',
+    field: 'mostLikely',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'pessimistic',
+    label: 'Pessimistic',
+    field: 'pessimistic',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
     name: 'pertDuration',
     label: 'PERT Duration',
     field: 'pertDuration',
@@ -2797,6 +2633,11 @@ const futureBacklogSummary = computed(() => {
   };
 });
 
+// Count of completed sprints in CURRENT project only
+const completedSprintsInCurrentProject = computed(() => {
+  return pastSprintsTasks.value.length;
+});
+
 // RACI Weighted Workload for Active Sprint across ALL projects
 const raciWeightedWorkload = computed(() => {
   if (!selectedProject.value) return [];
@@ -2833,7 +2674,7 @@ const raciWeightedWorkload = computed(() => {
             task.raci.responsible.forEach((memberId: number) => {
               const current = workloadMap.get(memberId);
               if (current) {
-                current.workload += raciWorkloadWeights.responsible * sp;
+                current.workload += raciWorkloadWeights.value.responsible * sp;
               }
             });
           }
@@ -2843,7 +2684,7 @@ const raciWeightedWorkload = computed(() => {
             const memberId = task.raci.accountable;
             const current = workloadMap.get(memberId);
             if (current) {
-              current.workload += raciWorkloadWeights.accountable * sp;
+              current.workload += raciWorkloadWeights.value.accountable * sp;
             }
           }
 
@@ -2852,7 +2693,7 @@ const raciWeightedWorkload = computed(() => {
             task.raci.consulted.forEach((memberId: number) => {
               const current = workloadMap.get(memberId);
               if (current) {
-                current.workload += raciWorkloadWeights.consulted * sp;
+                current.workload += raciWorkloadWeights.value.consulted * sp;
               }
             });
           }
@@ -2862,7 +2703,7 @@ const raciWeightedWorkload = computed(() => {
             task.raci.informed.forEach((memberId: number) => {
               const current = workloadMap.get(memberId);
               if (current) {
-                current.workload += raciWorkloadWeights.informed * sp;
+                current.workload += raciWorkloadWeights.value.informed * sp;
               }
             });
           }
@@ -2907,11 +2748,6 @@ const totalCompletedSprintsCountAllProjects = computed(() => {
   });
 
   return processedSprints.size;
-});
-
-// Count of completed sprints in CURRENT project only
-const completedSprintsInCurrentProject = computed(() => {
-  return pastSprintsTasks.value.length;
 });
 
 // Average RACI Weighted Workload from completed sprints across ALL projects
@@ -2964,10 +2800,13 @@ const averageRaciWeightedWorkload = computed(() => {
 
           // Calculate workload for each member in this sprint
           const sprintWorkload = new Map<number, number>();
+          // Track if member has Responsible role in this sprint
+          const hasResponsibleRole = new Map<number, boolean>();
 
           // Initialize sprint workload for project members only
           projectMembers.forEach((member) => {
             sprintWorkload.set(member.id, 0);
+            hasResponsibleRole.set(member.id, false);
           });
 
           // Calculate workload from all projects for this sprint
@@ -2981,27 +2820,40 @@ const averageRaciWeightedWorkload = computed(() => {
                   if (task.raci?.responsible) {
                     task.raci.responsible.forEach((memberId: number) => {
                       const current = sprintWorkload.get(memberId) || 0;
-                      sprintWorkload.set(memberId, current + raciWorkloadWeights.responsible * sp);
+                      sprintWorkload.set(
+                        memberId,
+                        current + raciWorkloadWeights.value.responsible * sp,
+                      );
+                      hasResponsibleRole.set(memberId, true); // Mark that member has Responsible role
                     });
                   }
 
                   if (task.raci?.accountable) {
                     const memberId = task.raci.accountable;
                     const current = sprintWorkload.get(memberId) || 0;
-                    sprintWorkload.set(memberId, current + raciWorkloadWeights.accountable * sp);
+                    sprintWorkload.set(
+                      memberId,
+                      current + raciWorkloadWeights.value.accountable * sp,
+                    );
                   }
 
                   if (task.raci?.consulted) {
                     task.raci.consulted.forEach((memberId: number) => {
                       const current = sprintWorkload.get(memberId) || 0;
-                      sprintWorkload.set(memberId, current + raciWorkloadWeights.consulted * sp);
+                      sprintWorkload.set(
+                        memberId,
+                        current + raciWorkloadWeights.value.consulted * sp,
+                      );
                     });
                   }
 
                   if (task.raci?.informed) {
                     task.raci.informed.forEach((memberId: number) => {
                       const current = sprintWorkload.get(memberId) || 0;
-                      sprintWorkload.set(memberId, current + raciWorkloadWeights.informed * sp);
+                      sprintWorkload.set(
+                        memberId,
+                        current + raciWorkloadWeights.value.informed * sp,
+                      );
                     });
                   }
                 }
@@ -3010,9 +2862,10 @@ const averageRaciWeightedWorkload = computed(() => {
           });
 
           // Add this sprint's workload to the total (includes all RACI roles: R+A+C+I)
-          // Only count sprints where member has at least 1 weighted SP
+          // Only count sprints where member has at least 1 weighted SP AND has Responsible role
           sprintWorkload.forEach((workload, memberId) => {
-            if (workload >= 1) {
+            const hasResponsible = hasResponsibleRole.get(memberId) || false;
+            if (workload >= 1 && hasResponsible) {
               const memberData = workloadMap.get(memberId);
               if (memberData) {
                 memberData.totalWorkload += workload;
@@ -3099,10 +2952,13 @@ const averageRaciWeightedWorkloadInCurrentProject = computed(() => {
 
         // Calculate workload for each member in this sprint
         const sprintWorkload = new Map<number, number>();
+        // Track if member has Responsible role in this sprint
+        const hasResponsibleRole = new Map<number, boolean>();
 
         // Initialize sprint workload for project members only
         projectMembers.forEach((member) => {
           sprintWorkload.set(member.id, 0);
+          hasResponsibleRole.set(member.id, false);
         });
 
         // Calculate workload from all projects for this sprint (cross-project)
@@ -3116,27 +2972,37 @@ const averageRaciWeightedWorkloadInCurrentProject = computed(() => {
                 if (task.raci?.responsible) {
                   task.raci.responsible.forEach((memberId: number) => {
                     const current = sprintWorkload.get(memberId) || 0;
-                    sprintWorkload.set(memberId, current + raciWorkloadWeights.responsible * sp);
+                    sprintWorkload.set(
+                      memberId,
+                      current + raciWorkloadWeights.value.responsible * sp,
+                    );
+                    hasResponsibleRole.set(memberId, true); // Mark that member has Responsible role
                   });
                 }
 
                 if (task.raci?.accountable) {
                   const memberId = task.raci.accountable;
                   const current = sprintWorkload.get(memberId) || 0;
-                  sprintWorkload.set(memberId, current + raciWorkloadWeights.accountable * sp);
+                  sprintWorkload.set(
+                    memberId,
+                    current + raciWorkloadWeights.value.accountable * sp,
+                  );
                 }
 
                 if (task.raci?.consulted) {
                   task.raci.consulted.forEach((memberId: number) => {
                     const current = sprintWorkload.get(memberId) || 0;
-                    sprintWorkload.set(memberId, current + raciWorkloadWeights.consulted * sp);
+                    sprintWorkload.set(
+                      memberId,
+                      current + raciWorkloadWeights.value.consulted * sp,
+                    );
                   });
                 }
 
                 if (task.raci?.informed) {
                   task.raci.informed.forEach((memberId: number) => {
                     const current = sprintWorkload.get(memberId) || 0;
-                    sprintWorkload.set(memberId, current + raciWorkloadWeights.informed * sp);
+                    sprintWorkload.set(memberId, current + raciWorkloadWeights.value.informed * sp);
                   });
                 }
               }
@@ -3145,9 +3011,10 @@ const averageRaciWeightedWorkloadInCurrentProject = computed(() => {
         });
 
         // Add this sprint's workload to the total (includes all RACI roles: R+A+C+I)
-        // Only count sprints where member has at least 1 weighted SP
+        // Only count sprints where member has at least 1 weighted SP AND has Responsible role
         sprintWorkload.forEach((workload, memberId) => {
-          if (workload >= 1) {
+          const hasResponsible = hasResponsibleRole.get(memberId) || false;
+          if (workload >= 1 && hasResponsible) {
             const memberData = workloadMap.get(memberId);
             if (memberData) {
               memberData.totalWorkload += workload;
@@ -3223,7 +3090,7 @@ function getSprintRaciWeightedWorkload(sprintId: number) {
             task.raci.responsible.forEach((memberId: number) => {
               const current = workloadMap.get(memberId);
               if (current) {
-                current.workload += raciWorkloadWeights.responsible * sp;
+                current.workload += raciWorkloadWeights.value.responsible * sp;
               }
             });
           }
@@ -3233,7 +3100,7 @@ function getSprintRaciWeightedWorkload(sprintId: number) {
             const memberId = task.raci.accountable;
             const current = workloadMap.get(memberId);
             if (current) {
-              current.workload += raciWorkloadWeights.accountable * sp;
+              current.workload += raciWorkloadWeights.value.accountable * sp;
             }
           }
 
@@ -3242,7 +3109,7 @@ function getSprintRaciWeightedWorkload(sprintId: number) {
             task.raci.consulted.forEach((memberId: number) => {
               const current = workloadMap.get(memberId);
               if (current) {
-                current.workload += raciWorkloadWeights.consulted * sp;
+                current.workload += raciWorkloadWeights.value.consulted * sp;
               }
             });
           }
@@ -3252,7 +3119,7 @@ function getSprintRaciWeightedWorkload(sprintId: number) {
             task.raci.informed.forEach((memberId: number) => {
               const current = workloadMap.get(memberId);
               if (current) {
-                current.workload += raciWorkloadWeights.informed * sp;
+                current.workload += raciWorkloadWeights.value.informed * sp;
               }
             });
           }
@@ -3324,6 +3191,8 @@ function getMemberStoryPointsInSprint(memberId: number, sprintId: number | null)
 
 // Helper function to get member's WEIGHTED story points in a specific sprint across ALL projects
 // Uses RACI workload weights (configurable)
+// Reserved for potential future use (currently using getMemberWeightedStoryPointsInAllActiveSprints)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getMemberWeightedStoryPointsInSprint(memberId: number, sprintId: number | null): number {
   if (sprintId === null) return 0;
 
@@ -3339,16 +3208,16 @@ function getMemberWeightedStoryPointsInSprint(memberId: number, sprintId: number
 
           // Add weighted SP based on RACI role using workload weights
           if (task.raci?.responsible?.includes(memberId)) {
-            total += raciWorkloadWeights.responsible * sp;
+            total += raciWorkloadWeights.value.responsible * sp;
           }
           if (task.raci?.accountable === memberId) {
-            total += raciWorkloadWeights.accountable * sp;
+            total += raciWorkloadWeights.value.accountable * sp;
           }
           if (task.raci?.consulted?.includes(memberId)) {
-            total += raciWorkloadWeights.consulted * sp;
+            total += raciWorkloadWeights.value.consulted * sp;
           }
           if (task.raci?.informed?.includes(memberId)) {
-            total += raciWorkloadWeights.informed * sp;
+            total += raciWorkloadWeights.value.informed * sp;
           }
         }
       });
@@ -3369,6 +3238,44 @@ function getMemberStoryPointsInActiveSprint(memberId: number): number {
   if (!activeSprint) return 0;
 
   return getMemberStoryPointsInSprint(memberId, activeSprint.id);
+}
+
+// Helper function to get member's WEIGHTED story points in ALL active sprints across ALL projects
+// Uses RACI workload weights (configurable)
+// This is used for calculateAdjustedDuration to reflect true cross-project workload
+function getMemberWeightedStoryPointsInAllActiveSprints(memberId: number): number {
+  let total = 0;
+
+  // Iterate through ALL projects in the store
+  projectStore.projects.forEach((project) => {
+    // Find active sprint for EACH project (not just selected project)
+    const projectActiveSprint = project.sprints?.find((s) => s.status === 'active');
+
+    if (project.tasks && projectActiveSprint) {
+      project.tasks.forEach((task) => {
+        // Only count tasks in THIS project's active sprint
+        if (task.sprintId === projectActiveSprint.id) {
+          const sp = task.storyPoints || 0;
+
+          // Add weighted SP based on RACI role using workload weights
+          if (task.raci?.responsible?.includes(memberId)) {
+            total += raciWorkloadWeights.value.responsible * sp;
+          }
+          if (task.raci?.accountable === memberId) {
+            total += raciWorkloadWeights.value.accountable * sp;
+          }
+          if (task.raci?.consulted?.includes(memberId)) {
+            total += raciWorkloadWeights.value.consulted * sp;
+          }
+          if (task.raci?.informed?.includes(memberId)) {
+            total += raciWorkloadWeights.value.informed * sp;
+          }
+        }
+      });
+    }
+  });
+
+  return total;
 }
 
 // Helper function to get average member's story points from past sprints across ALL projects
@@ -3424,7 +3331,7 @@ function calculateAdjustedDuration(
     const sumExcessOverload = task.raciMembers.responsible.reduce((sum, memberId) => {
       const memberWeightedSP = useAverage
         ? getMemberAverageWeightedSpInProject(memberId)
-        : getMemberWeightedStoryPointsInSprint(memberId, sprintId);
+        : getMemberWeightedStoryPointsInAllActiveSprints(memberId);
       const overload = memberWeightedSP / maxStoryPointsPerPerson.value;
       const excess = Math.max(0, overload - 1); // Excess over 100% capacity
       return sum + excess;
@@ -3437,7 +3344,7 @@ function calculateAdjustedDuration(
   if (task.raciMembers.accountable !== null) {
     const memberWeightedSP = useAverage
       ? getMemberAverageWeightedSpInProject(task.raciMembers.accountable)
-      : getMemberWeightedStoryPointsInSprint(task.raciMembers.accountable, sprintId);
+      : getMemberWeightedStoryPointsInAllActiveSprints(task.raciMembers.accountable);
     LA = Math.max(0, memberWeightedSP / maxStoryPointsPerPerson.value - 1);
   }
 
@@ -3447,7 +3354,7 @@ function calculateAdjustedDuration(
     const sumExcessOverload = task.raciMembers.consulted.reduce((sum, memberId) => {
       const memberWeightedSP = useAverage
         ? getMemberAverageWeightedSpInProject(memberId)
-        : getMemberWeightedStoryPointsInSprint(memberId, sprintId);
+        : getMemberWeightedStoryPointsInAllActiveSprints(memberId);
       const overload = memberWeightedSP / maxStoryPointsPerPerson.value;
       const excess = Math.max(0, overload - 1); // Excess over 100% capacity
       return sum + excess;
@@ -3461,7 +3368,7 @@ function calculateAdjustedDuration(
     const sumExcessOverload = task.raciMembers.informed.reduce((sum, memberId) => {
       const memberWeightedSP = useAverage
         ? getMemberAverageWeightedSpInProject(memberId)
-        : getMemberWeightedStoryPointsInSprint(memberId, sprintId);
+        : getMemberWeightedStoryPointsInAllActiveSprints(memberId);
       const overload = memberWeightedSP / maxStoryPointsPerPerson.value;
       const excess = Math.max(0, overload - 1); // Excess over 100% capacity
       return sum + excess;
@@ -3469,16 +3376,21 @@ function calculateAdjustedDuration(
     LI = sumExcessOverload / task.raciMembers.informed.length;
   }
 
-  // Apply the formula: Tnew = T × (1 + (1×LR) + (0.1×LA) + (0.05×LC) + (0.01×LI))
+  // Apply the formula: Tnew = T × (1 + (R_weight×LR) + (A_weight×LA) + (C_weight×LC) + (I_weight×LI))
   // Note: LR, LA, LC, LI represent EXCESS over 1.0 (only overload above 100% capacity increases duration)
-  const raciAdjustment = 1 * LR + 0.1 * LA + 0.05 * LC + 0.01 * LI;
+  // Use dynamic weights from raciWeights (duration weights)
+  const raciAdjustment =
+    raciWeights.value.responsible * LR +
+    raciWeights.value.accountable * LA +
+    raciWeights.value.consulted * LC +
+    raciWeights.value.informed * LI;
 
   return pertDuration * (1 + raciAdjustment);
 }
 
 // Tasks are now computed, so recalculation happens automatically when dependencies change
 
-function applyWeights() {
+async function applyWeights() {
   // Validate weights
   const weights = raciWeights.value;
   if (
@@ -3500,34 +3412,34 @@ function applyWeights() {
     return;
   }
 
-  // Save configuration to localStorage (global setting)
-  localStorage.setItem('raci_weights', JSON.stringify(weights));
+  // Save configuration to localStorage (for backwards compatibility)
   localStorage.setItem('max_story_points_per_person', maxStoryPointsPerPerson.value.toString());
 
+  // Save to database via API
+  await saveRaciWeightsToApi();
+
   // Tasks are computed, so they will recalculate automatically with new weights
-  $q.notify({
-    message: `RACI váhy (adjusted duration) aplikované: R=${weights.responsible}, A=${weights.accountable}, C=${weights.consulted}, I=${weights.informed}`,
-    color: 'positive',
-    icon: 'check',
-    position: 'top',
-  });
 }
 
-function resetWeights() {
+async function resetWeights() {
   raciWeights.value = {
     responsible: 1.0,
     accountable: 0.1,
     consulted: 0.05,
     informed: 0.01,
   };
-  // Tasks are computed, so they will recalculate automatically with new weights
 
-  $q.notify({
-    message: 'RACI váhy (adjusted duration) resetované na predvolené hodnoty',
-    color: 'info',
-    icon: 'restore',
-    position: 'top',
-  });
+  raciWorkloadWeights.value = {
+    responsible: 1.0,
+    accountable: 0.1,
+    consulted: 0.05,
+    informed: 0.01,
+  };
+
+  // Save to database via API
+  await saveRaciWeightsToApi();
+
+  // Tasks are computed, so they will recalculate automatically with new weights
 }
 
 function getRaciColor(role: string): string {
@@ -3556,28 +3468,6 @@ function getDurationChange(task: Task): string {
   const increase = ((task.adjustedDuration - task.pertDuration) / task.pertDuration) * 100;
   const sign = increase > 0 ? '+' : '';
   return `${sign}${increase.toFixed(2)}%`;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function editTask(_task: Task) {
-  $q.notify({
-    message:
-      'Úprava taskov priamo v PERT+RACI optimalizácii nie je podporovaná. Upravte task v projekte.',
-    color: 'info',
-    icon: 'info',
-    position: 'top',
-  });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function deleteTask(_taskId: number) {
-  $q.notify({
-    message:
-      'Mazanie taskov priamo v PERT+RACI optimalizácii nie je podporované. Upravte tasky v projekte.',
-    color: 'info',
-    icon: 'info',
-    position: 'top',
-  });
 }
 
 function saveTask() {
@@ -3619,87 +3509,6 @@ function getMemberName(memberId: number): string {
   return member ? member.name : `Member ${memberId}`;
 }
 
-// Get member's SP for active sprint in CURRENT project only
-// Get member's WEIGHTED SP for active sprint in current project
-function getMemberSprintStoryPointsInProject(memberId: number): number {
-  if (!selectedProject.value || !activeSprint.value) return 0;
-
-  const projectTasks = selectedProject.value.tasks || [];
-  let total = 0;
-
-  projectTasks.forEach((task) => {
-    if (task.sprintId === activeSprint.value!.id) {
-      const sp = task.storyPoints || 0;
-
-      // Add weighted SP based on RACI role
-      if (task.raci?.responsible?.includes(memberId)) {
-        total += raciWorkloadWeights.responsible * sp;
-      }
-      if (task.raci?.accountable === memberId) {
-        total += raciWorkloadWeights.accountable * sp;
-      }
-      if (task.raci?.consulted?.includes(memberId)) {
-        total += raciWorkloadWeights.consulted * sp;
-      }
-      if (task.raci?.informed?.includes(memberId)) {
-        total += raciWorkloadWeights.informed * sp;
-      }
-    }
-  });
-
-  return Math.round(total); // Round to whole number
-}
-
-// Get member's WEIGHTED SP for active sprint ACROSS ALL projects
-function getMemberSprintStoryPointsAcrossProjects(memberId: number): number {
-  if (!activeSprint.value) return 0;
-  const weighted = getMemberWeightedStoryPointsInSprint(memberId, activeSprint.value.id);
-  return Math.round(weighted); // Round to whole number
-}
-
-// Get member's WEIGHTED SP for a SPECIFIC sprint in current project (for past sprints)
-function getMemberSprintStoryPointsInProjectForSprint(memberId: number, sprintId: number): number {
-  if (!selectedProject.value) return 0;
-
-  let total = 0;
-
-  // Iterate through projects to find the selected project
-  projectStore.projects.forEach((project) => {
-    if (project.id === selectedProject.value!.id && project.tasks) {
-      project.tasks.forEach((task) => {
-        if (task.sprintId === sprintId) {
-          const sp = task.storyPoints || 0;
-
-          // Add weighted SP based on RACI role
-          if (task.raci?.responsible?.includes(memberId)) {
-            total += raciWorkloadWeights.responsible * sp;
-          }
-          if (task.raci?.accountable === memberId) {
-            total += raciWorkloadWeights.accountable * sp;
-          }
-          if (task.raci?.consulted?.includes(memberId)) {
-            total += raciWorkloadWeights.consulted * sp;
-          }
-          if (task.raci?.informed?.includes(memberId)) {
-            total += raciWorkloadWeights.informed * sp;
-          }
-        }
-      });
-    }
-  });
-
-  return Math.round(total); // Round to whole number
-}
-
-// Get member's WEIGHTED SP for a SPECIFIC sprint ACROSS ALL projects (for past sprints)
-function getMemberSprintStoryPointsAcrossProjectsForSprint(
-  memberId: number,
-  sprintId: number,
-): number {
-  const weighted = getMemberWeightedStoryPointsInSprint(memberId, sprintId);
-  return Math.round(weighted); // Round to whole number
-}
-
 // Get member's AVERAGE WEIGHTED SP from past sprints in current project (for future/backlog tasks)
 // Uses cross-project workload (same logic as averageRaciWeightedWorkloadInCurrentProject)
 function getMemberAverageWeightedSpInProject(memberId: number): number {
@@ -3716,6 +3525,7 @@ function getMemberAverageWeightedSpInProject(memberId: number): number {
         processedSprints.add(sprint.id);
 
         let sprintTotal = 0;
+        let hasResponsibleRole = false;
 
         // Calculate weighted SP for this member in this sprint across ALL projects (cross-project)
         // This matches the logic in averageRaciWeightedWorkloadInCurrentProject
@@ -3726,24 +3536,26 @@ function getMemberAverageWeightedSpInProject(memberId: number): number {
                 const sp = task.storyPoints || 0;
 
                 if (task.raci?.responsible?.includes(memberId)) {
-                  sprintTotal += raciWorkloadWeights.responsible * sp;
+                  sprintTotal += raciWorkloadWeights.value.responsible * sp;
+                  hasResponsibleRole = true; // Mark that member has Responsible role
                 }
                 if (task.raci?.accountable === memberId) {
-                  sprintTotal += raciWorkloadWeights.accountable * sp;
+                  sprintTotal += raciWorkloadWeights.value.accountable * sp;
                 }
                 if (task.raci?.consulted?.includes(memberId)) {
-                  sprintTotal += raciWorkloadWeights.consulted * sp;
+                  sprintTotal += raciWorkloadWeights.value.consulted * sp;
                 }
                 if (task.raci?.informed?.includes(memberId)) {
-                  sprintTotal += raciWorkloadWeights.informed * sp;
+                  sprintTotal += raciWorkloadWeights.value.informed * sp;
                 }
               }
             });
           }
         });
 
-        // Only add to totals if member has workload >= 1 SP (same as averageRaciWeightedWorkloadInCurrentProject)
-        if (sprintTotal >= 1) {
+        // Only add to totals if member has workload >= 1 SP AND has Responsible role in this sprint
+        // This ensures we only count sprints where member actively worked (not just consulted/informed)
+        if (sprintTotal >= 1 && hasResponsibleRole) {
           sprintTotals.push(sprintTotal);
         }
       }
@@ -3755,6 +3567,65 @@ function getMemberAverageWeightedSpInProject(memberId: number): number {
   const sum = sprintTotals.reduce((acc, val) => acc + val, 0);
   const average = sum / sprintTotals.length;
   return average; // Don't round here - let calculateAdjustedDuration handle precision
+}
+
+// Get all tasks for a member from active sprints across all projects (for debugging/display)
+function getMemberActiveSprintTasks(memberId: number): Array<{
+  taskId: number;
+  taskName: string;
+  projectName: string;
+  sprintName: string;
+  storyPoints: number;
+  roles: string[];
+}> {
+  const tasks: Array<{
+    taskId: number;
+    taskName: string;
+    projectName: string;
+    sprintName: string;
+    storyPoints: number;
+    roles: string[];
+  }> = [];
+
+  projectStore.projects.forEach((project) => {
+    const projectActiveSprint = project.sprints?.find((s) => s.status === 'active');
+
+    if (project.tasks && projectActiveSprint) {
+      project.tasks.forEach((task) => {
+        if (task.sprintId === projectActiveSprint.id) {
+          const roles: string[] = [];
+
+          // Check which RACI roles the member has for this task
+          if (task.raci?.responsible?.includes(memberId)) {
+            roles.push('R');
+          }
+          if (task.raci?.accountable === memberId) {
+            roles.push('A');
+          }
+          if (task.raci?.consulted?.includes(memberId)) {
+            roles.push('C');
+          }
+          if (task.raci?.informed?.includes(memberId)) {
+            roles.push('I');
+          }
+
+          // Only add task if member has at least one role
+          if (roles.length > 0) {
+            tasks.push({
+              taskId: task.id,
+              taskName: task.title || task.name || `Task ${task.id}`,
+              projectName: project.name,
+              sprintName: projectActiveSprint.name,
+              storyPoints: task.storyPoints || 0,
+              roles: roles,
+            });
+          }
+        }
+      });
+    }
+  });
+
+  return tasks;
 }
 
 // Get member's active projects (projects with active sprints where member has tasks)
@@ -3964,7 +3835,11 @@ function toggleMemberExpansion(memberId: number) {
 }
 
 onMounted(async () => {
-  await Promise.all([projectStore.fetchProjects(true), teamStore.fetchTeamMembers()]);
+  await Promise.all([
+    projectStore.fetchProjects(true),
+    teamStore.fetchTeamMembers(),
+    loadRaciWeightsFromApi(), // Load RACI weights from database
+  ]);
 
   // Set default project if available
   if (projectStore.projects.length > 0 && !selectedProjectId.value) {

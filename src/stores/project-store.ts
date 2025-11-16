@@ -49,7 +49,7 @@ export interface Task {
   name: string;
   title: string;
   description: string;
-  status: 'To Do' | 'In Progress' | 'Done';
+  status: 'To Do' | 'In Progress' | 'Done' | 'Split' | 'Blocked';
   priority: 'High' | 'Medium' | 'Low' | 'high' | 'medium' | 'low';
   type: 'feature' | 'bug' | 'task';
   storyPoints: number;
@@ -72,6 +72,10 @@ export interface Task {
   estimatedHours?: number;
   actualHours?: number;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+  // Split/merge fields
+  parentTaskId?: number | null;
+  hasSubtasks?: boolean;
+  subtaskIds?: number[];
 }
 
 export interface PertManualEdge {
@@ -191,6 +195,23 @@ export const useProjectStore = defineStore('project', () => {
   // Get project by ID from local state (sync)
   function getProjectById(id: number): Project | undefined {
     return projects.value.find((p) => p.id === id);
+  }
+
+  // Get project with filtered active tasks (excludes Split tasks)
+  function getProjectWithActiveTasks(id: number): Project | undefined {
+    const project = projects.value.find((p) => p.id === id);
+    if (!project) return undefined;
+
+    // Return project with filtered tasks (exclude Split status)
+    return {
+      ...project,
+      tasks: project.tasks?.filter((task) => task.status !== 'Split') || [],
+    };
+  }
+
+  // Filter active tasks (excludes Split tasks)
+  function filterActiveTasks(tasks: Task[]): Task[] {
+    return tasks.filter((task) => task.status !== 'Split');
   }
 
   // Project member management
@@ -573,6 +594,8 @@ export const useProjectStore = defineStore('project', () => {
     fetchProjects,
     getProject,
     getProjectById,
+    getProjectWithActiveTasks,
+    filterActiveTasks,
     addProject,
     updateProject,
     deleteProject,

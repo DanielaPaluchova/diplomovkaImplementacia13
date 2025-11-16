@@ -12,11 +12,50 @@ import uuid
 class RiskAnalyzerService:
     """Service for analyzing project risks"""
     
-    DEADLINE_BUFFER_DAYS = 3  # Warn if less than 3 days buffer
+    DEADLINE_BUFFER_DAYS = 3  # Warn if less than 3 WORKING days buffer
     SKILL_MATCH_THRESHOLD = 0.3  # 30% skills match required
     
     def __init__(self):
         pass
+    
+    @staticmethod
+    def _count_business_days(start_date: datetime, end_date: datetime) -> int:
+        """
+        Count business days (Mon-Fri) between two dates, excluding weekends
+        Uses optimized algorithm for better performance
+        
+        Args:
+            start_date: Start date
+            end_date: End date
+            
+        Returns:
+            Number of business days between dates
+        """
+        if start_date > end_date:
+            return 0
+        
+        # Normalize to start of day for accurate counting
+        start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Calculate total days
+        total_days = (end - start).days + 1
+        
+        # Calculate full weeks and remaining days
+        full_weeks = total_days // 7
+        remaining_days = total_days % 7
+        
+        # Full weeks contribute 5 business days each
+        business_days = full_weeks * 5
+        
+        # Count business days in remaining days
+        current = start + timedelta(days=full_weeks * 7)
+        for _ in range(remaining_days):
+            if current.weekday() < 5:  # Monday-Friday
+                business_days += 1
+            current += timedelta(days=1)
+        
+        return business_days
     
     def find_deadline_risks(self, tasks: List[Task]) -> List[Dict]:
         """
@@ -41,12 +80,18 @@ class RiskAnalyzerService:
             else:
                 due_date = task.due_date
             
-            # Calculate time remaining
-            days_remaining = (due_date - now).days
+            # Calculate BUSINESS days remaining (Mon-Fri only)
+            business_days_remaining = self._count_business_days(now, due_date)
             
-            # Calculate estimated time needed
-            estimated_days = task.pert_expected or (task.story_points or 0) * 0.5
-            buffer = days_remaining - estimated_days
+            # Calculate estimated time needed (in working days)
+            # PERT expected is in hours, convert to days (8 hours = 1 working day)
+            if task.pert_expected:
+                estimated_days = task.pert_expected / 8.0  # hours to working days
+            else:
+                # Fallback: estimate 0.5 days per story point
+                estimated_days = (task.story_points or 0) * 0.5
+            
+            buffer = business_days_remaining - estimated_days
             
             # Check if at risk
             if buffer < self.DEADLINE_BUFFER_DAYS and task.status != 'In Progress':
@@ -60,14 +105,14 @@ class RiskAnalyzerService:
                     'type': 'deadline_risk',
                     'severity': severity,
                     'category': 'timeline',
-                    'title': f"Deadline risk: '{task.name}' due in {days_remaining} days",
-                    'description': f"Task may miss deadline with only {round(buffer, 1)} days buffer",
-                    'reason': f"Task '{task.name}' needs {round(estimated_days, 1)} days but deadline is in {days_remaining} days. Buffer: {round(buffer, 1)} days.",
+                    'title': f"Deadline risk: '{task.name}' due in {business_days_remaining} working days",
+                    'description': f"Task may miss deadline with only {round(buffer, 1)} working days buffer",
+                    'reason': f"Task '{task.name}' needs {round(estimated_days, 1)} working days but deadline is in {business_days_remaining} working days (Mon-Fri). Buffer: {round(buffer, 1)} days.",
                     'score': 95 if severity == 'critical' else 85,
                     'taskName': task.name,
                     'taskSp': task.story_points or 0,
                     'impact': {
-                        'daysRemaining': days_remaining,
+                        'daysRemaining': business_days_remaining,
                         'estimatedDays': round(estimated_days, 1),
                         'buffer': round(buffer, 1),
                         'riskLevel': severity,
@@ -75,7 +120,8 @@ class RiskAnalyzerService:
                         'taskSP': task.story_points or 0,
                         'durationChange': -round(time_savings, 1),
                         'riskChange': -1 if severity == 'critical' else -0.5,
-                        'affectedMembers': []
+                        'affectedMembers': [],
+                        'isBusinessDays': True  # Flag to indicate business days calculation
                     },
                     'action': {
                         'type': 'priority_increase',

@@ -58,19 +58,22 @@ def auto_optimize_project(project_id):
         ).all()
         sprints = Sprint.query.filter_by(project_id=project_id).all()
         
+        # Filter out Split tasks (already processed, should not be analyzed again)
+        active_tasks = [t for t in all_tasks if t.status != 'Split']
+        
         # Filter tasks by scope
         if scope == 'current_sprint':
             # Get active sprint
             active_sprint = next((s for s in sprints if s.status == 'active'), None)
             if active_sprint:
-                tasks = [t for t in all_tasks if t.sprint_id == active_sprint.id]
+                tasks = [t for t in active_tasks if t.sprint_id == active_sprint.id]
             else:
                 tasks = []
         elif scope == 'backlog':
             # Get only tasks not assigned to any sprint
-            tasks = [t for t in all_tasks if t.sprint_id is None]
+            tasks = [t for t in active_tasks if t.sprint_id is None]
         else:  # all_sprints
-            tasks = all_tasks
+            tasks = active_tasks
         
         # Calculate current state
         current_state = _calculate_current_state(project, tasks, team_members, sprints)
@@ -309,22 +312,25 @@ def analyze_pert_raci(project_id):
         ).all()
         sprints = Sprint.query.filter_by(project_id=project_id).all()
         
+        # Filter out Split tasks (already processed, should not be analyzed again)
+        active_tasks = [t for t in all_tasks if t.status != 'Split']
+        
         # Filter tasks by scope for analysis
         if scope == 'current_sprint':
             # Get active sprint
             active_sprint = next((s for s in sprints if s.status == 'active'), None)
             if active_sprint:
-                tasks = [t for t in all_tasks if t.sprint_id == active_sprint.id]
+                tasks = [t for t in active_tasks if t.sprint_id == active_sprint.id]
                 sprint_id = active_sprint.id
             else:
                 tasks = []
                 sprint_id = None
         elif scope == 'backlog':
             # Get only tasks not assigned to any sprint
-            tasks = [t for t in all_tasks if t.sprint_id is None]
+            tasks = [t for t in active_tasks if t.sprint_id is None]
             sprint_id = None
         else:  # all_sprints
-            tasks = all_tasks
+            tasks = active_tasks
             sprint_id = None
         
         # Calculate current state (always passes all tasks for accurate workload)
@@ -407,11 +413,14 @@ def analyze_requirement_change(project_id):
             return jsonify({'error': 'changeType is required'}), 400
         
         # Get project data
-        tasks = Task.query.filter_by(project_id=project_id).all()
+        all_tasks = Task.query.filter_by(project_id=project_id).all()
         team_members = TeamMember.query.filter(
             TeamMember.id.in_(project.team_member_ids or [])
         ).all()
         sprints = Sprint.query.filter_by(project_id=project_id).all()
+        
+        # Filter out Split tasks (already processed, should not be analyzed again)
+        tasks = [t for t in all_tasks if t.status != 'Split']
         
         # Calculate current state
         current_state = _calculate_current_state(project, tasks, team_members, sprints)
@@ -622,11 +631,14 @@ def apply_requirement_changes(project_id):
 def _calculate_current_state(project, tasks, team_members, sprints):
     """Calculate current project state metrics (including PERT/RACI metrics)"""
     
+    # Filter out Split tasks (should not be counted in current state)
+    active_tasks = [t for t in tasks if t.status != 'Split']
+    
     # Get active sprint
     active_sprint = next((s for s in sprints if s.status == 'active'), None)
     
     # Calculate total story points from active sprint (Sprint Commitment)
-    active_sprint_tasks = [t for t in tasks if active_sprint and t.sprint_id == active_sprint.id]
+    active_sprint_tasks = [t for t in active_tasks if active_sprint and t.sprint_id == active_sprint.id]
     total_sp = sum(task.story_points or 0 for task in active_sprint_tasks)
     completed_sp = sum(task.story_points or 0 for task in active_sprint_tasks if task.status == 'Done')
     
@@ -732,7 +744,7 @@ def _calculate_current_state(project, tasks, team_members, sprints):
         'riskScore': round(avg_risk, 1),
         'balanceScore': round(balance_score, 1),
         'teamCapacity': team_capacity,
-        'taskCount': len(tasks),
+        'taskCount': len(active_tasks),
         'sprintCount': len(sprints),
         # PERT/RACI metrics
         'totalPertDuration': round(total_pert_duration, 1),
@@ -1117,7 +1129,7 @@ def _apply_task_split(action, project_id):
         split_result = task_splitter.suggest_split(original_task, num_parts)
         subtasks_data = split_result.get('subtasks', [])
     
-    # Save original task data
+    # Save original task data before deletion
     saved_sprint_id = original_task.sprint_id
     saved_project_id = original_task.project_id
     saved_raci_responsible = original_task.raci_responsible
@@ -1125,13 +1137,7 @@ def _apply_task_split(action, project_id):
     saved_raci_consulted = original_task.raci_consulted
     saved_raci_informed = original_task.raci_informed
     
-    # Mark original task as split (don't delete - keep history)
-    original_task.status = 'Split'
-    original_task.has_subtasks = True
-    db.session.add(original_task)
-    
-    # Create subtasks with parent reference
-    created_subtask_ids = []
+    # Create subtasks (no parent reference needed - original will be deleted)
     for subtask_data in subtasks_data:
         new_task = Task(
             project_id=project_id,
@@ -1144,8 +1150,7 @@ def _apply_task_split(action, project_id):
             priority=subtask_data['priority'],
             labels=subtask_data['labels'],
             complexity=subtask_data['complexity'],
-            status=subtask_data['status'],
-            parent_task_id=original_task.id  # Link to parent
+            status=subtask_data['status']
         )
         
         # Copy PERT if available
@@ -1163,12 +1168,9 @@ def _apply_task_split(action, project_id):
         new_task.raci_informed = saved_raci_informed
         
         db.session.add(new_task)
-        db.session.flush()  # Get ID for subtask
-        created_subtask_ids.append(new_task.id)
     
-    # Update parent task with subtask IDs
-    original_task.subtask_ids = created_subtask_ids
-    db.session.add(original_task)
+    # Delete original task (subtasks replace it completely)
+    db.session.delete(original_task)
 
 
 def _apply_sprint_move(action):

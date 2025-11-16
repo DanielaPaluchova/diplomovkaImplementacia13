@@ -50,6 +50,11 @@ class Task(db.Model):
     actual_hours = db.Column(db.Integer, nullable=False, default=0)  # Actual time spent
     risk_level = db.Column(db.String(20), nullable=False, default='low')  # low, medium, high, critical
     
+    # Task split/merge fields
+    parent_task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=True)  # Reference to parent task if this is a subtask
+    has_subtasks = db.Column(db.Boolean, nullable=False, default=False)  # True if this task has been split into subtasks
+    subtask_ids = db.Column(db.JSON, nullable=True)  # Array of subtask IDs if this task was split
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -95,7 +100,10 @@ class Task(db.Model):
             'requiredSkills': self.required_skills or [],
             'estimatedHours': self.estimated_hours,
             'actualHours': self.actual_hours,
-            'riskLevel': self.risk_level
+            'riskLevel': self.risk_level,
+            'parentTaskId': self.parent_task_id,
+            'hasSubtasks': self.has_subtasks,
+            'subtaskIds': self.subtask_ids or []
         }
     
     def __repr__(self):

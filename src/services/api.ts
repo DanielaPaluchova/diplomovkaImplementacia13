@@ -137,3 +137,42 @@ export const api = new ApiClient();
 
 // Export for testing purposes
 export default api;
+
+/**
+ * RACI Weights Configuration API
+ */
+export interface RaciWeightsConfig {
+  id: number;
+  workload: {
+    responsible: number;
+    accountable: number;
+    consulted: number;
+    informed: number;
+  };
+  duration: {
+    responsible: number;
+    accountable: number;
+    consulted: number;
+    informed: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const raciWeightsApi = {
+  /**
+   * Get RACI weights configuration
+   */
+  async getRaciWeights(): Promise<RaciWeightsConfig> {
+    return api.get<RaciWeightsConfig>('/raci-weights');
+  },
+
+  /**
+   * Update RACI weights configuration
+   */
+  async updateRaciWeights(
+    weights: Partial<Pick<RaciWeightsConfig, 'workload' | 'duration'>>,
+  ): Promise<RaciWeightsConfig> {
+    return api.put<RaciWeightsConfig>('/raci-weights', weights);
+  },
+};

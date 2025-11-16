@@ -1482,6 +1482,22 @@
             </div>
           </div>
 
+          <div class="row q-gutter-md q-mb-md">
+            <div class="col">
+              <q-input
+                v-model="newTask.dueDate"
+                label="Due Date"
+                type="date"
+                filled
+                hint="Task deadline (optional)"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="event" />
+                </template>
+              </q-input>
+            </div>
+          </div>
+
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (hours)</div>
           <div class="row q-gutter-md q-mb-md">
@@ -1713,6 +1729,22 @@
                 filled
                 hint="Risk assessment"
               />
+            </div>
+          </div>
+
+          <div class="row q-gutter-md q-mb-md">
+            <div class="col">
+              <q-input
+                v-model="editTask.dueDate"
+                label="Due Date"
+                type="date"
+                filled
+                hint="Task deadline (optional)"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="event" />
+                </template>
+              </q-input>
             </div>
           </div>
 
@@ -2067,7 +2099,12 @@ const project = computed(() => {
       tasks: [],
     } as Project;
   }
-  return p;
+  
+  // Filter out Split tasks (they should not be displayed in normal views)
+  return {
+    ...p,
+    tasks: projectStore.filterActiveTasks(p.tasks || []),
+  };
 });
 
 // Get team members for this project from team store with calculated workload
@@ -2299,6 +2336,7 @@ const newTask = ref({
   requiredSkills: [] as string[],
   estimatedHours: 0,
   riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
+  dueDate: '',
   pert: {
     optimistic: 8,
     mostLikely: 16,
@@ -2319,7 +2357,7 @@ const editTask = ref({
   description: '',
   priority: 'medium' as 'high' | 'medium' | 'low',
   type: 'feature' as 'feature' | 'bug' | 'task',
-  status: 'To Do' as 'To Do' | 'In Progress' | 'Done',
+  status: 'To Do' as 'To Do' | 'In Progress' | 'Done' | 'Split' | 'Blocked',
   storyPoints: 5,
   complexity: 5,
   labels: [] as string[],
@@ -2327,6 +2365,7 @@ const editTask = ref({
   requiredSkills: [] as string[],
   estimatedHours: 0,
   riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
+  dueDate: '',
   pert: {
     optimistic: 8,
     mostLikely: 16,
@@ -2710,7 +2749,7 @@ async function createTask() {
     type: newTask.value.type,
     storyPoints: newTask.value.storyPoints,
     sprintId: null,
-    dueDate: new Date().toISOString(),
+    dueDate: newTask.value.dueDate ? new Date(newTask.value.dueDate).toISOString() : '',
     completed: false,
     labels: newTask.value.labels,
     complexity: newTask.value.complexity,
@@ -2770,6 +2809,7 @@ function cancelNewTask() {
     requiredSkills: [],
     estimatedHours: 0,
     riskLevel: 'low',
+    dueDate: '',
     pert: {
       optimistic: 8,
       mostLikely: 16,
@@ -2786,6 +2826,22 @@ function cancelNewTask() {
 
 // Edit task functions
 function openEditTaskDialog(task: Task) {
+  // Format due date for input[type="date"] (YYYY-MM-DD)
+  let dueDateFormatted = '';
+  if (task.dueDate) {
+    try {
+      const date = new Date(task.dueDate);
+      if (!isNaN(date.getTime())) {
+        const isoString = date.toISOString().split('T')[0];
+        if (isoString) {
+          dueDateFormatted = isoString;
+        }
+      }
+    } catch {
+      console.warn('Invalid due date format:', task.dueDate);
+    }
+  }
+
   editTask.value = {
     id: task.id,
     title: task.title,
@@ -2800,6 +2856,7 @@ function openEditTaskDialog(task: Task) {
     requiredSkills: task.requiredSkills ? [...task.requiredSkills] : [],
     estimatedHours: task.estimatedHours || 0,
     riskLevel: (task.riskLevel || 'low') as 'low' | 'medium' | 'high' | 'critical',
+    dueDate: dueDateFormatted,
     pert: {
       optimistic: task.pert?.optimistic || 8,
       mostLikely: task.pert?.mostLikely || 16,
@@ -2852,6 +2909,7 @@ async function saveEditTask() {
         requiredSkills: editTask.value.requiredSkills,
         estimatedHours: editTask.value.estimatedHours,
         riskLevel: editTask.value.riskLevel,
+        dueDate: editTask.value.dueDate ? new Date(editTask.value.dueDate).toISOString() : '',
         pert: {
           optimistic: editTask.value.pert.optimistic,
           mostLikely: editTask.value.pert.mostLikely,
@@ -2904,6 +2962,7 @@ function cancelEditTask() {
     requiredSkills: [],
     estimatedHours: 0,
     riskLevel: 'low',
+    dueDate: '',
     pert: {
       optimistic: 8,
       mostLikely: 16,

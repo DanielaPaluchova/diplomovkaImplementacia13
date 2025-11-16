@@ -685,7 +685,14 @@ const projectOptions = computed(() => {
 
 const selectedProject = computed(() => {
   if (!selectedProjectId.value) return null;
-  return projectStore.projects.find((p) => p.id === selectedProjectId.value);
+  const project = projectStore.projects.find((p) => p.id === selectedProjectId.value);
+  if (!project) return null;
+  
+  // Filter out Split tasks (they should not be displayed in normal views)
+  return {
+    ...project,
+    tasks: projectStore.filterActiveTasks(project.tasks || []),
+  };
 });
 
 const hasAnalysis = computed(() => !!requirementChangeStore.analysisResult);
@@ -814,7 +821,7 @@ const teamWorkloadDetails = computed(() => {
     });
     
     const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
-    const workload = maxStoryPoints > 0 ? Math.round((memberStoryPoints / maxStoryPoints) * 100 * 100) / 100 : 0;
+    const workload = maxStoryPoints > 0 ? Math.round((memberStoryPoints / maxStoryPoints) * 100) : 0;
     
     return {
       id: member.id,
@@ -858,7 +865,7 @@ const crossProjectWorkload = computed(() => {
       }
     });
 
-    const workload = maxStoryPoints > 0 ? Math.round((totalStoryPoints / maxStoryPoints) * 100 * 100) / 100 : 0;
+    const workload = maxStoryPoints > 0 ? Math.round((totalStoryPoints / maxStoryPoints) * 100) : 0;
     
     return {
       id: member.id,
