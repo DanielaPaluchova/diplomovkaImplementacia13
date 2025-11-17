@@ -12,7 +12,6 @@ from app.models.optimization_log import OptimizationLog
 from app.services.team_scoring import TeamScoringService
 from app.services.task_splitter import TaskSplitterService
 from app.services.sprint_analyzer import SprintAnalyzerService
-from app.services.task_merger import TaskMergerService
 from app.services.bottleneck_analyzer import BottleneckAnalyzerService
 from app.services.dependency_optimizer import DependencyOptimizerService
 from app.services.risk_analyzer import RiskAnalyzerService
@@ -28,7 +27,6 @@ requirement_changes_bp = Blueprint('requirement_changes', __name__)
 team_scoring = TeamScoringService()
 task_splitter = TaskSplitterService()
 sprint_analyzer = SprintAnalyzerService()
-task_merger = TaskMergerService()
 bottleneck_analyzer = BottleneckAnalyzerService()
 dependency_optimizer = DependencyOptimizerService()
 risk_analyzer = RiskAnalyzerService()
@@ -122,11 +120,7 @@ def auto_optimize_project(project_id):
             rebalance_proposals = _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross_project_workload)
             proposals.extend(rebalance_proposals)
         
-        # 9. RECOMMENDED: Task merges - applies to both backlog and sprint
-        merge_proposals = task_merger.create_merge_proposals(tasks)
-        proposals.extend(merge_proposals)
-        
-        # 10. RECOMMENDED: Idle resources (only for sprint scope - backlog doesn't show who is idle)
+        # 9. RECOMMENDED: Idle resources (only for sprint scope - backlog doesn't show who is idle)
         if is_sprint_scope:
             idle_proposals = risk_analyzer.find_idle_resources(team_members, tasks, cross_project_workload)
             proposals.extend(idle_proposals)
@@ -195,7 +189,7 @@ def _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross
     
     underloaded = [
         (m, member_workloads[m.id]) for m in team_members
-        if (member_workloads[m.id] / m.max_story_points * 100) < 50
+        if (member_workloads[m.id] / m.max_story_points * 100) <= 50  # Include members at exactly 50%
     ]
     
     # Suggest reassignments from overloaded to underloaded
@@ -217,7 +211,7 @@ def _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross
                 if (underloaded_sp + task_sp) <= underloaded_member.max_story_points:
                     # Score the underloaded member for this task
                     task_requirements = {
-                        'labels': task.labels or [],
+                        'required_skills': task.required_skills or [],
                         'type': task.type,
                         'priority': task.priority
                     }
@@ -227,26 +221,54 @@ def _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross
                     )
                     
                     # Only suggest if score is reasonable
-                    if score['final_score'] > 50:
+                    if score['final_score'] > 30:  # Lowered threshold to allow more rebalancing
+                        # Extract skill score from breakdown
+                        skill_score = score['breakdown'].get('skills', 0)
+                        
+                        # Build reason with skill info
+                        base_reason = f"{overloaded_member.name} is overloaded ({round((overloaded_sp/overloaded_member.max_story_points)*100, 1)}% capacity). {underloaded_member.name} has capacity ({round((underloaded_sp/underloaded_member.max_story_points)*100, 1)}%) and skill match: {round(skill_score)}%."
+                        
+                        # Add warning if skill match is low (<30%)
+                        skill_warning = ""
+                        if skill_score < 30:
+                            task_required_skills = task.required_skills or []
+                            if task_required_skills:
+                                required_skills_list = ", ".join(sorted(task_required_skills))
+                                skill_warning = f"\n\n*** SKILL MISMATCH WARNING ***\n{underloaded_member.name} has {round(skill_score)}% skill match! Missing required skills: {required_skills_list.upper()}\nConsider training or finding alternative candidate."
+                        
+                        description = f"Move task from overloaded {overloaded_member.name} to {underloaded_member.name}"
+                        if skill_warning:
+                            description += ". However, skills mismatch detected."
+                        
+                        # Build impact with overload warning check
+                        to_workload_pct = round(((underloaded_sp + task_sp)/underloaded_member.max_story_points)*100, 1)
+                        impact_data = {
+                            'fromMember': overloaded_member.name,
+                            'toMember': underloaded_member.name,
+                            'fromWorkload': round((overloaded_sp/overloaded_member.max_story_points)*100, 1),
+                            'fromWorkloadAfter': round(((overloaded_sp - task_sp)/overloaded_member.max_story_points)*100, 1),
+                            'toWorkloadBefore': round((underloaded_sp/underloaded_member.max_story_points)*100, 1),
+                            'toWorkload': to_workload_pct,
+                            'taskSP': task_sp,
+                            'skillMatch': round(skill_score),
+                            'affectedMembers': [overloaded_member.id, underloaded_member.id]
+                        }
+                        
+                        # Add warning if recipient will be overloaded after reassignment
+                        if to_workload_pct > 100:
+                            impact_data['recipientOverloadWarning'] = True
+                            impact_data['recipientOverloadPercent'] = to_workload_pct
+                        
                         proposals.append({
                             'id': f"rebalance-{task.id}-{uuid.uuid4().hex[:8]}",
                             'type': 'reassign',
                             'severity': 'recommended',
                             'category': 'workload',
                             'title': f"Rebalance: Move '{task.name}' to {underloaded_member.name}",
-                            'description': f"Move task from overloaded {overloaded_member.name} to {underloaded_member.name}",
-                            'reason': f"{overloaded_member.name} is overloaded ({round((overloaded_sp/overloaded_member.max_story_points)*100, 1)}% capacity). {underloaded_member.name} has capacity ({round((underloaded_sp/underloaded_member.max_story_points)*100, 1)}%).",
+                            'description': description,
+                            'reason': base_reason + skill_warning,
                             'score': score['final_score'],
-                            'impact': {
-                                'fromMember': overloaded_member.name,
-                                'toMember': underloaded_member.name,
-                                'fromWorkload': round((overloaded_sp/overloaded_member.max_story_points)*100, 1),
-                                'fromWorkloadAfter': round(((overloaded_sp - task_sp)/overloaded_member.max_story_points)*100, 1),
-                                'toWorkloadBefore': round((underloaded_sp/underloaded_member.max_story_points)*100, 1),
-                                'toWorkload': round(((underloaded_sp + task_sp)/underloaded_member.max_story_points)*100, 1),
-                                'taskSP': task_sp,
-                                'affectedMembers': [overloaded_member.id, underloaded_member.id]
-                            },
+                            'impact': impact_data,
                             'action': {
                                 'type': 'reassign',
                                 'taskId': task.id,
@@ -457,6 +479,24 @@ def analyze_requirement_change(project_id):
         sprint_proposals = sprint_analyzer.suggest_sprint_reallocation(sprints, tasks, team_members)
         proposals.extend(sprint_proposals)
         
+        # Calculate cross-project workload for workload-based analyses
+        cross_project_workload = calculate_cross_project_workload(team_members, exclude_project_id=None)
+        
+        # Always check for skill mismatches
+        # This helps detect existing tasks with skill mismatches when requirements change
+        skill_proposals = risk_analyzer.find_skill_mismatches(team_members, tasks, cross_project_workload)
+        proposals.extend(skill_proposals)
+        
+        # Always check for resource bottlenecks
+        # Critical to detect overloaded team members (>120% workload) when requirements change
+        bottleneck_proposals = bottleneck_analyzer.find_resource_bottlenecks(team_members, tasks, cross_project_workload)
+        proposals.extend(bottleneck_proposals)
+        
+        # Always check for priority conflicts
+        # Detect high-priority tasks assigned to overloaded members
+        priority_proposals = risk_analyzer.find_priority_conflicts(team_members, tasks, cross_project_workload)
+        proposals.extend(priority_proposals)
+        
         # Calculate projected state after applying all proposals
         projected_state = _calculate_projected_state(
             current_state, proposals, change_type, change_data
@@ -504,23 +544,64 @@ def apply_requirement_changes(project_id):
         errors = []
         applied_results = []
         
+        # Detect conflicts: split + reassign/modify on same task
+        # We need to handle these specially to avoid referencing deleted tasks
+        task_operations = {}  # {task_id: {'split': proposal, 'reassign': proposal, etc}}
+        
+        for proposal in proposals:
+            action = proposal.get('action', {})
+            task_id = action.get('taskId')
+            
+            if task_id:
+                if task_id not in task_operations:
+                    task_operations[task_id] = {}
+                
+                if proposal.get('type') == 'split':
+                    task_operations[task_id]['split'] = proposal
+                elif proposal.get('type') in ['reassign', 'skill_mismatch', 'bottleneck', 'priority_conflict']:
+                    if action.get('type') == 'reassign':
+                        task_operations[task_id]['reassign'] = proposal
+        
+        # Check for conflicts
+        conflicting_tasks = []
+        for task_id, ops in task_operations.items():
+            if 'split' in ops and 'reassign' in ops:
+                conflicting_tasks.append(task_id)
+                print(f"⚠️ CONFLICT DETECTED: Task {task_id} has both SPLIT and REASSIGN proposals")
+        
+        # If conflicts exist, we need to handle them specially:
+        # 1. Apply split first (creates subtasks and deletes original)
+        # 2. Apply reassign to ALL created subtasks instead of original task
+        split_created_tasks = {}  # {original_task_id: [subtask_ids]}
+        
         for proposal in proposals:
             try:
                 proposal_type = proposal.get('type')
                 action = proposal.get('action', {})
+                task_id = action.get('taskId')
                 
                 if proposal_type == 'reassign':
-                    _apply_reassignment(action)
-                    applied += 1
-                    applied_results.append({'type': 'reassign', 'taskId': action.get('taskId')})
+                    # Check if this task was split (and thus deleted)
+                    if task_id in split_created_tasks:
+                        # Apply reassignment to all created subtasks instead
+                        print(f"✓ Task {task_id} was split - applying reassignment to {len(split_created_tasks[task_id])} subtasks")
+                        for subtask_id in split_created_tasks[task_id]:
+                            subtask_action = action.copy()
+                            subtask_action['taskId'] = subtask_id
+                            _apply_reassignment(subtask_action)
+                        applied += 1
+                        applied_results.append({'type': 'reassign', 'taskId': task_id, 'appliedToSubtasks': split_created_tasks[task_id]})
+                    else:
+                        _apply_reassignment(action)
+                        applied += 1
+                        applied_results.append({'type': 'reassign', 'taskId': task_id})
                 elif proposal_type == 'split':
-                    _apply_task_split(action, project_id)
+                    subtask_ids = _apply_task_split(action, project_id)
+                    if task_id:
+                        split_created_tasks[task_id] = subtask_ids
+                        print(f"✓ Split task {task_id} into {len(subtask_ids)} subtasks: {subtask_ids}")
                     applied += 1
-                    applied_results.append({'type': 'split', 'taskId': action.get('taskId')})
-                elif proposal_type == 'merge':
-                    _apply_task_merge(action, project_id)
-                    applied += 1
-                    applied_results.append({'type': 'merge', 'taskIds': action.get('originalTaskIds', [])})
+                    applied_results.append({'type': 'split', 'taskId': task_id, 'createdSubtasks': subtask_ids})
                 elif proposal_type == 'sprint_move':
                     _apply_sprint_move(action)
                     applied += 1
@@ -537,12 +618,23 @@ def apply_requirement_changes(project_id):
                     _apply_increase_sp(action)
                     applied += 1
                     applied_results.append({'type': 'increase_sp', 'taskId': action.get('taskId')})
-                elif proposal_type in ['bottleneck', 'priority_conflict', 'deadline_risk', 'skill_mismatch']:
+                elif proposal_type in ['bottleneck', 'priority_conflict', 'deadline_risk', 'skill_mismatch', 'raci_overload', 'duration_risk']:
                     # These are all reassignments, priority changes, or backlog moves
                     if action.get('type') == 'reassign':
-                        _apply_reassignment(action)
-                        applied += 1
-                        applied_results.append({'type': proposal_type, 'action': 'reassign', 'taskId': action.get('taskId')})
+                        # Check if this task was split (and thus deleted)
+                        if task_id in split_created_tasks:
+                            # Apply reassignment to all created subtasks instead
+                            print(f"✓ Task {task_id} was split - applying {proposal_type} reassignment to {len(split_created_tasks[task_id])} subtasks")
+                            for subtask_id in split_created_tasks[task_id]:
+                                subtask_action = action.copy()
+                                subtask_action['taskId'] = subtask_id
+                                _apply_reassignment(subtask_action)
+                            applied += 1
+                            applied_results.append({'type': proposal_type, 'action': 'reassign', 'taskId': task_id, 'appliedToSubtasks': split_created_tasks[task_id]})
+                        else:
+                            _apply_reassignment(action)
+                            applied += 1
+                            applied_results.append({'type': proposal_type, 'action': 'reassign', 'taskId': task_id})
                     elif action.get('type') == 'priority_increase':
                         _apply_priority_change(action)
                         applied += 1
@@ -551,6 +643,10 @@ def apply_requirement_changes(project_id):
                         _apply_move_to_backlog(action)
                         applied += 1
                         applied_results.append({'type': proposal_type, 'action': 'move_to_backlog', 'taskId': action.get('taskId')})
+                    elif action.get('type') == 'sprint_move':
+                        _apply_sprint_move(action)
+                        applied += 1
+                        applied_results.append({'type': proposal_type, 'action': 'sprint_move', 'taskId': action.get('taskId')})
                     else:
                         failed += 1
                         errors.append(f"Unknown action type for {proposal_type}")
@@ -561,27 +657,56 @@ def apply_requirement_changes(project_id):
                 elif proposal_type == 'pert_uncertainty':
                     # PERT uncertainty typically results in split action
                     if action.get('type') == 'split':
-                        _apply_task_split(action, project_id)
+                        subtask_ids = _apply_task_split(action, project_id)
+                        if task_id:
+                            split_created_tasks[task_id] = subtask_ids
+                            print(f"✓ PERT uncertainty: Split task {task_id} into {len(subtask_ids)} subtasks")
                         applied += 1
-                        applied_results.append({'type': 'pert_uncertainty', 'action': 'split', 'taskId': action.get('taskId')})
+                        applied_results.append({'type': 'pert_uncertainty', 'action': 'split', 'taskId': task_id, 'createdSubtasks': subtask_ids})
                     else:
                         failed += 1
                         errors.append(f"Unsupported action for pert_uncertainty: {action.get('type')}")
                 elif proposal_type == 'duration_risk':
-                    # Duration risk typically results in sprint move
+                    # Duration risk can result in sprint move OR reassignment
                     if action.get('type') == 'sprint_move':
                         _apply_sprint_move(action)
                         applied += 1
-                        applied_results.append({'type': 'duration_risk', 'action': 'sprint_move', 'taskId': action.get('taskId')})
+                        applied_results.append({'type': 'duration_risk', 'action': 'sprint_move', 'taskId': task_id})
+                    elif action.get('type') == 'reassign':
+                        # Check if this task was split (and thus deleted)
+                        if task_id in split_created_tasks:
+                            # Apply reassignment to all created subtasks instead
+                            print(f"✓ Task {task_id} was split - applying duration_risk reassignment to {len(split_created_tasks[task_id])} subtasks")
+                            for subtask_id in split_created_tasks[task_id]:
+                                subtask_action = action.copy()
+                                subtask_action['taskId'] = subtask_id
+                                _apply_reassignment(subtask_action)
+                            applied += 1
+                            applied_results.append({'type': 'duration_risk', 'action': 'reassign', 'taskId': task_id, 'appliedToSubtasks': split_created_tasks[task_id]})
+                        else:
+                            _apply_reassignment(action)
+                            applied += 1
+                            applied_results.append({'type': 'duration_risk', 'action': 'reassign', 'taskId': task_id})
                     else:
                         failed += 1
                         errors.append(f"Unsupported action for duration_risk: {action.get('type')}")
                 elif proposal_type == 'raci_overload':
                     # RACI overload typically results in reassignment
                     if action.get('type') == 'reassign':
-                        _apply_reassignment(action)
-                        applied += 1
-                        applied_results.append({'type': 'raci_overload', 'action': 'reassign', 'taskId': action.get('taskId')})
+                        # Check if this task was split (and thus deleted)
+                        if task_id in split_created_tasks:
+                            # Apply reassignment to all created subtasks instead
+                            print(f"✓ Task {task_id} was split - applying raci_overload reassignment to {len(split_created_tasks[task_id])} subtasks")
+                            for subtask_id in split_created_tasks[task_id]:
+                                subtask_action = action.copy()
+                                subtask_action['taskId'] = subtask_id
+                                _apply_reassignment(subtask_action)
+                            applied += 1
+                            applied_results.append({'type': 'raci_overload', 'action': 'reassign', 'taskId': task_id, 'appliedToSubtasks': split_created_tasks[task_id]})
+                        else:
+                            _apply_reassignment(action)
+                            applied += 1
+                            applied_results.append({'type': 'raci_overload', 'action': 'reassign', 'taskId': task_id})
                     else:
                         failed += 1
                         errors.append(f"Unsupported action for raci_overload: {action.get('type')}")
@@ -1089,17 +1214,25 @@ def _apply_reassignment(action):
     if not task:
         raise ValueError(f"Task {task_id} not found")
     
-    # Update RACI responsible
+    # Update RACI responsible (if from_member is in the list)
     if task.raci_responsible and from_member_id in task.raci_responsible:
         task.raci_responsible = [m for m in task.raci_responsible if m != from_member_id]
         if to_member_id not in task.raci_responsible:
             task.raci_responsible.append(to_member_id)
     
+    # Update RACI accountable (if from_member is accountable)
+    if task.raci_accountable == from_member_id:
+        task.raci_accountable = to_member_id
+    
     db.session.add(task)
 
 
 def _apply_task_split(action, project_id):
-    """Apply task split into subtasks"""
+    """Apply task split into subtasks
+    
+    Returns:
+        List of created subtask IDs
+    """
     task_id = action.get('taskId')
     subtasks_data = action.get('subtasks', [])
     
@@ -1126,8 +1259,13 @@ def _apply_task_split(action, project_id):
             num_parts = 3
         
         # Generate subtasks using TaskSplitterService
-        split_result = task_splitter.suggest_split(original_task, num_parts)
+        # Use force=True to skip SP threshold for PERT/CV-based splits
+        split_result = task_splitter.suggest_split(original_task, num_parts, force=True)
         subtasks_data = split_result.get('subtasks', [])
+        
+        # Safety check: If no subtasks generated, raise error to prevent data loss
+        if not subtasks_data:
+            raise ValueError(f"Failed to generate subtasks for task {task_id}. Split result: {split_result.get('reason', 'Unknown error')}")
     
     # Save original task data before deletion
     saved_sprint_id = original_task.sprint_id
@@ -1136,8 +1274,13 @@ def _apply_task_split(action, project_id):
     saved_raci_accountable = original_task.raci_accountable
     saved_raci_consulted = original_task.raci_consulted
     saved_raci_informed = original_task.raci_informed
+    saved_required_skills = original_task.required_skills
+    saved_due_date = original_task.due_date
+    saved_estimated_hours = original_task.estimated_hours or 0
+    original_sp = original_task.story_points or 0
     
     # Create subtasks (no parent reference needed - original will be deleted)
+    created_subtask_ids = []
     for subtask_data in subtasks_data:
         new_task = Task(
             project_id=project_id,
@@ -1167,10 +1310,26 @@ def _apply_task_split(action, project_id):
         new_task.raci_consulted = saved_raci_consulted
         new_task.raci_informed = saved_raci_informed
         
+        # Copy required_skills and due_date from original task
+        new_task.required_skills = saved_required_skills
+        new_task.due_date = saved_due_date
+        
+        # Split estimated_hours proportionally based on story points
+        if saved_estimated_hours > 0 and original_sp > 0:
+            subtask_sp = subtask_data['story_points']
+            sp_ratio = subtask_sp / original_sp
+            new_task.estimated_hours = round(saved_estimated_hours * sp_ratio)
+        else:
+            new_task.estimated_hours = 0
+        
         db.session.add(new_task)
+        db.session.flush()  # Flush to get the ID
+        created_subtask_ids.append(new_task.id)
     
     # Delete original task (subtasks replace it completely)
     db.session.delete(original_task)
+    
+    return created_subtask_ids
 
 
 def _apply_sprint_move(action):
@@ -1269,48 +1428,6 @@ def _apply_increase_sp(action):
     db.session.add(task)
 
 
-def _apply_task_merge(action, project_id):
-    """Apply task merge - combine multiple tasks into one"""
-    merged_task_data = action.get('mergedTask', {})
-    original_task_ids = action.get('originalTaskIds', [])
-    
-    # Create merged task
-    new_task = Task(
-        project_id=project_id,
-        name=merged_task_data.get('name'),
-        title=merged_task_data.get('title'),
-        description=merged_task_data.get('description'),
-        story_points=merged_task_data.get('story_points'),
-        type=merged_task_data.get('type'),
-        priority=merged_task_data.get('priority'),
-        sprint_id=merged_task_data.get('sprint_id'),
-        labels=merged_task_data.get('labels'),
-        status=merged_task_data.get('status', 'To Do')
-    )
-    
-    # Copy PERT if available
-    if merged_task_data.get('pert'):
-        pert = merged_task_data['pert']
-        new_task.pert_optimistic = pert.get('optimistic')
-        new_task.pert_most_likely = pert.get('mostLikely')
-        new_task.pert_pessimistic = pert.get('pessimistic')
-        new_task.calculate_pert_expected()
-    
-    # Copy RACI
-    new_task.raci_responsible = merged_task_data.get('raci_responsible')
-    new_task.raci_accountable = merged_task_data.get('raci_accountable')
-    
-    db.session.add(new_task)
-    
-    # Mark original tasks as Done
-    for task_id in original_task_ids:
-        original_task = Task.query.get(task_id)
-        if original_task:
-            original_task.status = 'Done'
-            original_task.completed = True
-            db.session.add(original_task)
-
-
 def _apply_priority_change(action):
     """Apply priority change to task"""
     task_id = action.get('taskId')
@@ -1325,7 +1442,7 @@ def _apply_priority_change(action):
 
 
 def _apply_assign_task(action):
-    """Assign task to a member"""
+    """Assign task to a member as Responsible only"""
     task_id = action.get('taskId')
     to_member_id = action.get('toMemberId')
     
@@ -1333,9 +1450,12 @@ def _apply_assign_task(action):
     if not task:
         raise ValueError(f"Task {task_id} not found")
     
-    # Assign as responsible and accountable
-    task.raci_responsible = [to_member_id]
-    task.raci_accountable = to_member_id
+    # Assign as Responsible only (leave Accountable unchanged)
+    if not task.raci_responsible:
+        task.raci_responsible = [to_member_id]
+    elif to_member_id not in task.raci_responsible:
+        task.raci_responsible.append(to_member_id)
+    
     db.session.add(task)
 
 

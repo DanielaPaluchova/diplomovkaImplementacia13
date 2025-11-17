@@ -50,8 +50,26 @@
         <!-- Reason -->
         <div class="text-caption text-grey-7 q-mb-md">
           <q-icon name="info" size="14px" class="q-mr-xs" />
-          {{ proposal.reason }}
+          {{ getReasonWithoutWarning(proposal.reason) }}
         </div>
+
+        <!-- Skill Mismatch Warning (if present) -->
+        <q-banner
+          v-if="hasSkillWarning(proposal.reason)"
+          class="bg-red-1 text-red-9 q-mb-md"
+          dense
+          rounded
+        >
+          <template v-slot:avatar>
+            <q-icon name="warning" color="red" size="32px" />
+          </template>
+          <div class="text-weight-bold text-body2">
+            {{ getWarningTitle(proposal.reason) }}
+          </div>
+          <div class="text-caption q-mt-xs">
+            {{ getWarningText(proposal.reason) }}
+          </div>
+        </q-banner>
 
         <!-- Category & Severity badges -->
         <div class="row q-gutter-xs q-mb-sm">
@@ -68,7 +86,7 @@
           header-class="text-caption text-primary"
         >
           <q-card flat class="bg-grey-1 q-pa-md q-mt-sm">
-            <proposal-impact-details :proposal="proposal" />
+            <proposal-impact-details :proposal="proposal" :scope="props.scope" />
           </q-card>
         </q-expansion-item>
       </div>
@@ -83,9 +101,10 @@ import ProposalImpactDetails from './ProposalImpactDetails.vue';
 interface Props {
   proposal: Proposal;
   selected: boolean;
+  scope?: string | undefined; // 'backlog' | 'current_sprint'
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 defineEmits<{
   (e: 'toggle'): void;
@@ -186,6 +205,49 @@ function getTypeLabel(type: string): string {
   };
   return labels[type] || type;
 }
+
+// Skill warning detection and extraction
+function hasSkillWarning(reason: string): boolean {
+  return reason.includes('*** SKILL MISMATCH WARNING ***') || reason.includes('*** NO SUITABLE CANDIDATE WARNING ***');
+}
+
+function getWarningTitle(reason: string): string {
+  if (reason.includes('*** NO SUITABLE CANDIDATE WARNING ***')) {
+    return '⚠️ NO SUITABLE CANDIDATE WARNING';
+  }
+  return '⚠️ SKILL MISMATCH WARNING';
+}
+
+function getWarningText(reason: string): string {
+  if (!hasSkillWarning(reason)) return '';
+  
+  // Check for both warning types
+  if (reason.includes('*** NO SUITABLE CANDIDATE WARNING ***')) {
+    const parts = reason.split('*** NO SUITABLE CANDIDATE WARNING ***');
+    if (parts.length < 2 || !parts[1]) return '';
+    return parts[1].trim();
+  }
+  
+  // Extract warning text (everything after the warning marker)
+  const parts = reason.split('*** SKILL MISMATCH WARNING ***');
+  if (parts.length < 2 || !parts[1]) return '';
+  
+  return parts[1].trim();
+}
+
+function getReasonWithoutWarning(reason: string): string {
+  if (!hasSkillWarning(reason)) return reason;
+  
+  // Check for both warning types
+  if (reason.includes('*** NO SUITABLE CANDIDATE WARNING ***')) {
+    const parts = reason.split('\n\n*** NO SUITABLE CANDIDATE WARNING ***');
+    return parts[0]?.trim() ?? reason;
+  }
+  
+  // Return only the part before the warning
+  const parts = reason.split('\n\n*** SKILL MISMATCH WARNING ***');
+  return parts[0]?.trim() ?? reason;
+}
 </script>
 
 <style scoped>
@@ -207,6 +269,12 @@ function getTypeLabel(type: string): string {
 
 .impact-expansion {
   background: transparent;
+}
+
+/* Make skill warning banner more prominent */
+.q-banner.bg-red-1 {
+  border: 2px solid #ef5350;
+  box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
 }
 </style>
 

@@ -215,57 +215,161 @@ class PertRaciAnalyzerService:
                 # Find best candidate to take over
                 other_members = [m for m in team_members if m.id != member_id]
                 if other_members:
-                    # Calculate workloads for candidates
-                    candidate_workloads = {}
+                    # Build task requirements for skill matching
+                    task_requirements = {
+                        'required_skills': task_to_reassign.required_skills or [],
+                        'type': task_to_reassign.type,
+                        'priority': task_to_reassign.priority
+                    }
+                    
+                    # Calculate workloads and skill match for candidates
+                    candidate_scores = []
                     for candidate in other_members:
                         cand_workload = member_workloads.get(candidate.id, {'weighted_sp': 0})
                         cand_ratio = cand_workload['weighted_sp'] / candidate.max_story_points if candidate.max_story_points > 0 else 0
-                        candidate_workloads[candidate.id] = {
+                        
+                        # Calculate skill match
+                        skill_match = self._calculate_skill_match(candidate, task_requirements)
+                        
+                        # Only consider if skill match is reasonable (at least 30%)
+                        if skill_match < 0.3:
+                            continue
+                        
+                        # Combined score: 40% skill match, 60% workload availability
+                        # RACI Overload is primarily a workload problem, so prioritize available capacity
+                        # Workload score: lower is better, so invert it
+                        workload_score = (1.0 - min(cand_ratio, 1.0))  # 0-1 scale, higher is better
+                        combined_score = (skill_match * 0.4) + (workload_score * 0.6)
+                        
+                        candidate_scores.append({
+                            'member': candidate,
                             'ratio': cand_ratio,
-                            'weighted_sp': cand_workload['weighted_sp']
-                        }
+                            'weighted_sp': cand_workload['weighted_sp'],
+                            'skill_match': skill_match,
+                            'score': combined_score
+                        })
                     
-                    # Find least loaded candidate
-                    best_candidate = min(other_members, key=lambda m: candidate_workloads.get(m.id, {'ratio': 999})['ratio'])
-                    best_workload = candidate_workloads.get(best_candidate.id, {'ratio': 0, 'weighted_sp': 0})
+                    # If no candidates with skills, fallback to any least loaded member
+                    if not candidate_scores:
+                        candidate_workloads = {}
+                        for candidate in other_members:
+                            cand_workload = member_workloads.get(candidate.id, {'weighted_sp': 0})
+                            cand_ratio = cand_workload['weighted_sp'] / candidate.max_story_points if candidate.max_story_points > 0 else 0
+                            candidate_workloads[candidate.id] = {
+                                'ratio': cand_ratio,
+                                'weighted_sp': cand_workload['weighted_sp']
+                            }
+                        
+                        # Find least loaded candidate (fallback)
+                        best_candidate = min(other_members, key=lambda m: candidate_workloads.get(m.id, {'ratio': 999})['ratio'])
+                        best_workload = candidate_workloads.get(best_candidate.id, {'ratio': 0, 'weighted_sp': 0})
+                        skill_match_pct = 0  # No skill match
+                    else:
+                        # Sort by combined score (highest first)
+                        candidate_scores.sort(key=lambda x: x['score'], reverse=True)
+                        best_score_data = candidate_scores[0]
+                        best_candidate = best_score_data['member']
+                        best_workload = {
+                            'ratio': best_score_data['ratio'],
+                            'weighted_sp': best_score_data['weighted_sp']
+                        }
+                        skill_match_pct = round(best_score_data['skill_match'] * 100)
                     
                     task_sp = task_to_reassign.story_points or 0
                     new_workload_ratio = ((best_workload['weighted_sp'] + task_sp) / best_candidate.max_story_points) if best_candidate.max_story_points > 0 else 0
                     after_workload_ratio = ((weighted_sp - task_sp) / max_capacity) if max_capacity > 0 else 0
                     
-                    proposals.append({
-                        'id': f"raci-overload-{member_id}-{task_to_reassign.id}-{uuid.uuid4().hex[:8]}",
-                        'type': 'raci_overload',
-                        'severity': severity,
-                        'category': 'workload',
-                        'title': f"RACI overload: Reassign '{task_to_reassign.name}' from {member.name}",
-                        'description': f"{member.name} has {round(overload_ratio * 100, 1)}% RACI-weighted workload",
-                        'reason': f"{member.name} is overloaded with RACI-weighted workload at {round(overload_ratio * 100, 1)}% capacity ({round(weighted_sp, 1)} weighted SP / {max_capacity} max SP). Reassign '{task_to_reassign.name}' to {best_candidate.name}.",
-                        'score': score,
-                        'source': 'pert_raci',
-                        'taskName': task_to_reassign.name,
-                        'taskSp': task_sp,
-                        'impact': {
-                            'fromMember': member.name,
-                            'toMember': best_candidate.name,
-                            'fromWorkload': round(overload_ratio * 100, 1),
-                            'fromWorkloadAfter': round(after_workload_ratio * 100, 1),
-                            'toWorkloadBefore': round(best_workload['ratio'] * 100, 1),
-                            'toWorkload': round(new_workload_ratio * 100, 1),
-                            'taskSP': task_sp,
-                            'weightedSP': round(weighted_sp, 1),
-                            'raciRoles': workload_info.get('roles', {}),
-                            'workloadChange': -(task_sp / max_capacity * 100) if max_capacity > 0 else 0,
-                            'balanceChange': 5,
-                            'affectedMembers': [member_id, best_candidate.id]
-                        },
-                        'action': {
-                            'type': 'reassign',
-                            'taskId': task_to_reassign.id,
-                            'fromMemberId': member_id,
-                            'toMemberId': best_candidate.id
-                        }
-                    })
+                    # Build reason with skill match info
+                    base_reason = f"{member.name} is overloaded with RACI-weighted workload at {round(overload_ratio * 100, 1)}% capacity ({round(weighted_sp, 1)} weighted SP / {max_capacity} max SP). Reassign '{task_to_reassign.name}' to {best_candidate.name}"
+                    
+                    if skill_match_pct > 0:
+                        reason = f"{base_reason} (skill match: {skill_match_pct}%)."
+                    else:
+                        # No suitable candidate with skills found - add warning
+                        task_required_skills = task_to_reassign.required_skills or []
+                        if task_required_skills:
+                            required_skills_list = ", ".join(sorted(task_required_skills))
+                            skill_warning = f"\n\n*** NO SUITABLE CANDIDATE WARNING ***\nNo team member has the required skills: {required_skills_list.upper()}\nConsider training {best_candidate.name} or hiring external resources."
+                        else:
+                            skill_warning = "\n\n*** NO SUITABLE CANDIDATE WARNING ***\nTask has no defined skill requirements. Consider adding required_skills to task for better skill matching."
+                        reason = f"{base_reason}.{skill_warning}"
+                    
+                    impact_data = {
+                        'fromMember': member.name,
+                        'toMember': best_candidate.name,
+                        'fromWorkload': round(overload_ratio * 100, 1),
+                        'fromWorkloadAfter': round(after_workload_ratio * 100, 1),
+                        'toWorkloadBefore': round(best_workload['ratio'] * 100, 1),
+                        'toWorkload': round(new_workload_ratio * 100, 1),
+                        'taskSP': task_sp,
+                        'weightedSP': round(weighted_sp, 1),
+                        'raciRoles': workload_info.get('roles', {}),
+                        'workloadChange': -(task_sp / max_capacity * 100) if max_capacity > 0 else 0,
+                        'balanceChange': 5,
+                        'affectedMembers': [member_id, best_candidate.id]
+                    }
+                    
+                    # Add skill match to impact if available
+                    if skill_match_pct > 0:
+                        impact_data['skillMatch'] = skill_match_pct
+                    
+                    # Check if recipient will be significantly overloaded
+                    recipient_overload_pct = round(new_workload_ratio * 100, 1)
+                    
+                    # If best candidate will be severely overloaded (>120%), suggest backlog move instead
+                    if new_workload_ratio > 1.2:
+                        # Suggest moving to backlog since no one has capacity
+                        impact_data['suggestedAction'] = 'move_to_backlog'
+                        impact_data['reason'] = 'All team members are overloaded'
+                        
+                        backlog_reason = f"{member.name} is overloaded with RACI-weighted workload at {round(overload_ratio * 100, 1)}% capacity. Best available candidate {best_candidate.name} would be at {recipient_overload_pct}% after reassignment, which is too high. Consider moving '{task_to_reassign.name}' to backlog or adding resources."
+                        
+                        proposals.append({
+                            'id': f"raci-overload-backlog-{member_id}-{task_to_reassign.id}-{uuid.uuid4().hex[:8]}",
+                            'type': 'raci_overload',
+                            'severity': 'critical',  # Escalate to critical
+                            'category': 'workload',
+                            'title': f"RACI overload: Move '{task_to_reassign.name}' to backlog",
+                            'description': f"{member.name} overloaded, no team member has sufficient capacity",
+                            'reason': backlog_reason,
+                            'score': score + 10,  # Higher priority
+                            'source': 'pert_raci',
+                            'taskName': task_to_reassign.name,
+                            'taskSp': task_sp,
+                            'impact': impact_data,
+                            'action': {
+                                'type': 'sprint_move',
+                                'taskId': task_to_reassign.id,
+                                'fromMemberId': member_id,
+                                'toSprintId': None  # Move to backlog
+                            }
+                        })
+                    else:
+                        # Regular reassignment (possibly with warning if >100%)
+                        if new_workload_ratio > 1.0:  # Over 100%
+                            impact_data['recipientOverloadWarning'] = True
+                            impact_data['recipientOverloadPercent'] = recipient_overload_pct
+                        
+                        proposals.append({
+                            'id': f"raci-overload-{member_id}-{task_to_reassign.id}-{uuid.uuid4().hex[:8]}",
+                            'type': 'raci_overload',
+                            'severity': severity,
+                            'category': 'workload',
+                            'title': f"RACI overload: Reassign '{task_to_reassign.name}' from {member.name}",
+                            'description': f"{member.name} has {round(overload_ratio * 100, 1)}% RACI-weighted workload",
+                            'reason': reason,
+                            'score': score,
+                            'source': 'pert_raci',
+                            'taskName': task_to_reassign.name,
+                            'taskSp': task_sp,
+                            'impact': impact_data,
+                            'action': {
+                                'type': 'reassign',
+                                'taskId': task_to_reassign.id,
+                                'fromMemberId': member_id,
+                                'toMemberId': best_candidate.id
+                            }
+                        })
         
         return proposals
     
@@ -363,7 +467,7 @@ class PertRaciAnalyzerService:
                 # Find alternative candidates
                 candidates = []
                 task_requirements = {
-                    'labels': task.labels or [],
+                    'required_skills': task.required_skills or [],
                     'type': task.type,
                     'priority': task.priority
                 }
@@ -404,6 +508,11 @@ class PertRaciAnalyzerService:
                     
                     # Good candidate if new overhead is less than 10%
                     if new_overhead < 0.10:
+                        # Combined score: 60% workload, 40% skills
+                        # Duration risk is caused by overload, so prioritize available capacity
+                        workload_score = (1.0 - min(new_workload_ratio, 1.0))  # 0-1, higher is better (less loaded)
+                        combined_score = (workload_score * 0.6) + (skill_match * 0.4)
+                        
                         candidates.append({
                             'member': candidate,
                             'workload_before': round(cand_workload_ratio * 100, 1),
@@ -411,12 +520,12 @@ class PertRaciAnalyzerService:
                             'skill_match': skill_match,
                             'new_overhead': new_overhead,
                             'new_duration': new_adjusted_duration,
-                            'score': skill_match * 100  # Prioritize skill match
+                            'score': combined_score * 100  # Scale to 0-100
                         })
                 
                 # If we found suitable candidates, create reassignment proposal
                 if candidates:
-                    # Sort by skill match (best first)
+                    # Sort by combined score (best first)
                     candidates.sort(key=lambda x: x['score'], reverse=True)
                     best_candidate = candidates[0]
                     
@@ -425,6 +534,44 @@ class PertRaciAnalyzerService:
                     from_weighted_sp = member_workloads.get(from_member_id, {}).get('weighted_sp', 0)
                     from_workload_after = ((from_weighted_sp - task_sp) / from_member_obj.max_story_points * 100) if from_member_obj else 0
                     
+                    # Build reason with skill match warning if needed
+                    skill_match_pct = round(best_candidate['skill_match'] * 100)
+                    base_reason = f"{from_member} is overloaded ({round(from_workload_ratio * 100, 1)}%) causing {round(overhead * 100)}% duration overhead. {best_candidate['member'].name} has capacity and skills (match: {skill_match_pct}%), will complete in {round(best_candidate['new_duration'], 1)}d instead of {round(adjusted_duration, 1)}d."
+                    
+                    # Add warning if skill match is low (30-50%)
+                    if skill_match_pct < 50:
+                        task_required_skills = task.required_skills or []
+                        if task_required_skills:
+                            required_skills_list = ", ".join(sorted(task_required_skills))
+                            skill_warning = f"\n\n*** SKILL MISMATCH WARNING ***\n{best_candidate['member'].name} has {skill_match_pct}% skill match! Missing required skills: {required_skills_list.upper()}\nConsider training or finding alternative candidate."
+                            base_reason += skill_warning
+                    
+                    # Check if recipient will be overloaded
+                    impact_data = {
+                        'pertDuration': round(task.pert_expected, 1),
+                        'adjustedDuration': round(adjusted_duration, 1),
+                        'newAdjustedDuration': round(best_candidate['new_duration'], 1),
+                        'overhead': round(overhead * 100, 1),
+                        'newOverhead': round(best_candidate['new_overhead'] * 100, 1),
+                        'improvement': round((adjusted_duration - best_candidate['new_duration']), 1),
+                        'fromMember': from_member,
+                        'toMember': best_candidate['member'].name,
+                        'fromWorkload': round(from_workload_ratio * 100, 1),
+                        'fromWorkloadAfter': round(from_workload_after, 1),
+                        'toWorkloadBefore': best_candidate['workload_before'],
+                        'toWorkload': best_candidate['workload_after'],
+                        'skillMatch': round(best_candidate['skill_match'] * 100),
+                        'taskSP': task_sp,
+                        'durationChange': -round(adjusted_duration - best_candidate['new_duration'], 1),
+                        'riskChange': -0.5,
+                        'affectedMembers': [from_member_id, best_candidate['member'].id]
+                    }
+                    
+                    # Add warning if recipient will be overloaded after reassignment
+                    if best_candidate['workload_after'] > 100:
+                        impact_data['recipientOverloadWarning'] = True
+                        impact_data['recipientOverloadPercent'] = best_candidate['workload_after']
+                    
                     proposals.append({
                         'id': f"duration-risk-reassign-{task.id}-{uuid.uuid4().hex[:8]}",
                         'type': 'duration_risk',
@@ -432,30 +579,12 @@ class PertRaciAnalyzerService:
                         'category': 'timeline',
                         'title': f"Duration risk: Reassign '{task.name}' to reduce overhead",
                         'description': f"Reassign from {from_member} to {best_candidate['member'].name} to reduce duration overhead",
-                        'reason': f"{from_member} is overloaded ({round(from_workload_ratio * 100, 1)}%) causing {round(overhead * 100)}% duration overhead. {best_candidate['member'].name} has capacity and skills (match: {round(best_candidate['skill_match'] * 100)}%), will complete in {round(best_candidate['new_duration'], 1)}d instead of {round(adjusted_duration, 1)}d.",
+                        'reason': base_reason,
                         'score': 85 if severity == 'critical' else 75,
                         'source': 'pert_raci',
                         'taskName': task.name,
                         'taskSp': task_sp,
-                        'impact': {
-                            'pertDuration': round(task.pert_expected, 1),
-                            'adjustedDuration': round(adjusted_duration, 1),
-                            'newAdjustedDuration': round(best_candidate['new_duration'], 1),
-                            'overhead': round(overhead * 100, 1),
-                            'newOverhead': round(best_candidate['new_overhead'] * 100, 1),
-                            'improvement': round((adjusted_duration - best_candidate['new_duration']), 1),
-                            'fromMember': from_member,
-                            'toMember': best_candidate['member'].name,
-                            'fromWorkload': round(from_workload_ratio * 100, 1),
-                            'fromWorkloadAfter': round(from_workload_after, 1),
-                            'toWorkloadBefore': best_candidate['workload_before'],
-                            'toWorkload': best_candidate['workload_after'],
-                            'skillMatch': round(best_candidate['skill_match'] * 100),
-                            'taskSP': task_sp,
-                            'durationChange': -round(adjusted_duration - best_candidate['new_duration'], 1),
-                            'riskChange': -0.5,
-                            'affectedMembers': [from_member_id, best_candidate['member'].id]
-                        },
+                        'impact': impact_data,
                         'action': {
                             'type': 'reassign',
                             'taskId': task.id,
@@ -634,25 +763,25 @@ class PertRaciAnalyzerService:
         
         Args:
             team_member: Team member to evaluate
-            task_requirements: Dict with 'labels', 'type', 'priority'
+            task_requirements: Dict with 'required_skills', 'type', 'priority'
             
         Returns:
             Skill match score (0.0 to 1.0)
         """
-        # Get member skills/labels
-        member_skills = set(team_member.skills or [])
-        task_labels = set(task_requirements.get('labels', []))
+        # Get member skills and task required skills
+        member_skills = set(skill.lower() for skill in (team_member.skills or []))
+        task_required_skills = set(skill.lower() for skill in task_requirements.get('required_skills', []))
         
-        if not task_labels:
+        if not task_required_skills:
             # If no specific skills required, return moderate match
             return 0.5
         
-        # Calculate label/skill overlap
-        matching_skills = member_skills.intersection(task_labels)
-        skill_score = len(matching_skills) / len(task_labels) if task_labels else 0.5
+        # Calculate skill overlap
+        matching_skills = member_skills.intersection(task_required_skills)
+        skill_score = len(matching_skills) / len(task_required_skills) if task_required_skills else 0.5
         
         # Bonus for having more skills than required (experienced)
-        if matching_skills and len(member_skills) > len(task_labels):
+        if matching_skills and len(member_skills) > len(task_required_skills):
             skill_score = min(1.0, skill_score + 0.1)
         
         return skill_score

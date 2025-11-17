@@ -45,7 +45,9 @@
         proposal.type === 'reassign' ||
         proposal.type === 'bottleneck' ||
         proposal.type === 'skill_mismatch' ||
-        proposal.type === 'priority_conflict'
+        proposal.type === 'priority_conflict' ||
+        proposal.type === 'raci_overload' ||
+        (proposal.type === 'duration_risk' && proposal.action?.type === 'reassign')
       "
     >
       <div class="text-subtitle2 text-weight-bold q-mb-sm">
@@ -128,10 +130,11 @@
         </div>
       </div>
 
-      <!-- Workload Impact -->
+      <!-- Workload Impact (only show for Current Sprint, not for Backlog) -->
       <div
         v-if="
-          proposal.impact?.fromWorkload !== undefined || proposal.impact?.toWorkload !== undefined
+          (proposal.impact?.fromWorkload !== undefined || proposal.impact?.toWorkload !== undefined) &&
+          props.scope === 'current_sprint'
         "
         class="q-mb-sm"
       >
@@ -230,15 +233,44 @@
         </div>
       </div>
 
-      <!-- Additional Context -->
-      <div v-if="proposal.impact?.currentMatch || proposal.impact?.newMatch" class="q-mt-sm">
+      <!-- Recipient Overload Warning -->
+      <div v-if="proposal.impact?.recipientOverloadWarning" class="q-mb-md">
+        <q-banner dense class="bg-red-1 text-red-9">
+          <template v-slot:avatar>
+            <q-icon name="warning" color="red" />
+          </template>
+          <div class="text-body2">
+            <strong>⚠️ Warning: Recipient Will Be Overloaded</strong>
+            <div class="q-mt-xs text-caption">
+              {{ proposal.impact.toMember }} will have {{ proposal.impact.recipientOverloadPercent }}% workload after this reassignment, which exceeds their capacity. This may cause delays or quality issues.
+            </div>
+            <div class="q-mt-sm text-caption">
+              <strong>Suggested Actions:</strong>
+              <ul class="q-my-xs q-pl-md">
+                <li>Consider splitting the task before reassignment</li>
+                <li>Find an alternative team member with lower workload</li>
+                <li>Move some of {{ proposal.impact.toMember }}'s tasks to other team members first</li>
+                <li>Extend the sprint deadline to accommodate the workload</li>
+              </ul>
+            </div>
+          </div>
+        </q-banner>
+      </div>
+
+      <!-- Additional Context - Skill Match -->
+      <div v-if="proposal.impact?.currentMatch || proposal.impact?.newMatch || proposal.impact?.skillMatch" class="q-mt-sm">
         <q-banner dense class="bg-blue-1 text-blue-9">
           <template v-slot:avatar>
             <q-icon name="psychology" color="blue" />
           </template>
           <div class="text-caption">
             <strong>Skill Match:</strong>
-            {{ proposal.impact.currentMatch }} → {{ proposal.impact.newMatch }}
+            <span v-if="proposal.impact.currentMatch && proposal.impact.newMatch">
+              {{ proposal.impact.currentMatch }} → {{ proposal.impact.newMatch }}
+            </span>
+            <span v-else-if="proposal.impact.skillMatch">
+              {{ proposal.impact.skillMatch }}%
+            </span>
           </div>
         </q-banner>
       </div>
@@ -412,8 +444,8 @@
       </q-banner>
     </div>
 
-    <!-- Duration Risk Details (PERT+RACI) -->
-    <div v-else-if="proposal.type === 'duration_risk'">
+    <!-- Duration Risk Details (Sprint Move only - reassign is handled above) -->
+    <div v-else-if="proposal.type === 'duration_risk' && proposal.action?.type === 'sprint_move'">
       <div class="text-subtitle2 text-weight-bold q-mb-sm">Duration Risk Analysis:</div>
 
       <!-- Task Info -->
@@ -441,36 +473,6 @@
         </div>
       </div>
 
-      <!-- If there's a reassignment suggestion with new duration -->
-      <div
-        v-if="proposal.impact?.newAdjustedDuration"
-        class="q-mb-md bg-green-1 q-pa-md"
-        style="border-radius: 8px"
-      >
-        <div class="text-weight-bold q-mb-xs">
-          <q-icon name="check_circle" color="green" class="q-mr-xs" />
-          Proposed Solution: Reassignment
-        </div>
-        <div class="row items-center justify-between q-mb-xs">
-          <span class="text-caption">New Adjusted Duration:</span>
-          <span class="text-caption text-weight-bold text-green">
-            {{ proposal.impact.newAdjustedDuration }}d
-          </span>
-        </div>
-        <div class="row items-center justify-between">
-          <span class="text-caption">New Overhead:</span>
-          <span class="text-caption text-weight-bold text-green">
-            {{ proposal.impact.newOverhead }}%
-          </span>
-        </div>
-        <div class="row items-center justify-between q-mt-sm">
-          <span class="text-caption text-weight-bold">Improvement:</span>
-          <span class="text-caption text-weight-bold text-primary">
-            -{{ proposal.impact.improvement }}d
-          </span>
-        </div>
-      </div>
-
       <!-- Overloaded Members -->
       <div
         v-if="proposal.impact?.overloadedMembers && proposal.impact.overloadedMembers.length > 0"
@@ -492,69 +494,6 @@
       </div>
     </div>
 
-    <!-- RACI Overload Details -->
-    <div v-else-if="proposal.type === 'raci_overload'">
-      <div class="text-subtitle2 text-weight-bold q-mb-sm">RACI Overload:</div>
-
-      <!-- Task Info -->
-      <div class="q-mb-md">
-        <strong>Task:</strong> {{ proposal.taskName || 'Task' }}
-        <span v-if="proposal.taskSp" class="text-primary text-weight-bold">
-          ({{ proposal.taskSp }} SP)
-        </span>
-      </div>
-
-      <!-- Member Info (if applicable) -->
-      <div v-if="proposal.impact?.member" class="q-mb-md">
-        <div class="text-caption text-grey-7 q-mb-xs">Affected Member</div>
-        <div class="row items-center q-gutter-sm">
-          <q-avatar color="red" text-color="white" size="32px">
-            <q-icon name="person" />
-          </q-avatar>
-          <div>
-            <div class="text-body2 text-weight-bold">{{ proposal.impact.member }}</div>
-            <div class="text-caption text-grey-7">{{ proposal.impact.roleChange }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Workload visualization if available -->
-      <div v-if="proposal.impact?.currentWorkload !== undefined">
-        <div class="text-caption text-grey-7 q-mb-xs">Workload Impact</div>
-        <div class="q-mb-xs">
-          <div class="row items-center justify-between q-mb-xs">
-            <span class="text-caption">Current</span>
-            <span class="text-caption text-weight-bold text-red">
-              {{ proposal.impact.currentWorkload }}%
-            </span>
-          </div>
-          <q-linear-progress
-            :value="proposal.impact.currentWorkload / 100"
-            color="red"
-            size="8px"
-            rounded
-          />
-        </div>
-        <div v-if="proposal.impact?.newWorkload !== undefined">
-          <div class="row items-center justify-between q-mb-xs">
-            <span class="text-caption">After</span>
-            <span
-              class="text-caption text-weight-bold"
-              :class="getWorkloadColorClass(proposal.impact.newWorkload)"
-            >
-              {{ proposal.impact.newWorkload }}%
-            </span>
-          </div>
-          <q-linear-progress
-            :value="proposal.impact.newWorkload / 100"
-            :color="getWorkloadColor(proposal.impact.newWorkload)"
-            size="8px"
-            rounded
-          />
-        </div>
-      </div>
-    </div>
-
     <!-- Generic Details -->
     <div v-else>
       <div class="text-subtitle2 text-weight-bold q-mb-sm">Details:</div>
@@ -571,9 +510,10 @@ import type { Proposal } from 'src/stores/requirement-change-store';
 
 interface Props {
   proposal: Proposal;
+  scope?: string | undefined; // 'backlog' | 'current_sprint'
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 function getWorkloadColor(workload: number): string {
   if (workload >= 90) return 'red';

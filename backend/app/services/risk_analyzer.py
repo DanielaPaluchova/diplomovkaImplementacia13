@@ -84,9 +84,9 @@ class RiskAnalyzerService:
             business_days_remaining = self._count_business_days(now, due_date)
             
             # Calculate estimated time needed (in working days)
-            # PERT expected is in hours, convert to days (8 hours = 1 working day)
+            # PERT expected is already in days
             if task.pert_expected:
-                estimated_days = task.pert_expected / 8.0  # hours to working days
+                estimated_days = task.pert_expected
             else:
                 # Fallback: estimate 0.5 days per story point
                 estimated_days = (task.story_points or 0) * 0.5
@@ -132,6 +132,80 @@ class RiskAnalyzerService:
                 })
         
         return proposals
+    
+    def _build_priority_conflict_impact(
+        self,
+        from_member: TeamMember,
+        to_member: TeamMember,
+        task_sp: float,
+        from_workload_pct: float,
+        from_workload_after: float,
+        to_workload_before: float,
+        to_workload_after: float,
+        task: Task,
+        skill_match_pct: float
+    ) -> Dict:
+        """Build impact dictionary with overload warning if needed"""
+        impact = {
+            'fromMember': from_member.name,
+            'toMember': to_member.name,
+            'fromWorkload': round(from_workload_pct, 1),
+            'fromWorkloadAfter': round(from_workload_after, 1),
+            'toWorkloadBefore': round(to_workload_before, 1),
+            'toWorkload': round(to_workload_after, 1),
+            'taskSP': task_sp,
+            'taskPriority': task.priority,
+            'suggestedAction': 'reassign',
+            'currentWorkload': round(from_workload_pct, 1),
+            'skillMatch': skill_match_pct,
+            'affectedMembers': [from_member.id, to_member.id],
+            'workloadChange': -((task_sp / from_member.max_story_points) * 100),
+            'balanceChange': 3
+        }
+        
+        # Add warning if recipient will be overloaded after reassignment
+        if to_workload_after > 100:
+            impact['recipientOverloadWarning'] = True
+            impact['recipientOverloadPercent'] = round(to_workload_after, 1)
+        
+        return impact
+    
+    def _build_skill_mismatch_impact(
+        self,
+        from_member: TeamMember,
+        to_member: TeamMember,
+        task_sp: float,
+        from_workload_pct: float,
+        from_workload_after: float,
+        to_workload_before: float,
+        to_workload_after: float,
+        from_skill_match: float,
+        to_skill_match: float,
+        task_requirements: set
+    ) -> Dict:
+        """Build impact dictionary with overload warning if needed"""
+        impact = {
+            'fromMember': from_member.name,
+            'toMember': to_member.name,
+            'fromWorkload': round(from_workload_pct, 1),
+            'fromWorkloadAfter': round(from_workload_after, 1),
+            'toWorkloadBefore': round(to_workload_before, 1),
+            'toWorkload': round(to_workload_after, 1),
+            'taskSP': task_sp,
+            'currentMatch': f"{round(from_skill_match*100)}%",
+            'newMatch': f"{round(to_skill_match*100)}%",
+            'requiredSkills': list(task_requirements),
+            'affectedMembers': [from_member.id, to_member.id],
+            'riskChange': -0.5,
+            'balanceChange': 2
+        }
+        
+        # Add warning if recipient will be overloaded after reassignment
+        if to_workload_after > 100:
+            impact['recipientOverloadWarning'] = True
+            impact['recipientOverloadPercent'] = round(to_workload_after, 1)
+        
+        return impact
     
     def find_priority_conflicts(
         self,
@@ -207,18 +281,46 @@ class RiskAnalyzerService:
                                     'max_sp': candidate.max_story_points
                                 }
                             
-                            # Find least loaded
-                            best_candidate = min(
-                                other_members,
-                                key=lambda m: candidate_workloads[m.id]['pct']
-                            )
+                            # Find suitable candidates based on BOTH workload AND skills
+                            task_requirements = set(skill.lower() for skill in (task.required_skills or []))
+                            suitable_candidates = []
                             
-                            best_workload = candidate_workloads[best_candidate.id]
-                            best_workload_pct = best_workload['pct']
-                            new_workload_pct = ((best_workload['sp'] + task_sp) / best_workload['max_sp']) * 100
+                            for candidate in other_members:
+                                cand_workload = candidate_workloads[candidate.id]
+                                cand_sp = cand_workload['sp']
+                                cand_pct = cand_workload['pct']
+                                new_pct = ((cand_sp + task_sp) / cand_workload['max_sp']) * 100
+                                
+                                # CRITICAL: Don't suggest if it would overload the recipient (>100%)
+                                if new_pct > 100:
+                                    continue
+                                
+                                # Calculate skills match
+                                member_skills = set(skill.lower() for skill in (candidate.skills or []))
+                                if task_requirements and member_skills:
+                                    intersection = len(task_requirements.intersection(member_skills))
+                                    skill_match = intersection / len(task_requirements)
+                                else:
+                                    skill_match = 0.5  # Neutral if no skills defined
+                                
+                                # Combined score: prefer low workload + high skill match
+                                # Workload weight: 60%, Skills weight: 40%
+                                workload_score = max(0, 100 - new_pct) / 100  # 0-1, higher is better
+                                combined_score = (0.6 * workload_score) + (0.4 * skill_match)
+                                
+                                suitable_candidates.append({
+                                    'member': candidate,
+                                    'current_pct': cand_pct,
+                                    'new_pct': new_pct,
+                                    'skill_match': skill_match,
+                                    'combined_score': combined_score
+                                })
                             
-                            # Check if best candidate is also overloaded
-                            if best_workload_pct > 80:
+                            # Sort by combined score (best first)
+                            suitable_candidates.sort(key=lambda x: x['combined_score'], reverse=True)
+                            
+                            # Check if we have any suitable candidates
+                            if not suitable_candidates:
                                 # All members overloaded - suggest backlog
                                 proposals.append({
                                     'id': f"priority-conflict-{task.id}-{uuid.uuid4().hex[:8]}",
@@ -250,39 +352,51 @@ class RiskAnalyzerService:
                                     }
                                 })
                             else:
-                                # Can reassign to less loaded member
+                                # Use best candidate (highest combined score)
+                                best = suitable_candidates[0]
+                                best_member = best['member']
+                                current_pct = best['current_pct']
+                                new_pct = best['new_pct']
+                                skill_match_pct = int(best['skill_match'] * 100)
+                                
+                                # Calculate workload after reassignment
                                 from_workload_after = ((total_sp - task_sp) / member.max_story_points) * 100
+                                
+                                # Build message with skill info and warnings
+                                skill_info = f" | Skill match: {skill_match_pct}%"
+                                
+                                # Add warning for low skill match
+                                skill_warning = ""
+                                if skill_match_pct < 30 and task_requirements:
+                                    required_skills_list = ", ".join(sorted(task_requirements))
+                                    skill_warning = f"\n\n*** SKILL MISMATCH WARNING ***\n{best_member.name} has {skill_match_pct}% skill match! Missing required skills: {required_skills_list.upper()}\nConsider training or finding alternative candidate."
+                                
+                                description = f"High priority task assigned to overloaded team member. Better candidate found."
+                                if skill_warning:
+                                    description += " However, skills mismatch detected."
+                                
                                 proposals.append({
                                     'id': f"priority-conflict-{task.id}-{uuid.uuid4().hex[:8]}",
                                     'type': 'priority_conflict',
                                     'severity': 'critical',
                                     'category': 'workload',
                                     'title': f"Priority conflict: Move '{task.name}' from overloaded {member.name}",
-                                    'description': f"High priority task assigned to overloaded team member",
-                                    'reason': f"{member.name} is overloaded ({round(workload_pct, 1)}%) but has high-priority task '{task.name}'. Risk of delays.",
+                                    'description': description,
+                                    'reason': f"{member.name} is overloaded ({round(workload_pct, 1)}%) but has high-priority task '{task.name}'. Reassign to {best_member.name} ({round(current_pct, 1)}% → {round(new_pct, 1)}%){skill_info}.{skill_warning}",
                                     'score': 90,
                                     'taskName': task.name,
                                     'taskSp': task_sp,
-                                    'impact': {
-                                        'fromMember': member.name,
-                                        'toMember': best_candidate.name,
-                                        'fromWorkload': round(workload_pct, 1),
-                                        'fromWorkloadAfter': round(from_workload_after, 1),
-                                        'toWorkloadBefore': round(best_workload_pct, 1),
-                                        'toWorkload': round(new_workload_pct, 1),
-                                        'taskSP': task_sp,
-                                        'taskPriority': task.priority,
-                                        'suggestedAction': 'reassign',
-                                        'currentWorkload': round(workload_pct, 1),
-                                        'affectedMembers': [member.id, best_candidate.id],
-                                        'workloadChange': -((task_sp / member.max_story_points) * 100),
-                                        'balanceChange': 3
-                                    },
+                                    'impact': self._build_priority_conflict_impact(
+                                        member, best_member, task_sp,
+                                        workload_pct, from_workload_after,
+                                        current_pct, new_pct,
+                                        task, skill_match_pct
+                                    ),
                                     'action': {
                                         'type': 'reassign',
                                         'taskId': task.id,
                                         'fromMemberId': member.id,
-                                        'toMemberId': best_candidate.id
+                                        'toMemberId': best_member.id
                                     }
                                 })
         
@@ -308,111 +422,152 @@ class RiskAnalyzerService:
         proposals = []
         
         for task in tasks:
-            if task.status == 'Done' or not task.labels:
+            if task.status == 'Done':
                 continue
             
-            # Get assignees
+            # Get assignees - ONLY check Responsible (who does the work)
+            # Accountable (who approves) doesn't need technical skills
             assignees = []
             if task.raci_responsible:
                 assignees.extend([m for m in team_members if m.id in task.raci_responsible])
-            if task.raci_accountable:
-                assignee = next((m for m in team_members if m.id == task.raci_accountable), None)
-                if assignee and assignee not in assignees:
-                    assignees.append(assignee)
             
-            # Check skills match
-            task_requirements = set(label.lower() for label in task.labels)
+            # Check skills match using required_skills (not labels)
+            task_requirements = set(skill.lower() for skill in (task.required_skills or []))
+            
+            # Skip if task has no required skills
+            if not task_requirements:
+                continue
             
             for assignee in assignees:
                 member_skills = set(skill.lower() for skill in (assignee.skills or []))
                 
-                if member_skills:
-                    # Calculate match
-                    intersection = len(task_requirements.intersection(member_skills))
-                    match_score = intersection / len(task_requirements) if task_requirements else 1.0
-                    
-                    if match_score < self.SKILL_MATCH_THRESHOLD:
-                        # Find better match
-                        better_candidates = []
-                        for candidate in team_members:
-                            if candidate.id == assignee.id:
-                                continue
-                            
-                            cand_skills = set(skill.lower() for skill in (candidate.skills or []))
-                            cand_intersection = len(task_requirements.intersection(cand_skills))
-                            cand_match = cand_intersection / len(task_requirements) if task_requirements else 0
-                            
-                            if cand_match > match_score + 0.2:  # At least 20% better
-                                better_candidates.append((candidate, cand_match))
+                # Calculate match (if member has NO skills, match is 0)
+                intersection = len(task_requirements.intersection(member_skills))
+                match_score = intersection / len(task_requirements) if task_requirements else 1.0
+                
+                # Only check if task has requirements and match is below threshold
+                if task_requirements and match_score < self.SKILL_MATCH_THRESHOLD:
+                    # Find better match
+                    better_candidates = []
+                    for candidate in team_members:
+                        if candidate.id == assignee.id:
+                            continue
                         
-                        if better_candidates:
-                            # Sort by match score
-                            better_candidates.sort(key=lambda x: x[1], reverse=True)
-                            best_candidate, best_match = better_candidates[0]
-                            
-                            # Calculate workloads (use cross-project if available)
-                            task_sp = task.story_points or 0
-                            
-                            if cross_project_workload and assignee.id in cross_project_workload:
-                                assignee_sp = cross_project_workload[assignee.id]['sp']
-                                assignee_workload_pct = cross_project_workload[assignee.id]['pct']
-                            else:
-                                # Sprint Commitment - includes Done tasks for workload calc
-                                assignee_tasks = [t for t in tasks if (
-                                    t.raci_responsible and assignee.id in t.raci_responsible
-                                )]
-                                assignee_sp = sum(t.story_points or 0 for t in assignee_tasks)
-                                assignee_workload_pct = (assignee_sp / assignee.max_story_points) * 100 if assignee.max_story_points else 0
-                            
-                            if cross_project_workload and best_candidate.id in cross_project_workload:
-                                candidate_sp = cross_project_workload[best_candidate.id]['sp']
-                                candidate_workload_pct = cross_project_workload[best_candidate.id]['pct']
-                            else:
-                                # Sprint Commitment - includes Done tasks for workload calc
-                                candidate_tasks = [t for t in tasks if (
-                                    t.raci_responsible and best_candidate.id in t.raci_responsible
-                                )]
-                                candidate_sp = sum(t.story_points or 0 for t in candidate_tasks)
-                                candidate_workload_pct = (candidate_sp / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
-                            
-                            new_candidate_workload_pct = ((candidate_sp + task_sp) / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
-                            assignee_workload_after = ((assignee_sp - task_sp) / assignee.max_story_points) * 100 if assignee.max_story_points else 0
-                            
-                            severity = 'important' if task.priority.lower() in ['high', 'critical'] else 'recommended'
-                            
-                            proposals.append({
-                                'id': f"skill-mismatch-{task.id}-{assignee.id}-{uuid.uuid4().hex[:8]}",
-                                'type': 'skill_mismatch',
-                                'severity': severity,
-                                'category': 'resources',
-                                'title': f"Skill mismatch: Reassign '{task.name}' to {best_candidate.name}",
-                                'description': f"Current assignee lacks required skills",
-                                'reason': f"{assignee.name} has {round(match_score*100)}% skills match for '{task.name}'. {best_candidate.name} has {round(best_match*100)}% match.",
-                                'score': 75,
-                                'taskName': task.name,
-                                'taskSp': task_sp,
-                                'impact': {
-                                    'fromMember': assignee.name,
-                                    'toMember': best_candidate.name,
-                                    'fromWorkload': round(assignee_workload_pct, 1),
-                                    'fromWorkloadAfter': round(assignee_workload_after, 1),
-                                    'toWorkloadBefore': round(candidate_workload_pct, 1),
-                                    'toWorkload': round(new_candidate_workload_pct, 1),
-                                    'taskSP': task_sp,
-                                    'currentMatch': f"{round(match_score*100)}%",
-                                    'newMatch': f"{round(best_match*100)}%",
-                                    'requiredSkills': list(task_requirements),
-                                    'affectedMembers': [assignee.id, best_candidate.id],
-                                    'riskChange': -0.5,
-                                    'balanceChange': 2
-                                },
-                                'action': {
-                                    'type': 'reassign',
-                                    'taskId': task.id,
-                                    'fromMemberId': assignee.id,
-                                    'toMemberId': best_candidate.id
-                                }
-                            })
+                        cand_skills = set(skill.lower() for skill in (candidate.skills or []))
+                        cand_intersection = len(task_requirements.intersection(cand_skills))
+                        cand_match = cand_intersection / len(task_requirements) if task_requirements else 0
+                        
+                        if cand_match > match_score + 0.2:  # At least 20% better
+                            better_candidates.append((candidate, cand_match))
+                    
+                    # Always create proposal (even without better candidates)
+                    if better_candidates:
+                        # Sort by match score
+                        better_candidates.sort(key=lambda x: x[1], reverse=True)
+                        best_candidate, best_match = better_candidates[0]
+                        
+                        # Calculate workloads (use cross-project if available)
+                        task_sp = task.story_points or 0
+                        
+                        if cross_project_workload and assignee.id in cross_project_workload:
+                            assignee_sp = cross_project_workload[assignee.id]['sp']
+                            assignee_workload_pct = cross_project_workload[assignee.id]['pct']
+                        else:
+                            # Sprint Commitment - includes Done tasks for workload calc
+                            assignee_tasks = [t for t in tasks if (
+                                t.raci_responsible and assignee.id in t.raci_responsible
+                            )]
+                            assignee_sp = sum(t.story_points or 0 for t in assignee_tasks)
+                            assignee_workload_pct = (assignee_sp / assignee.max_story_points) * 100 if assignee.max_story_points else 0
+                        
+                        if cross_project_workload and best_candidate.id in cross_project_workload:
+                            candidate_sp = cross_project_workload[best_candidate.id]['sp']
+                            candidate_workload_pct = cross_project_workload[best_candidate.id]['pct']
+                        else:
+                            # Sprint Commitment - includes Done tasks for workload calc
+                            candidate_tasks = [t for t in tasks if (
+                                t.raci_responsible and best_candidate.id in t.raci_responsible
+                            )]
+                            candidate_sp = sum(t.story_points or 0 for t in candidate_tasks)
+                            candidate_workload_pct = (candidate_sp / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
+                        
+                        new_candidate_workload_pct = ((candidate_sp + task_sp) / best_candidate.max_story_points) * 100 if best_candidate.max_story_points else 0
+                        assignee_workload_after = ((assignee_sp - task_sp) / assignee.max_story_points) * 100 if assignee.max_story_points else 0
+                        
+                        severity = 'important' if task.priority.lower() in ['high', 'critical'] else 'recommended'
+                        
+                        proposals.append({
+                            'id': f"skill-mismatch-{task.id}-{assignee.id}-{uuid.uuid4().hex[:8]}",
+                            'type': 'skill_mismatch',
+                            'severity': severity,
+                            'category': 'resources',
+                            'title': f"Skill mismatch: Reassign '{task.name}' to {best_candidate.name}",
+                            'description': f"Current assignee lacks required skills",
+                            'reason': f"{assignee.name} has {round(match_score*100)}% skills match for '{task.name}'. {best_candidate.name} has {round(best_match*100)}% match.",
+                            'score': 75,
+                            'taskName': task.name,
+                            'taskSp': task_sp,
+                            'impact': self._build_skill_mismatch_impact(
+                                assignee, best_candidate, task_sp,
+                                assignee_workload_pct, assignee_workload_after,
+                                candidate_workload_pct, new_candidate_workload_pct,
+                                match_score, best_match, task_requirements
+                            ),
+                            'action': {
+                                'type': 'reassign',
+                                'taskId': task.id,
+                                'fromMemberId': assignee.id,
+                                'toMemberId': best_candidate.id
+                            }
+                        })
+                    else:
+                        # No better candidate found - create warning proposal
+                        task_sp = task.story_points or 0
+                        
+                        if cross_project_workload and assignee.id in cross_project_workload:
+                            assignee_workload_pct = cross_project_workload[assignee.id]['pct']
+                        else:
+                            assignee_tasks = [t for t in tasks if (
+                                t.raci_responsible and assignee.id in t.raci_responsible
+                            )]
+                            assignee_sp = sum(t.story_points or 0 for t in assignee_tasks)
+                            assignee_workload_pct = (assignee_sp / assignee.max_story_points) * 100 if assignee.max_story_points else 0
+                        
+                        required_skills_list = ", ".join(sorted(task_requirements))
+                        severity = 'critical' if task.priority.lower() in ['high', 'critical'] else 'important'
+                        
+                        warning_msg = f"\n\n*** NO SUITABLE CANDIDATE WARNING ***\nNo team member has the required skills: {required_skills_list.upper()}\nConsider training {assignee.name} or hiring external resources."
+                        
+                        proposals.append({
+                            'id': f"skill-mismatch-{task.id}-{assignee.id}-{uuid.uuid4().hex[:8]}",
+                            'type': 'skill_mismatch',
+                            'severity': severity,
+                            'category': 'resources',
+                            'title': f"Skill gap: '{task.name}' assigned to {assignee.name}",
+                            'description': f"Critical skill mismatch detected. No team member has required skills.",
+                            'reason': f"{assignee.name} has {round(match_score*100)}% skills match for '{task.name}'. Required skills: {required_skills_list}.{warning_msg}",
+                            'score': 85,
+                            'taskName': task.name,
+                            'taskSp': task_sp,
+                            'impact': {
+                                'currentMember': assignee.name,
+                                'currentWorkload': round(assignee_workload_pct, 1),
+                                'taskSP': task_sp,
+                                'currentMatch': f"{round(match_score*100)}%",
+                                'requiredSkills': list(task_requirements),
+                                'availableCandidates': 0,
+                                'suggestedAction': 'training_or_hiring',
+                                'affectedMembers': [assignee.id],
+                                'riskChange': 0,
+                                'balanceChange': 0
+                            },
+                            'action': {
+                                'type': 'flag_skill_gap',
+                                'taskId': task.id,
+                                'memberId': assignee.id,
+                                'reason': 'No suitable candidate with required skills'
+                            }
+                        })
         
         return proposals
     
@@ -435,11 +590,20 @@ class RiskAnalyzerService:
         """
         proposals = []
         
-        # Find unassigned tasks
+        # Find unassigned tasks (check only Responsible, not Accountable)
         unassigned_tasks = [
             t for t in tasks if t.status != 'Done' and
-            not t.raci_responsible and not t.raci_accountable
+            not t.raci_responsible  # Only check Responsible (Accountable is just oversight)
         ]
+        
+        print(f"\n=== Idle Resource Detection Debug ===")
+        print(f"Total tasks analyzed: {len(tasks)}")
+        print(f"Unassigned tasks found (no Responsible): {len(unassigned_tasks)}")
+        if unassigned_tasks:
+            print(f"Unassigned task names: {[t.name for t in unassigned_tasks]}")
+        else:
+            print("⚠️ No unassigned tasks - Idle Resource proposals cannot be generated")
+            print("Tip: Create a task without RACI Responsible assignment")
         
         for member in team_members:
             # Calculate workload (use cross-project if available)
@@ -456,11 +620,52 @@ class RiskAnalyzerService:
                 total_sp = sum(t.story_points or 0 for t in member_tasks)
                 workload_pct = (total_sp / member.max_story_points) * 100
             
-            if workload_pct < 40 and unassigned_tasks:  # Less than 40% utilized
-                # Suggest assigning unassigned tasks
+            if workload_pct <= 40 and unassigned_tasks:  # Less than or equal to 40% utilized
+                print(f"✓ {member.name} is idle ({round(workload_pct, 1)}%), suggesting task assignment")
+                # Suggest assigning unassigned tasks with skill matching
                 for task in unassigned_tasks[:2]:  # Suggest top 2
                     task_sp = task.story_points or 0
                     new_workload = round(workload_pct + (task_sp / member.max_story_points * 100), 1)
+                    
+                    # Calculate skill match
+                    task_requirements = set(skill.lower() for skill in (task.required_skills or []))
+                    member_skills = set(skill.lower() for skill in (member.skills or []))
+                    
+                    if task_requirements:
+                        intersection = len(task_requirements.intersection(member_skills))
+                        skill_match = (intersection / len(task_requirements)) * 100
+                    else:
+                        skill_match = 50  # Neutral if no requirements
+                    
+                    # Build reason with skill info
+                    base_reason = f"{member.name} is underutilized at {round(workload_pct, 1)}% capacity. Can take on more work (skill match: {round(skill_match)}%)."
+                    
+                    # Add warning if skill match is low (<30%)
+                    skill_warning = ""
+                    if skill_match < 30 and task_requirements:
+                        required_skills_list = ", ".join(sorted(task_requirements))
+                        skill_warning = f"\n\n*** SKILL MISMATCH WARNING ***\n{member.name} has {round(skill_match)}% skill match! Missing required skills: {required_skills_list.upper()}\nConsider training or assigning to someone with better skills."
+                    
+                    description = f"{member.name} has low workload ({round(workload_pct, 1)}%)"
+                    if skill_warning:
+                        description += ". However, skills mismatch detected."
+                    
+                    # Build impact with overload warning check
+                    impact_data = {
+                        'toMember': member.name,
+                        'currentWorkload': round(workload_pct, 1),
+                        'toWorkload': new_workload,
+                        'taskSP': task_sp,
+                        'skillMatch': round(skill_match),
+                        'workloadChange': new_workload - workload_pct,
+                        'balanceChange': 2,
+                        'affectedMembers': [member.id]
+                    }
+                    
+                    # Add warning if recipient will be overloaded after assignment
+                    if new_workload > 100:
+                        impact_data['recipientOverloadWarning'] = True
+                        impact_data['recipientOverloadPercent'] = round(new_workload, 1)
                     
                     proposals.append({
                         'id': f"idle-resource-{member.id}-{task.id}-{uuid.uuid4().hex[:8]}",
@@ -468,20 +673,12 @@ class RiskAnalyzerService:
                         'severity': 'recommended',
                         'category': 'resources',
                         'title': f"Utilize idle resource: Assign '{task.name}' to {member.name}",
-                        'description': f"{member.name} has low workload ({round(workload_pct, 1)}%)",
-                        'reason': f"{member.name} is underutilized at {round(workload_pct, 1)}% capacity. Can take on more work.",
+                        'description': description,
+                        'reason': base_reason + skill_warning,
                         'score': 65,
                         'taskName': task.name,
                         'taskSp': task_sp,
-                        'impact': {
-                            'toMember': member.name,
-                            'currentWorkload': round(workload_pct, 1),
-                            'toWorkload': new_workload,
-                            'taskSP': task_sp,
-                            'workloadChange': new_workload - workload_pct,
-                            'balanceChange': 2,
-                            'affectedMembers': [member.id]
-                        },
+                        'impact': impact_data,
                         'action': {
                             'type': 'assign_task',
                             'taskId': task.id,

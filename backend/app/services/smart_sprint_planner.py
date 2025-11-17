@@ -435,10 +435,9 @@ class SmartSprintPlannerService:
             
             # Get task requirements
             task_requirements = {
-                'labels': task.labels or [],
+                'required_skills': task.required_skills or [],
                 'type': task.type,
-                'priority': task.priority,
-                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+                'priority': task.priority
             }
             
             # Score all members for this task
@@ -559,10 +558,9 @@ class SmartSprintPlannerService:
             
             # Get task requirements
             task_requirements = {
-                'labels': task.labels or [],
+                'required_skills': task.required_skills or [],
                 'type': task.type,
-                'priority': task.priority,
-                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+                'priority': task.priority
             }
             
             # Score all members for this task
@@ -715,10 +713,9 @@ class SmartSprintPlannerService:
             
             # Get task requirements
             task_requirements = {
-                'labels': task.labels or [],
+                'required_skills': task.required_skills or [],
                 'type': task.type,
-                'priority': task.priority,
-                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+                'priority': task.priority
             }
             
             # Score all members for this task
@@ -878,10 +875,9 @@ class SmartSprintPlannerService:
             
             # Get task requirements
             task_requirements = {
-                'labels': task.labels or [],
+                'required_skills': task.required_skills or [],
                 'type': task.type,
-                'priority': task.priority,
-                'required_skills': task.required_skills if hasattr(task, 'required_skills') else []
+                'priority': task.priority
             }
             
             # Score all members for this task
@@ -1354,7 +1350,7 @@ class SmartSprintPlannerService:
             
             # Get best member match for this task
             task_requirements = {
-                'labels': task.labels or [],
+                'required_skills': task.required_skills or [],
                 'type': task.type,
                 'priority': task.priority
             }

@@ -27,18 +27,20 @@ class TaskSplitterService:
         """
         return (task.story_points or 0) >= self.SPLIT_THRESHOLD
     
-    def suggest_split(self, task: Task, num_parts: int = 2) -> Dict:
+    def suggest_split(self, task: Task, num_parts: int = 2, force: bool = False) -> Dict:
         """
         Suggest how to split a task into subtasks
         
         Args:
             task: Task object to split
             num_parts: Number of subtasks to create (2-3)
+            force: If True, skip SP threshold check (e.g., for PERT uncertainty splits)
             
         Returns:
             Dict with split proposal
         """
-        if not self.should_split_task(task):
+        # Skip SP threshold check if forced (e.g., PERT uncertainty)
+        if not force and not self.should_split_task(task):
             return {
                 'should_split': False,
                 'reason': f'Task has {task.story_points} SP, below threshold of {self.SPLIT_THRESHOLD}'

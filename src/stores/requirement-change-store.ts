@@ -93,6 +93,9 @@ export interface ProposalImpact {
   member?: string; // Member name for RACI rebalance
   currentWorkload?: number; // Current workload percentage
   newWorkload?: number; // New workload percentage after change
+  // Overload warning
+  recipientOverloadWarning?: boolean; // Warning if recipient will be overloaded
+  recipientOverloadPercent?: number; // Recipient workload percentage after reassignment
   // Standard PERT statistical metrics
   stdDev?: number; // Standard Deviation (σ)
   variance?: number; // Variance (σ²)

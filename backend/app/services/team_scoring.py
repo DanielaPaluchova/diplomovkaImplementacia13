@@ -11,10 +11,10 @@ class TeamScoringService:
     """Service for scoring team members for task assignments"""
     
     # Scoring weights
-    WEIGHT_WORKLOAD = 0.4    # 40% - lower workload = higher score
-    WEIGHT_SKILLS = 0.3      # 30% - skills match with task
-    WEIGHT_HISTORY = 0.2     # 20% - RACI history on similar tasks
-    WEIGHT_AVAILABILITY = 0.1 # 10% - online status
+    WEIGHT_WORKLOAD = 0.6    # 60% - lower workload = higher score (prioritize capacity)
+    WEIGHT_SKILLS = 0.4      # 40% - skills match with task
+    WEIGHT_HISTORY = 0.0     # 0% - DISABLED (history not considered)
+    WEIGHT_AVAILABILITY = 0.0 # 0% - DISABLED (not used in rebalancing)
     
     def __init__(self):
         pass
@@ -40,13 +40,13 @@ class TeamScoringService:
         """
         workload_score = self._calculate_workload_score(member, member_current_sp)
         skills_score = self._calculate_skills_score(member, task_requirements)
-        history_score = self._calculate_history_score(member, task_requirements, all_tasks)
+        # history_score = self._calculate_history_score(member, task_requirements, all_tasks)  # DISABLED
         availability_score = self._calculate_availability_score(member)
         
         final_score = (
             self.WEIGHT_WORKLOAD * workload_score +
             self.WEIGHT_SKILLS * skills_score +
-            self.WEIGHT_HISTORY * history_score +
+            # self.WEIGHT_HISTORY * history_score +  # DISABLED
             self.WEIGHT_AVAILABILITY * availability_score
         )
         
@@ -57,7 +57,7 @@ class TeamScoringService:
             'breakdown': {
                 'workload': round(workload_score, 2),
                 'skills': round(skills_score, 2),
-                'history': round(history_score, 2),
+                # 'history': round(history_score, 2),  # DISABLED
                 'availability': round(availability_score, 2)
             },
             'current_sp': member_current_sp,
@@ -85,7 +85,7 @@ class TeamScoringService:
     def _calculate_skills_score(self, member: TeamMember, task_requirements: Dict) -> float:
         """
         Calculate skills match score (0-100)
-        Matches member skills with task labels/type
+        Matches member skills with task required_skills
         """
         member_skills = set(skill.lower() for skill in (member.skills or []))
         
@@ -93,22 +93,17 @@ class TeamScoringService:
             return 50  # Neutral score if no skills defined
         
         # Extract requirements from task
-        task_labels = set(label.lower() for label in (task_requirements.get('labels') or []))
-        task_type = task_requirements.get('type', '').lower()
+        task_required_skills = set(skill.lower() for skill in (task_requirements.get('required_skills') or []))
         
-        # Add task type to requirements
-        if task_type:
-            task_labels.add(task_type)
-        
-        if not task_labels:
+        if not task_required_skills:
             return 50  # Neutral score if no requirements
         
         # Calculate match percentage
-        matches = member_skills.intersection(task_labels)
-        match_percentage = (len(matches) / len(task_labels)) * 100
+        matches = member_skills.intersection(task_required_skills)
+        match_percentage = (len(matches) / len(task_required_skills)) * 100
         
         # Bonus for exact matches or many skills
-        if len(matches) >= len(task_labels):
+        if len(matches) >= len(task_required_skills):
             match_percentage += 20  # All requirements met
         elif len(matches) > 0:
             match_percentage += 10  # Some requirements met

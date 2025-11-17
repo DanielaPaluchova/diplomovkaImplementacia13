@@ -123,11 +123,101 @@ class SprintAnalyzerService:
         analysis = self.analyze_all_sprints(sprints, tasks, team_members)
         sprint_data = {s['sprint_id']: s for s in analysis['sprints']}
         
+        print(f"\n=== Sprint Analysis Debug ===")
+        print(f"Total sprints analyzed: {len(analysis['sprints'])}")
+        
         # Find overloaded and underutilized sprints
         overloaded = [s for s in analysis['sprints'] if s['status'] == 'overloaded']
         underutilized = [s for s in analysis['sprints'] if s['remaining_capacity'] > 5]
         
-        if not overloaded or not underutilized:
+        print(f"Overloaded sprints: {len(overloaded)}")
+        for s in overloaded:
+            print(f"  - {s['sprint_name']}: {s['utilization_percentage']}% ({s['total_sp']} SP / {s['team_capacity']} capacity)")
+        
+        print(f"Underutilized sprints: {len(underutilized)}")
+        for s in underutilized:
+            print(f"  - {s['sprint_name']}: {s['utilization_percentage']}% (remaining: {s['remaining_capacity']} SP)")
+        
+        # If overloaded but no target sprints, suggest moving to backlog or creating new sprint
+        if overloaded and not underutilized:
+            print("⚠️ Overloaded sprint(s) found but no underutilized sprints available!")
+            print("Creating 'move to backlog' proposals...")
+            
+            for overloaded_sprint in overloaded:
+                sprint_id = overloaded_sprint['sprint_id']
+                sprint_tasks = [t for t in tasks if t.sprint_id == sprint_id]
+                
+                print(f"Processing sprint {overloaded_sprint['sprint_name']}: {len(sprint_tasks)} tasks")
+                
+                # Sort by priority (low priority first for backlog)
+                sprint_tasks.sort(key=lambda t: {'low': 0, 'medium': 1, 'high': 2, 'critical': 3}.get(t.priority.lower(), 1))
+                
+                # Debug: show task priorities
+                priority_counts = {}
+                for t in sprint_tasks:
+                    p = t.priority.lower()
+                    priority_counts[p] = priority_counts.get(p, 0) + 1
+                print(f"Task priorities: {priority_counts}")
+                
+                # Suggest moving low-priority tasks to backlog
+                overflow_sp = overloaded_sprint['total_sp'] - overloaded_sprint['team_capacity']
+                moved_sp = 0
+                print(f"Need to move {overflow_sp} SP to resolve overflow")
+                
+                for task in sprint_tasks:
+                    if moved_sp >= overflow_sp:
+                        break
+                    
+                    task_sp = task.story_points or 0
+                    if task_sp == 0:
+                        continue
+                    
+                    task_priority = task.priority.lower()
+                    print(f"  Checking task '{task.name}' ({task_sp} SP, priority: {task_priority})")
+                    
+                    # Only suggest moving low/medium priority tasks
+                    if task_priority in ['low', 'medium']:
+                        print(f"    ✓ Creating proposal to move to backlog")
+                        proposals.append({
+                            'id': f"sprint-overflow-{task.id}-{uuid.uuid4().hex[:8]}",
+                            'type': 'sprint_move',
+                            'severity': 'important',
+                            'category': 'timeline',
+                            'title': f"Sprint overflow: Move '{task.name}' to backlog",
+                            'description': f"Sprint is overloaded. Move low-priority task to backlog or create new sprint.",
+                            'reason': f"Sprint '{overloaded_sprint['sprint_name']}' is overloaded ({overloaded_sprint['utilization_percentage']}% utilized, {int(overflow_sp)} SP over capacity). No other sprints available.",
+                            'score': 80,
+                            'taskId': task.id,
+                            'taskName': task.name,
+                            'taskSp': task_sp,
+                            'fromSprintId': sprint_id,
+                            'fromSprintName': overloaded_sprint['sprint_name'],
+                            'toSprintId': None,  # Backlog
+                            'toSprintName': 'Backlog',
+                            'impact': {
+                                'fromSprintNewUtilization': round(
+                                    (overloaded_sprint['total_sp'] - task_sp) / overloaded_sprint['team_capacity'] * 100, 1
+                                ),
+                                'taskSP': task_sp,
+                                'suggestedAction': 'move_to_backlog_or_create_sprint',
+                                'overflowAmount': int(overflow_sp),
+                                'balanceChange': 5,
+                                'affectedMembers': []
+                            },
+                            'action': {
+                                'type': 'sprint_move',
+                                'taskId': task.id,
+                                'toSprintId': None  # None = move to backlog
+                            }
+                        })
+                        moved_sp += task_sp
+                    else:
+                        print(f"    ✗ Skipping (high/critical priority - should stay in sprint)")
+            
+            print(f"✓ Created {len(proposals)} sprint overflow proposals")
+            return proposals
+        
+        if not overloaded:
             return proposals
         
         # Try to move tasks from overloaded to underutilized sprints

@@ -38,6 +38,7 @@
           :key="proposal.id"
           :proposal="proposal"
           :selected="isSelected(proposal.id)"
+          :scope="props.scope"
           @toggle="$emit('toggle-selection', proposal.id)"
         />
       </div>
@@ -56,6 +57,7 @@
           :key="proposal.id"
           :proposal="proposal"
           :selected="isSelected(proposal.id)"
+          :scope="props.scope"
           @toggle="$emit('toggle-selection', proposal.id)"
         />
       </div>
@@ -74,6 +76,7 @@
           :key="proposal.id"
           :proposal="proposal"
           :selected="isSelected(proposal.id)"
+          :scope="props.scope"
           @toggle="$emit('toggle-selection', proposal.id)"
         />
       </div>
@@ -93,6 +96,7 @@ defineOptions({
 interface Props {
   proposals: Proposal[];
   selectedProposals: string[];
+  scope?: string | undefined; // 'backlog' | 'current_sprint'
 }
 
 const props = defineProps<Props>();

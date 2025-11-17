@@ -92,7 +92,7 @@ def _run_auto_migrations():
         
         # Check if 'tasks' table exists
         if 'tasks' not in inspector.get_table_names():
-            print("⚠️  Tasks table doesn't exist yet - skipping migrations")
+            print("[INFO] Tasks table doesn't exist yet - skipping migrations")
             return
         
         # Get existing columns
@@ -101,40 +101,18 @@ def _run_auto_migrations():
         migrations_applied = []
         
         # Migration 1: Add task split fields
-        if 'parent_task_id' not in columns:
-            print("🔄 Adding parent_task_id column...")
-            db.session.execute(text("""
-                ALTER TABLE tasks 
-                ADD COLUMN parent_task_id INTEGER NULL
-            """))
-            migrations_applied.append('parent_task_id')
-        
-        if 'has_subtasks' not in columns:
-            print("🔄 Adding has_subtasks column...")
-            db.session.execute(text("""
-                ALTER TABLE tasks 
-                ADD COLUMN has_subtasks BOOLEAN NOT NULL DEFAULT FALSE
-            """))
-            migrations_applied.append('has_subtasks')
-        
-        if 'subtask_ids' not in columns:
-            print("🔄 Adding subtask_ids column...")
-            db.session.execute(text("""
-                ALTER TABLE tasks 
-                ADD COLUMN subtask_ids JSON NULL
-            """))
-            migrations_applied.append('subtask_ids')
+        # No migrations needed - original task is deleted upon split
         
         if migrations_applied:
             db.session.commit()
-            print(f"✅ Auto-migration completed: Added {len(migrations_applied)} columns")
+            print(f"[SUCCESS] Auto-migration completed: Added {len(migrations_applied)} columns")
             for col in migrations_applied:
-                print(f"   • {col}")
+                print(f"   - {col}")
         else:
-            print("✅ Database schema is up to date")
+            print("[INFO] Database schema is up to date")
             
     except Exception as e:
         db.session.rollback()
-        print(f"⚠️  Auto-migration warning: {str(e)}")
+        print(f"[WARNING] Auto-migration warning: {str(e)}")
         # Don't fail app startup on migration errors
 

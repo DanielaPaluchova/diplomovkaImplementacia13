@@ -23,7 +23,7 @@ class Task(db.Model):
     labels = db.Column(db.JSON, nullable=True)  # Array of labels
     complexity = db.Column(db.Integer, nullable=False, default=0)
     
-    # PERT estimates (in hours)
+    # PERT estimates (in days)
     pert_optimistic = db.Column(db.Float, nullable=True)
     pert_most_likely = db.Column(db.Float, nullable=True)
     pert_pessimistic = db.Column(db.Float, nullable=True)
