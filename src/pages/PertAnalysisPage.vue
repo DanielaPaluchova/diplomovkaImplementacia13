@@ -5,7 +5,7 @@
       <div class="row items-center justify-between q-mb-md">
         <div>
           <h4 class="text-h4 text-weight-bold text-primary q-ma-none">PERT Analysis</h4>
-          <p class="text-grey-7 q-ma-none q-mt-sm">Critical path analysis with time estimation</p>
+          <p class="text-grey-7 q-ma-none q-mt-sm">Time estimation</p>
         </div>
       </div>
 
@@ -124,35 +124,6 @@
                   />
                 </g>
               </g>
-
-              <!-- Independent Tasks Section Background -->
-              <rect
-                v-if="independentNodes.length > 0"
-                :transform="transform"
-                x="0"
-                y="580"
-                :width="diagramWidth"
-                height="300"
-                fill="#f5f5f5"
-                stroke="#9c27b0"
-                stroke-width="2"
-                stroke-dasharray="10,5"
-                opacity="0.3"
-              />
-
-              <!-- Independent Section Label -->
-              <text
-                v-if="independentNodes.length > 0"
-                :transform="transform"
-                x="10"
-                y="600"
-                class="section-label"
-                fill="#9c27b0"
-                font-size="14"
-                font-weight="bold"
-              >
-                Independent Tasks (No Dependencies)
-              </text>
 
               <!-- Dependent Nodes -->
               <g class="nodes" :transform="transform">
@@ -528,7 +499,10 @@ function calculateAutoLayout(existingPositions: Record<number, { x: number; y: n
 
   const horizontalSpacing = 250;
   const verticalSpacing = 180;
-  const independentSectionY = 600; // Y position for independent section
+  const nodeHeight = 80; // Height of a node
+  const sectionBuffer = 150; // Buffer between dependent and independent sections
+
+  let maxDependentY = 0; // Track the maximum Y position of dependent nodes
 
   // Layout dependent nodes hierarchically
   if (dependentNodes.length > 0) {
@@ -607,9 +581,15 @@ function calculateAutoLayout(existingPositions: Record<number, { x: number; y: n
         const x = 100 + layerIndex * horizontalSpacing;    // layers go right →
         const y = 100 + indexInLayer * verticalSpacing;    // tasks stacked vertically
         existingPositions[nodeId] = { x, y };
+
+        // Track the maximum Y position (including node height)
+        maxDependentY = Math.max(maxDependentY, y + nodeHeight);
       });
     });
   }
+
+  // Calculate Y position for independent section (below all dependent nodes)
+  const independentSectionY = maxDependentY > 0 ? maxDependentY + sectionBuffer : 100;
 
   // Layout independent nodes in a separate swimlane at the bottom
   independent.forEach((node, index) => {
@@ -674,15 +654,15 @@ async function refreshDiagram() {
   zoomLevel.value = 1;
   panX.value = 0;
   panY.value = 0;
-  
+
   // Reload project data from database
   if (selectedProjectId.value) {
     await projectStore.fetchProjects(true);
     await initializeCustomNodesFromProject();
-    
-    $q.notify({ 
-      type: 'positive', 
-      message: 'Diagram refreshed from database' 
+
+    $q.notify({
+      type: 'positive',
+      message: 'Diagram refreshed from database'
     });
   }
 }

@@ -144,3 +144,4 @@ Iba sme zmenili **UI zobrazenie**, výpočty zostali rovnaké.
 **Autor zmeny:** Na základe analýzy paralelného vykonávania
 
 
+

@@ -9,7 +9,7 @@
             Project Optimization
           </h4>
           <p class="text-white q-ma-none q-mt-sm opacity-90">
-            Intelligent analysis with 9 optimization types
+            Analysis with 10+ optimization types
           </p>
         </div>
       </div>
@@ -76,9 +76,9 @@
               </div>
               </div>
         </q-card-section>
-        
+
         <q-separator />
-        
+
         <q-card-actions class="q-pa-md">
           <q-btn
             color="orange"
@@ -124,8 +124,8 @@
                           {{ member.workload }}%
                         </span>
                       </div>
-                      <q-linear-progress 
-                        :value="Math.min(1, member.workload / 100)" 
+                      <q-linear-progress
+                        :value="Math.min(1, member.workload / 100)"
                         :color="getWorkloadColor(member.workload)"
                         size="4px"
                         class="q-mt-xs"
@@ -156,8 +156,8 @@
                           {{ member.workload }}%
                         </span>
                       </div>
-                      <q-linear-progress 
-                        :value="Math.min(1, member.workload / 100)" 
+                      <q-linear-progress
+                        :value="Math.min(1, member.workload / 100)"
                         :color="getWorkloadColor(member.workload)"
                         size="4px"
                         class="q-mt-xs"
@@ -327,8 +327,8 @@
                           {{ member.workload }}%
                         </span>
                       </div>
-                      <q-linear-progress 
-                        :value="Math.min(1, member.workload / 100)" 
+                      <q-linear-progress
+                        :value="Math.min(1, member.workload / 100)"
                         :color="getWorkloadColor(member.workload)"
                         size="4px"
                         class="q-mt-xs"
@@ -362,8 +362,8 @@
                           {{ member.workload }}%
                         </span>
                       </div>
-                      <q-linear-progress 
-                        :value="Math.min(1, member.workload / 100)" 
+                      <q-linear-progress
+                        :value="Math.min(1, member.workload / 100)"
                         :color="getWorkloadColor(member.workload)"
                         size="4px"
                         class="q-mt-xs"
@@ -394,9 +394,9 @@
           align="justify"
         >
           <q-tab name="backlog" icon="inventory_2" label="Backlog" />
-          <q-tab 
-            name="current_sprint" 
-            icon="today" 
+          <q-tab
+            name="current_sprint"
+            icon="today"
             label="Current Sprint"
             :disable="!hasActiveSprint"
           >
@@ -689,7 +689,7 @@ const selectedProject = computed(() => {
   if (!selectedProjectId.value) return null;
   const project = projectStore.projects.find((p) => p.id === selectedProjectId.value);
   if (!project) return null;
-  
+
   // Filter out Split tasks (they should not be displayed in normal views)
   return {
     ...project,
@@ -718,21 +718,21 @@ const currentState = computed(() => {
   const members = teamStore.teamMembers.filter((member) =>
     selectedProject.value?.teamMemberIds?.includes(member.id)
   );
-  
+
   // Get active sprint
   const activeSprint = sprints.find((s) => s.status === 'active');
-  
+
   let totalWorkload = 0;
   members.forEach((member) => {
     const maxStoryPoints = member.maxStoryPoints || 20;
-    
+
     // Only count tasks from active sprint (including Done - Sprint Commitment)
     const tasks = (selectedProject.value?.tasks || []).filter((task) => {
       const isInSprint = activeSprint ? task.sprintId === activeSprint.id : false;
       const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
       return isInSprint && isAssigned;
     });
-    
+
     const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
     const memberWorkload = maxStoryPoints > 0 ? (memberStoryPoints / maxStoryPoints) * 100 : 0;
     totalWorkload += memberWorkload;
@@ -761,7 +761,7 @@ const currentState = computed(() => {
 
   // Calculate PERT/RACI metrics from analysis result if available
   const analysisState = requirementChangeStore.analysisResult?.currentState;
-  
+
   // Calculate RACI Workload average for current project only
   let raciProjectWorkload = 0;
   if (raciProjectWorkloadDetails.value.length > 0) {
@@ -775,7 +775,7 @@ const currentState = computed(() => {
     const totalWorkload = raciCrossProjectWorkloadDetails.value.reduce((sum, m) => sum + m.workload, 0);
     raciCrossProjectWorkload = Math.round(totalWorkload / raciCrossProjectWorkloadDetails.value.length);
   }
-  
+
   return {
     workload,
     riskScore,
@@ -804,7 +804,7 @@ const hasActiveSprint = computed(() => {
 
 const teamWorkloadDetails = computed(() => {
   if (!selectedProject.value) return [];
-  
+
   const members = teamStore.teamMembers.filter((member) =>
     selectedProject.value?.teamMemberIds?.includes(member.id)
   );
@@ -814,17 +814,17 @@ const teamWorkloadDetails = computed(() => {
 
   return members.map((member) => {
     const maxStoryPoints = member.maxStoryPoints || 20;
-    
+
     // Only count tasks from active sprint (including Done - Sprint Commitment)
     const tasks = (selectedProject.value?.tasks || []).filter((task) => {
       const isInSprint = activeSprint ? task.sprintId === activeSprint.id : false;
       const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
       return isInSprint && isAssigned;
     });
-    
+
     const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
     const workload = maxStoryPoints > 0 ? Math.round((memberStoryPoints / maxStoryPoints) * 100) : 0;
-    
+
     return {
       id: member.id,
       name: member.name,
@@ -837,7 +837,7 @@ const crossProjectWorkload = computed(() => {
   if (!selectedProject.value) {
     return { average: 0, details: [] };
   }
-  
+
   // Get members from current project
   const projectMembers = teamStore.teamMembers.filter((member) =>
     selectedProject.value?.teamMemberIds?.includes(member.id)
@@ -854,7 +854,7 @@ const crossProjectWorkload = computed(() => {
       if (project.teamMemberIds && project.teamMemberIds.includes(member.id)) {
         // Get active sprint for this project
         const activeSprint = project.sprints?.find((s) => s.status === 'active');
-        
+
         if (project.tasks && activeSprint) {
           // Count tasks from active sprint (including Done - Sprint Commitment)
           const sprintTasks = project.tasks.filter((task) => {
@@ -868,7 +868,7 @@ const crossProjectWorkload = computed(() => {
     });
 
     const workload = maxStoryPoints > 0 ? Math.round((totalStoryPoints / maxStoryPoints) * 100) : 0;
-    
+
     return {
       id: member.id,
       name: member.name,
@@ -897,7 +897,7 @@ const RACI_WEIGHTS = {
 // RACI Workload for current project only
 const raciProjectWorkloadDetails = computed(() => {
   if (!selectedProject.value) return [];
-  
+
   const projectMembers = teamStore.teamMembers.filter((member) =>
     selectedProject.value?.teamMemberIds?.includes(member.id)
   );
@@ -908,32 +908,32 @@ const raciProjectWorkloadDetails = computed(() => {
   return projectMembers.map((member) => {
     const maxStoryPoints = member.maxStoryPoints || 20;
     let weightedSP = 0;
-    
+
     // Calculate RACI-weighted workload for CURRENT project only (if active sprint exists)
     if (activeSprint) {
       const sprintTasks = (selectedProject.value?.tasks || []).filter(
         (task) => task.sprintId === activeSprint.id
       );
-    
+
       sprintTasks.forEach((task) => {
         const sp = task.storyPoints || 0;
         if (sp === 0) return;
-        
+
         // Responsible
         if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
           weightedSP += sp * RACI_WEIGHTS.responsible;
         }
-        
+
         // Accountable
         if (task.raci?.accountable === member.id) {
           weightedSP += sp * RACI_WEIGHTS.accountable;
         }
-        
+
         // Consulted
         if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
           weightedSP += sp * RACI_WEIGHTS.consulted;
         }
-        
+
         // Informed
         if (task.raci?.informed && task.raci.informed.includes(member.id)) {
           weightedSP += sp * RACI_WEIGHTS.informed;
@@ -941,9 +941,9 @@ const raciProjectWorkloadDetails = computed(() => {
       });
     }
     // If no active sprint, weightedSP stays 0 for all members
-    
+
     const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
-    
+
     return {
       id: member.id,
       name: member.name,
@@ -958,7 +958,7 @@ const raciProjectWorkloadDetails = computed(() => {
 // RACI Workload across all projects (cross-project)
 const raciCrossProjectWorkloadDetails = computed(() => {
   if (!selectedProject.value) return [];
-  
+
   // Get members from current project only (but calculate cross-project workload for them)
   const projectMembers = teamStore.teamMembers.filter((member) =>
     selectedProject.value?.teamMemberIds?.includes(member.id)
@@ -967,34 +967,34 @@ const raciCrossProjectWorkloadDetails = computed(() => {
   return projectMembers.map((member) => {
     const maxStoryPoints = member.maxStoryPoints || 20;
     let weightedSP = 0;
-    
+
     // Calculate RACI-weighted workload across ALL projects (each with its own active sprint)
     projectStore.projects.forEach((project) => {
       // FIX: Find active sprint for EACH project (not just selected project)
       const projectActiveSprint = project.sprints?.find((s) => s.status === 'active');
-      
+
       if (project.tasks && projectActiveSprint) {
         const sprintTasks = project.tasks.filter((task) => task.sprintId === projectActiveSprint.id);
-        
+
         sprintTasks.forEach((task) => {
           const sp = task.storyPoints || 0;
           if (sp === 0) return;
-          
+
           // Responsible
           if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
             weightedSP += sp * RACI_WEIGHTS.responsible;
           }
-          
+
           // Accountable
           if (task.raci?.accountable === member.id) {
             weightedSP += sp * RACI_WEIGHTS.accountable;
           }
-          
+
           // Consulted
           if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
             weightedSP += sp * RACI_WEIGHTS.consulted;
           }
-          
+
           // Informed
           if (task.raci?.informed && task.raci.informed.includes(member.id)) {
             weightedSP += sp * RACI_WEIGHTS.informed;
@@ -1002,9 +1002,9 @@ const raciCrossProjectWorkloadDetails = computed(() => {
         });
       }
     });
-    
+
     const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
-    
+
     return {
       id: member.id,
       name: member.name,
@@ -1038,14 +1038,14 @@ const riskBreakdown = computed(() => {
 
 const balanceDetails = computed(() => {
   const workloads = teamWorkloadDetails.value.map((m) => m.workload);
-  
+
   if (workloads.length === 0) {
     return { minWorkload: 0, maxWorkload: 0, difference: 0 };
   }
 
   const min = Math.min(...workloads);
   const max = Math.max(...workloads);
-  
+
   return {
     minWorkload: Math.round(min * 100) / 100,
     maxWorkload: Math.round(max * 100) / 100,

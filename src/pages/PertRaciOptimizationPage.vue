@@ -2800,13 +2800,10 @@ const averageRaciWeightedWorkload = computed(() => {
 
           // Calculate workload for each member in this sprint
           const sprintWorkload = new Map<number, number>();
-          // Track if member has Responsible role in this sprint
-          const hasResponsibleRole = new Map<number, boolean>();
 
           // Initialize sprint workload for project members only
           projectMembers.forEach((member) => {
             sprintWorkload.set(member.id, 0);
-            hasResponsibleRole.set(member.id, false);
           });
 
           // Calculate workload from all projects for this sprint
@@ -2824,7 +2821,6 @@ const averageRaciWeightedWorkload = computed(() => {
                         memberId,
                         current + raciWorkloadWeights.value.responsible * sp,
                       );
-                      hasResponsibleRole.set(memberId, true); // Mark that member has Responsible role
                     });
                   }
 
@@ -2862,10 +2858,9 @@ const averageRaciWeightedWorkload = computed(() => {
           });
 
           // Add this sprint's workload to the total (includes all RACI roles: R+A+C+I)
-          // Only count sprints where member has at least 1 weighted SP AND has Responsible role
+          // Only count sprints where member has at least 1 weighted SP
           sprintWorkload.forEach((workload, memberId) => {
-            const hasResponsible = hasResponsibleRole.get(memberId) || false;
-            if (workload >= 1 && hasResponsible) {
+            if (workload >= 1) {
               const memberData = workloadMap.get(memberId);
               if (memberData) {
                 memberData.totalWorkload += workload;
@@ -2952,13 +2947,10 @@ const averageRaciWeightedWorkloadInCurrentProject = computed(() => {
 
         // Calculate workload for each member in this sprint
         const sprintWorkload = new Map<number, number>();
-        // Track if member has Responsible role in this sprint
-        const hasResponsibleRole = new Map<number, boolean>();
 
         // Initialize sprint workload for project members only
         projectMembers.forEach((member) => {
           sprintWorkload.set(member.id, 0);
-          hasResponsibleRole.set(member.id, false);
         });
 
         // Calculate workload from all projects for this sprint (cross-project)
@@ -2976,7 +2968,6 @@ const averageRaciWeightedWorkloadInCurrentProject = computed(() => {
                       memberId,
                       current + raciWorkloadWeights.value.responsible * sp,
                     );
-                    hasResponsibleRole.set(memberId, true); // Mark that member has Responsible role
                   });
                 }
 
@@ -3011,10 +3002,9 @@ const averageRaciWeightedWorkloadInCurrentProject = computed(() => {
         });
 
         // Add this sprint's workload to the total (includes all RACI roles: R+A+C+I)
-        // Only count sprints where member has at least 1 weighted SP AND has Responsible role
+        // Only count sprints where member has at least 1 weighted SP
         sprintWorkload.forEach((workload, memberId) => {
-          const hasResponsible = hasResponsibleRole.get(memberId) || false;
-          if (workload >= 1 && hasResponsible) {
+          if (workload >= 1) {
             const memberData = workloadMap.get(memberId);
             if (memberData) {
               memberData.totalWorkload += workload;
@@ -3525,7 +3515,6 @@ function getMemberAverageWeightedSpInProject(memberId: number): number {
         processedSprints.add(sprint.id);
 
         let sprintTotal = 0;
-        let hasResponsibleRole = false;
 
         // Calculate weighted SP for this member in this sprint across ALL projects (cross-project)
         // This matches the logic in averageRaciWeightedWorkloadInCurrentProject
@@ -3537,7 +3526,6 @@ function getMemberAverageWeightedSpInProject(memberId: number): number {
 
                 if (task.raci?.responsible?.includes(memberId)) {
                   sprintTotal += raciWorkloadWeights.value.responsible * sp;
-                  hasResponsibleRole = true; // Mark that member has Responsible role
                 }
                 if (task.raci?.accountable === memberId) {
                   sprintTotal += raciWorkloadWeights.value.accountable * sp;
@@ -3553,9 +3541,9 @@ function getMemberAverageWeightedSpInProject(memberId: number): number {
           }
         });
 
-        // Only add to totals if member has workload >= 1 SP AND has Responsible role in this sprint
-        // This ensures we only count sprints where member actively worked (not just consulted/informed)
-        if (sprintTotal >= 1 && hasResponsibleRole) {
+        // Only add to totals if member has workload >= 1 SP
+        // This ensures we only count sprints where member actively worked (not just marginally consulted/informed)
+        if (sprintTotal >= 1) {
           sprintTotals.push(sprintTotal);
         }
       }

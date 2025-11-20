@@ -46,3 +46,4 @@ ORDER BY t.sprint_id, t.id;
 -- WHERE id = [id_stareho_aktivneho_sprintu];
 
 
+

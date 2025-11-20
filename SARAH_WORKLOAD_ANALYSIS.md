@@ -193,3 +193,4 @@ A používa sa na:
 - Identifikáciu preťažených/podvyťažených členov tímu
 
 
+

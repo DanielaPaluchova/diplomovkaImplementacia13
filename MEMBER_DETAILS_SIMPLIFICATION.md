@@ -82,3 +82,4 @@ V detailoch členov sa teraz zobrazujú iba:
 
 AI Assistant (based on user requirements)
 
+

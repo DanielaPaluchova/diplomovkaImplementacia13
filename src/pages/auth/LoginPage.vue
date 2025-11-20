@@ -7,7 +7,7 @@
             <q-avatar size="80px" class="q-mb-md">
               <q-icon name="trending_up" size="48px" color="primary" />
             </q-avatar>
-            <div class="text-h4 text-weight-bold text-primary q-mb-xs">AdaptivePERT-RACI</div>
+            <div class="text-h4 text-weight-bold text-primary q-mb-xs">Darlana</div>
             <div class="text-subtitle2 text-grey-7">Sign in to your account</div>
           </q-card-section>
 

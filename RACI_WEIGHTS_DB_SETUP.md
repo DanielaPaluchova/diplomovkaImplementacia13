@@ -154,3 +154,4 @@ CREATE TABLE raci_weights_config (
 
 **Poznámka**: V tabuľke je vždy len jeden záznam (singleton pattern), ktorý obsahuje globálnu konfiguráciu váh pre celú aplikáciu.
 
+

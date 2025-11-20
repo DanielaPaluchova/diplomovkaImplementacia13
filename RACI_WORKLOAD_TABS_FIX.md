@@ -125,3 +125,4 @@ V PERT + RACI Optimization stránke boli **nekonzistentné tabuľky** medzi tabm
 
 AI Assistant (based on user requirements)
 
+

@@ -143,3 +143,4 @@ return workloadArray;  // ✅ Vracia všetkých členov aj s 0 SP
 
 AI Assistant (based on user requirements)
 
+

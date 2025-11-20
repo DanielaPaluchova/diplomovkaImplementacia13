@@ -72,3 +72,4 @@ def update_raci_weights():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+

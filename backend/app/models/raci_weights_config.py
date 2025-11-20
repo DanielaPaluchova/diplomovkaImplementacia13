@@ -86,3 +86,4 @@ class RaciWeightsConfig(db.Model):
     def __repr__(self):
         return f'<RaciWeightsConfig id={self.id}>'
 
+

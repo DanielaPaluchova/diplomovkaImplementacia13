@@ -20,7 +20,7 @@
 
       <!-- Content -->
       <div class="col">
-        <!-- Title with score and PERT+RACI badge -->
+        <!-- Title with PERT+RACI badge -->
         <div class="row items-center q-mb-xs">
           <div class="text-subtitle1 text-weight-bold">{{ proposal.title }}</div>
           <q-space />
@@ -32,14 +32,6 @@
           >
             <q-tooltip>Analyzed using PERT duration and RACI workload metrics</q-tooltip>
           </q-badge>
-          <q-chip
-            :color="getScoreColor(proposal.score)"
-            text-color="white"
-            size="sm"
-            dense
-          >
-            {{ proposal.score }}
-          </q-chip>
         </div>
 
         <!-- Description -->
@@ -177,13 +169,6 @@ function getCategoryLabel(category: string): string {
     pert_raci: 'PERT+RACI',
   };
   return labels[category] || category;
-}
-
-function getScoreColor(score: number): string {
-  if (score >= 80) return 'green';
-  if (score >= 60) return 'light-green';
-  if (score >= 40) return 'orange';
-  return 'red';
 }
 
 function getTypeLabel(type: string): string {

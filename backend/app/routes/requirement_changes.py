@@ -243,15 +243,15 @@ def _generate_workload_rebalancing_proposals(team_members, tasks, sprints, cross
                         # Build impact with overload warning check
                         to_workload_pct = round(((underloaded_sp + task_sp)/underloaded_member.max_story_points)*100, 1)
                         impact_data = {
-                            'fromMember': overloaded_member.name,
-                            'toMember': underloaded_member.name,
-                            'fromWorkload': round((overloaded_sp/overloaded_member.max_story_points)*100, 1),
-                            'fromWorkloadAfter': round(((overloaded_sp - task_sp)/overloaded_member.max_story_points)*100, 1),
-                            'toWorkloadBefore': round((underloaded_sp/underloaded_member.max_story_points)*100, 1),
+                                'fromMember': overloaded_member.name,
+                                'toMember': underloaded_member.name,
+                                'fromWorkload': round((overloaded_sp/overloaded_member.max_story_points)*100, 1),
+                                'fromWorkloadAfter': round(((overloaded_sp - task_sp)/overloaded_member.max_story_points)*100, 1),
+                                'toWorkloadBefore': round((underloaded_sp/underloaded_member.max_story_points)*100, 1),
                             'toWorkload': to_workload_pct,
-                            'taskSP': task_sp,
+                                'taskSP': task_sp,
                             'skillMatch': round(skill_score),
-                            'affectedMembers': [overloaded_member.id, underloaded_member.id]
+                                'affectedMembers': [overloaded_member.id, underloaded_member.id]
                         }
                         
                         # Add warning if recipient will be overloaded after reassignment
@@ -1278,10 +1278,21 @@ def _apply_task_split(action, project_id):
     saved_due_date = original_task.due_date
     saved_estimated_hours = original_task.estimated_hours or 0
     original_sp = original_task.story_points or 0
+    saved_dependencies = original_task.dependencies or []  # Save dependencies
+    
+    # Find all tasks that depend on this task (reverse dependencies)
+    # Query all tasks in project and filter in Python (JSON contains doesn't work well with SQLAlchemy)
+    all_project_tasks = Task.query.filter(Task.project_id == project_id).all()
+    tasks_depending_on_this = [
+        t for t in all_project_tasks 
+        if t.dependencies and task_id in t.dependencies
+    ]
     
     # Create subtasks (no parent reference needed - original will be deleted)
     created_subtask_ids = []
-    for subtask_data in subtasks_data:
+    previous_subtask_id = None
+    
+    for i, subtask_data in enumerate(subtasks_data):
         new_task = Task(
             project_id=project_id,
             sprint_id=saved_sprint_id,
@@ -1322,9 +1333,34 @@ def _apply_task_split(action, project_id):
         else:
             new_task.estimated_hours = 0
         
+        # Copy dependencies:
+        # - First subtask gets original dependencies
+        # - Subsequent subtasks depend on previous subtask (sequential)
+        if i == 0:
+            # First subtask inherits all dependencies from original task
+            new_task.dependencies = saved_dependencies.copy() if saved_dependencies else []
+        else:
+            # Subsequent subtasks depend on previous subtask
+            new_task.dependencies = [previous_subtask_id] if previous_subtask_id else []
+        
         db.session.add(new_task)
         db.session.flush()  # Flush to get the ID
         created_subtask_ids.append(new_task.id)
+        previous_subtask_id = new_task.id  # Track for next iteration
+    
+    # Update tasks that depended on the original task
+    # They should now depend on the LAST subtask (which completes the sequence)
+    last_subtask_id = created_subtask_ids[-1] if created_subtask_ids else None
+    if last_subtask_id:
+        for dependent_task in tasks_depending_on_this:
+            if dependent_task.dependencies:
+                # Replace original task ID with last subtask ID
+                updated_deps = [
+                    last_subtask_id if dep_id == task_id else dep_id 
+                    for dep_id in dependent_task.dependencies
+                ]
+                dependent_task.dependencies = updated_deps
+                db.session.add(dependent_task)
     
     # Delete original task (subtasks replace it completely)
     db.session.delete(original_task)

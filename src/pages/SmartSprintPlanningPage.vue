@@ -9,7 +9,7 @@
             Smart Sprint Planning
           </h4>
           <p class="text-white q-ma-none q-mt-sm opacity-90">
-            AI-powered sprint planning with multiple optimization strategies
+            Sprint planning with multiple optimization strategies
           </p>
         </div>
         <div class="row q-gutter-md">
@@ -34,7 +34,7 @@
             unelevated
           >
             <q-tooltip v-if="!canApplyPlan" max-width="300px">
-              Cannot apply: Sprint "{{ activeSprint?.name }}" is currently active. 
+              Cannot apply: Sprint "{{ activeSprint?.name }}" is currently active.
               Please enable "Close active sprint when applying" option in the warning banner above.
             </q-tooltip>
           </q-btn>
@@ -339,6 +339,17 @@
         </q-card-section>
 
         <q-separator />
+
+        <!-- Warning Banner -->
+        <q-banner class="bg-orange-1 q-ma-md" rounded>
+          <template v-slot:avatar>
+            <q-icon name="info" color="orange" size="24px" />
+          </template>
+          <div class="text-body2">
+            <strong>Note:</strong> All planning strategies will automatically assign tasks to team members based on the selected algorithm.
+            Existing RACI "Responsible" assignments will be overwritten to optimize workload distribution.
+          </div>
+        </q-banner>
 
         <!-- Generate Button -->
         <q-card-actions class="q-pa-md">
@@ -776,11 +787,10 @@ const targetUtilization = ref(85);
 const closeActiveSprint = ref(false);
 const considerCrossProject = ref(true); // Default: consider workload from other projects
 const hybridWeights = ref({
-  priority: 0.25,
-  workload: 0.2,
-  skills: 0.25,
+  priority: 0.30,
+  workload: 0.25,
+  skills: 0.30,
   dependency: 0.15,
-  velocity: 0.15,
 });
 
 // Computed
@@ -975,11 +985,11 @@ async function onApplyPlan() {
 
   // Build confirmation message
   let confirmMessage = `This will create "${sprintName.value}" with ${taskIds.length} tasks and assign them to team members.`;
-  
+
   if (activeSprint.value && closeActiveSprint.value) {
     confirmMessage += `\n\n✓ The active sprint "${activeSprint.value.name}" will be closed and marked as completed.`;
   }
-  
+
   confirmMessage += '\n\nContinue?';
 
   $q.dialog({
@@ -1113,7 +1123,7 @@ onMounted(async () => {
   background: #f5f5f5;
   border-radius: 8px;
   transition: all 0.2s ease;
-  
+
   &.cursor-pointer:hover {
     background: #ececec;
     transform: translateY(-1px);

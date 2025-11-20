@@ -162,3 +162,4 @@ totalWorkload = task1 + task2 + task3
 6. ✅ Zobrazujú sa iba členovia s pridelenými future taskmi
 
 
+

@@ -119,3 +119,4 @@ Keď naň najedeš myšou, uvidíš tooltip:
 **VŽDY je jasné čo sa stane!** 🎉
 
 
+

@@ -196,3 +196,4 @@ python app.py
 **Potrebuješ pomoc s vykonaním SQL dotazov? Daj vedieť a pomôžem ti krok za krokom!** 🚀
 
 
+

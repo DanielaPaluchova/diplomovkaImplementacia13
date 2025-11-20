@@ -16,7 +16,7 @@
           <q-icon name="trending_up" size="24px" />
         </q-avatar>
 
-        <q-toolbar-title class="text-h6 text-weight-bold"> AdaptivePERT-RACI </q-toolbar-title>
+        <q-toolbar-title class="text-h6 text-weight-bold"> Darlana </q-toolbar-title>
 
         <q-space />
 
@@ -246,7 +246,7 @@ const mainNavigation: NavigationItemProps[] = [
 const projectNavigation: NavigationItemProps[] = [
   {
     title: 'PERT Analysis',
-    caption: 'Critical path & time estimates',
+    caption: 'Time estimates',
     icon: 'account_tree',
     route: '/pert-analysis',
   },
@@ -263,18 +263,16 @@ const projectNavigation: NavigationItemProps[] = [
     route: '/pert-raci-optimization',
   },
   {
-    title: 'Requirement Changes',
-    caption: 'Intelligent adaptation system',
+    title: 'Project Optimization',
+    caption: 'Analysis with optimizations',
     icon: 'change_circle',
     route: '/requirement-changes',
-    badge: 'New',
   },
   {
     title: 'Smart Sprint Planning',
-    caption: 'AI-powered sprint optimization',
+    caption: 'Sprint planning',
     icon: 'auto_awesome',
     route: '/smart-sprint-planning',
-    badge: 'New',
   },
 ];
 

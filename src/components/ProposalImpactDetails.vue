@@ -266,7 +266,7 @@
           <div class="text-caption">
             <strong>Skill Match:</strong>
             <span v-if="proposal.impact.currentMatch && proposal.impact.newMatch">
-              {{ proposal.impact.currentMatch }} → {{ proposal.impact.newMatch }}
+            {{ proposal.impact.currentMatch }} → {{ proposal.impact.newMatch }}
             </span>
             <span v-else-if="proposal.impact.skillMatch">
               {{ proposal.impact.skillMatch }}%

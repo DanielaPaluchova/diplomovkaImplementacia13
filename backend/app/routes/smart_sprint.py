@@ -356,11 +356,9 @@ def apply_smart_sprint_plan(project_id):
                 if member_id:
                     # Update RACI assignments
                     if role == 'responsible':
-                        # Add to responsible list
-                        responsible = task.raci_responsible or []
-                        if member_id not in responsible:
-                            responsible.append(member_id)
-                        task.raci_responsible = responsible
+                        # Replace responsible list with new assignment
+                        # (overwrite existing assignments as per UI warning banner)
+                        task.raci_responsible = [member_id]
                     elif role == 'accountable':
                         task.raci_accountable = member_id
                     
@@ -491,33 +489,6 @@ def get_sprint_strategies(project_id):
             'recommended': 'When you have specialized tasks and clear priorities'
         },
         {
-            'id': 'skill-balanced',
-            'name': 'Skill-Balanced',
-            'description': 'Combine skill matching with workload balance - good skill match while keeping fair distribution',
-            'parameters': [
-                {
-                    'name': 'skills',
-                    'label': 'Skills Weight',
-                    'type': 'slider',
-                    'min': 0,
-                    'max': 1,
-                    'step': 0.05,
-                    'default': 0.5
-                },
-                {
-                    'name': 'workload',
-                    'label': 'Workload Balance Weight',
-                    'type': 'slider',
-                    'min': 0,
-                    'max': 1,
-                    'step': 0.05,
-                    'default': 0.5
-                }
-            ],
-            'icon': 'auto_awesome',
-            'recommended': 'When you want good skill matching with fair work distribution'
-        },
-        {
             'id': 'skill-value',
             'name': 'Skill-Value',
             'description': 'Combine skill matching with business value - best skill match for high-value tasks',
@@ -551,33 +522,6 @@ def get_sprint_strategies(project_id):
             'parameters': [],
             'icon': 'trending_up',
             'recommended': 'When you want to maximize delivered business value'
-        },
-        {
-            'id': 'balanced-priority',
-            'name': 'Balanced Priority',
-            'description': 'Balance high-priority tasks with fair workload distribution',
-            'parameters': [
-                {
-                    'name': 'priority',
-                    'label': 'Priority Weight',
-                    'type': 'slider',
-                    'min': 0,
-                    'max': 1,
-                    'step': 0.05,
-                    'default': 0.6
-                },
-                {
-                    'name': 'workload',
-                    'label': 'Workload Balance Weight',
-                    'type': 'slider',
-                    'min': 0,
-                    'max': 1,
-                    'step': 0.05,
-                    'default': 0.4
-                }
-            ],
-            'icon': 'filter_list',
-            'recommended': 'When you need to address important work while maintaining fair distribution'
         },
         {
             'id': 'hybrid',

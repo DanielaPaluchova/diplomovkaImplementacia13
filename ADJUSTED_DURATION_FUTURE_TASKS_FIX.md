@@ -168,3 +168,4 @@ Ak Sarah pracuje na taskoch v iných projektoch počas šprintov tohto projektu,
 
 AI Assistant (based on user requirements)
 
+

@@ -386,3 +386,4 @@ for each member:
 **Pamätajte:** Člen tímu môže mať nízky workload v jednom projekte, ale byť preťažený naprieč všetkými projektmi. RACI Cross-Project Workload vám dáva pravdivý obraz! 🎯
 
 
+

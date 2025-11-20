@@ -40,7 +40,6 @@ export interface SprintPlanConfig {
       workload?: number;
       skills?: number;
       dependency?: number;
-      velocity?: number;
     };
   };
 }
