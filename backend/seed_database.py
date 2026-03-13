@@ -154,19 +154,19 @@ def seed_all():
     print("\n" + "=" * 70)
     print("LARGE REALISTIC SEED DATABASE")
     print("=" * 70)
-    print("\n📦 Seeding foundation data...\n")
+    print("\nSeeding foundation data...\n")
     
     seed_users()
     seed_team_members()
     
-    print("\n📦 Seeding projects...")
-    print("⚠️  NOTE: Full implementation requires seed_projects.py module")
+    print("\nSeeding projects...")
+    print("NOTE: Full implementation requires seed_projects.py module")
     print("=" * 70)
     
     try:
         seed_all_projects()
     except ImportError:
-        print("\n⚠️  seed_projects.py not found - creating inline version")
+        print("\nWARNING: seed_projects.py not found - creating inline version")
         print("Creating single demo project for now...")
         
         # Inline simplified version for demonstration
@@ -300,12 +300,12 @@ def seed_all():
         
         db.session.commit()
         print("[OK] E-commerce project created (demonstration)")
-        print("\n⚠️  For full 8-project seed, create seed_projects.py with all project functions")
+        print("\nFor full 8-project seed, create seed_projects.py with all project functions")
     
     print("\n" + "=" * 70)
-    print("✅ SEED COMPLETED")
+    print("SEED COMPLETED")
     print("=" * 70)
-    print("\n📊 SUMMARY:")
+    print("\nSUMMARY:")
     print("  - Users: 3")
     print("  - Team Members: 12 (max 20 SP across all active sprints)")
     print("  - Projects: 1 (demonstration) - Full version: 8")
@@ -313,7 +313,7 @@ def seed_all():
     print("  - Tasks in sprints: ~10")
     print("  - Backlog tasks: 8")
     print("  - Task History: 3 records")
-    print("\n🔥 INTENTIONAL ISSUES:")
+    print("\nINTENTIONAL ISSUES:")
     print("  1. Giant Task (Payment: 34 SP)")
     print("  2. Skill Mismatch (PostgreSQL → John)")
     print("  3. Workload Issue (John: 8+13+1 = 22 SP)")
@@ -332,6 +332,6 @@ if __name__ == '__main__':
         
         seed_all()
         
-        print("\n🚀 Ready to test!")
+        print("\nReady to test!")
         print("Login: manager@example.com / manager123")
         print("=" * 70 + "\n")

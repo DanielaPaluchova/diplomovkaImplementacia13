@@ -11,6 +11,7 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
     sprint_id = db.Column(db.Integer, db.ForeignKey('sprints.id'), nullable=True)
+    epic_id = db.Column(db.Integer, db.ForeignKey('epics.id', ondelete='SET NULL'), nullable=True)
     name = db.Column(db.String(200), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
@@ -69,6 +70,7 @@ class Task(db.Model):
             'id': self.id,
             'projectId': self.project_id,
             'sprintId': self.sprint_id,
+            'epicId': self.epic_id,
             'name': self.name,
             'title': self.title,
             'description': self.description,

@@ -39,6 +39,7 @@ class Project(db.Model):
     # Relationships
     sprints = db.relationship('Sprint', backref='project', lazy=True, cascade='all, delete-orphan')
     tasks = db.relationship('Task', backref='project', lazy=True, cascade='all, delete-orphan')
+    epics = db.relationship('Epic', backref='project', lazy=True, cascade='all, delete-orphan')
     roles = db.relationship('ProjectRole', backref='project', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self, include_details=False):

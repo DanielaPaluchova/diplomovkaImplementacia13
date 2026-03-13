@@ -22,6 +22,9 @@ const routes: RouteRecordRaw[] = [
       { path: '', component: () => import('pages/IndexPage.vue') },
       { path: 'projects', component: () => import('pages/ProjectsPage.vue') },
       { path: 'projects/:id', component: () => import('pages/ProjectDetailPage.vue') },
+      { path: 'projects/:id/epics', name: 'epics', component: () => import('pages/EpicsPage.vue') },
+      { path: 'projects/:projectId/epics/:epicId', name: 'epic-detail', component: () => import('pages/EpicDetailPage.vue') },
+      { path: 'projects/:id/epics/pert-diagram', name: 'epic-pert-diagram', component: () => import('pages/EpicPertDiagramPage.vue') },
       { path: 'team', component: () => import('pages/TeamPage.vue') },
       { path: 'workload', component: () => import('pages/WorkloadDashboardPage.vue') },
       // Project Management routes (Manager/Admin only)
@@ -48,6 +51,11 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'smart-sprint-planning',
         component: () => import('pages/SmartSprintPlanningPage.vue'),
+        meta: { requiresManager: true },
+      },
+      {
+        path: 'critical-path',
+        component: () => import('pages/CriticalPathPage.vue'),
         meta: { requiresManager: true },
       },
       // Profile

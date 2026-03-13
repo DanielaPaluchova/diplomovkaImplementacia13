@@ -59,6 +59,7 @@
         <q-tab name="backlog" icon="inbox" label="Backlog & Sprints" />
         <q-tab name="sprints" icon="event_note" label="Sprint Management" />
         <q-tab name="completed" icon="check_circle" label="Completed Tasks" />
+        <q-tab name="epics" icon="star" label="Epic Planning" />
         <q-tab name="team" icon="group" label="Team" />
         <q-tab name="analytics" icon="analytics" label="Analytics" />
       </q-tabs>
@@ -1313,6 +1314,11 @@
           </div>
         </q-tab-panel>
 
+        <!-- Epic Planning Tab -->
+        <q-tab-panel name="epics">
+          <EpicManagementTab :project-id="projectId" />
+        </q-tab-panel>
+
         <!-- Analytics Tab -->
         <q-tab-panel name="analytics">
           <div class="row q-gutter-lg">
@@ -1430,6 +1436,22 @@
             use-chips
             class="q-mb-md"
           />
+
+          <q-select
+            v-model="newTask.epicId"
+            :options="epicOptions"
+            label="Epic (Optional)"
+            filled
+            clearable
+            emit-value
+            map-options
+            class="q-mb-md"
+            hint="Assign this task to an epic"
+          >
+            <template v-slot:prepend>
+              <q-icon name="flag" />
+            </template>
+          </q-select>
 
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
@@ -1577,6 +1599,24 @@
           />
 
           <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Strategic Planning</div>
+          <q-select
+            v-model="newTask.epicId"
+            :options="epicOptions"
+            label="Epic (Optional)"
+            filled
+            clearable
+            class="q-mb-md"
+            emit-value
+            map-options
+            hint="Link this task to a strategic epic"
+          >
+            <template v-slot:prepend>
+              <q-icon name="star" color="orange" />
+            </template>
+          </q-select>
+
+          <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">Task Dependencies</div>
           <q-select
             v-model="newTask.dependencies"
@@ -1598,6 +1638,23 @@
                   >
                 </q-item-section>
               </q-item>
+            </template>
+          </q-select>
+
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Epic (Optional)</div>
+          <q-select
+            v-model="newTask.epicId"
+            :options="epicOptions"
+            label="Assign to Epic"
+            filled
+            clearable
+            emit-value
+            map-options
+            hint="Link this task to a strategic epic"
+          >
+            <template v-slot:prepend>
+              <q-icon name="star" />
             </template>
           </q-select>
         </q-card-section>
@@ -1680,6 +1737,22 @@
             use-chips
             class="q-mb-md"
           />
+
+          <q-select
+            v-model="editTask.epicId"
+            :options="epicOptions"
+            label="Epic (Optional)"
+            filled
+            clearable
+            emit-value
+            map-options
+            class="q-mb-md"
+            hint="Assign this task to an epic"
+          >
+            <template v-slot:prepend>
+              <q-icon name="flag" />
+            </template>
+          </q-select>
 
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
@@ -1825,6 +1898,24 @@
             map-options
             class="q-mb-md"
           />
+
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Strategic Planning</div>
+          <q-select
+            v-model="editTask.epicId"
+            :options="epicOptions"
+            label="Epic (Optional)"
+            filled
+            clearable
+            class="q-mb-md"
+            emit-value
+            map-options
+            hint="Link this task to a strategic epic"
+          >
+            <template v-slot:prepend>
+              <q-icon name="star" color="orange" />
+            </template>
+          </q-select>
 
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">Task Dependencies</div>
@@ -1996,6 +2087,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useProjectStore, type Task, type Project, type Sprint } from 'src/stores/project-store';
 import { useTeamStore, type TeamMember } from 'src/stores/team-store';
+import { useEpicStore } from 'src/stores/epic-store';
+import EpicManagementTab from 'src/components/EpicManagementTab.vue';
 import type { AxiosError } from 'axios';
 
 const router = useRouter();
@@ -2003,6 +2096,7 @@ const route = useRoute();
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
+const epicStore = useEpicStore();
 
 // Helper function to extract error messages from server responses
 function getErrorMessage(error: unknown, defaultMessage: string): string {
@@ -2031,7 +2125,7 @@ onMounted(async () => {
   // Load specific project if ID is in route
   if (route.params.id) {
     const id = parseInt(route.params.id as string);
-    await projectStore.getProject(id);
+    await Promise.all([projectStore.getProject(id), epicStore.fetchEpics(id, false)]);
   }
 });
 
@@ -2247,6 +2341,14 @@ const teamMembersOptions = computed(() => {
   }));
 });
 
+// Epic options for task epic selector
+const epicOptions = computed(() => {
+  return epicStore.epics.map((epic) => ({
+    label: epic.name,
+    value: epic.id,
+  }));
+});
+
 // Available tasks for dependencies (existing tasks in the project)
 const availableTasksForDependencies = computed(() => {
   return project.value.tasks.map((task) => ({
@@ -2333,6 +2435,7 @@ const newTask = ref({
   complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
+  epicId: null as number | null,
   requiredSkills: [] as string[],
   estimatedHours: 0,
   riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
@@ -2362,6 +2465,7 @@ const editTask = ref({
   complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
+  epicId: null as number | null,
   requiredSkills: [] as string[],
   estimatedHours: 0,
   riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
@@ -2749,6 +2853,7 @@ async function createTask() {
     type: newTask.value.type,
     storyPoints: newTask.value.storyPoints,
     sprintId: null,
+    epicId: newTask.value.epicId,
     dueDate: newTask.value.dueDate ? new Date(newTask.value.dueDate).toISOString() : '',
     completed: false,
     labels: newTask.value.labels,
@@ -2806,6 +2911,7 @@ function cancelNewTask() {
     complexity: 5,
     labels: [],
     dependencies: [],
+    epicId: null,
     requiredSkills: [],
     estimatedHours: 0,
     riskLevel: 'low',
@@ -2853,6 +2959,7 @@ function openEditTaskDialog(task: Task) {
     complexity: task.complexity,
     labels: [...task.labels],
     dependencies: task.dependencies ? [...task.dependencies] : [],
+    epicId: task.epicId || null,
     requiredSkills: task.requiredSkills ? [...task.requiredSkills] : [],
     estimatedHours: task.estimatedHours || 0,
     riskLevel: (task.riskLevel || 'low') as 'low' | 'medium' | 'high' | 'critical',
@@ -2905,6 +3012,7 @@ async function saveEditTask() {
         complexity: editTask.value.complexity,
         labels: editTask.value.labels,
         dependencies: editTask.value.dependencies,
+        epicId: editTask.value.epicId,
         completed: editTask.value.status === 'Done',
         requiredSkills: editTask.value.requiredSkills,
         estimatedHours: editTask.value.estimatedHours,
@@ -2959,6 +3067,7 @@ function cancelEditTask() {
     complexity: 5,
     labels: [],
     dependencies: [],
+    epicId: null,
     requiredSkills: [],
     estimatedHours: 0,
     riskLevel: 'low',

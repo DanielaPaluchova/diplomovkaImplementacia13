@@ -241,6 +241,7 @@ def create_task():
         task = Task(
             project_id=data['projectId'],
             sprint_id=sprint_id,
+            epic_id=data.get('epicId'),
             name=data['name'],
             title=data.get('title', data['name']),
             description=data.get('description', ''),
@@ -346,6 +347,8 @@ def update_task(task_id):
             task.story_points = data['storyPoints']
         if 'sprintId' in data:
             task.sprint_id = data['sprintId']
+        if 'epicId' in data:
+            task.epic_id = data['epicId']
         if 'dueDate' in data:
             task.due_date = datetime.fromisoformat(data['dueDate']) if data['dueDate'] else None
         if 'labels' in data:

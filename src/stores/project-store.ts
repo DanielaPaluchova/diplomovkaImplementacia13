@@ -54,6 +54,7 @@ export interface Task {
   type: 'feature' | 'bug' | 'task';
   storyPoints: number;
   sprintId: number | null;
+  epicId?: number | null;
   dueDate: Date | string;
   completed: boolean;
   labels: string[];

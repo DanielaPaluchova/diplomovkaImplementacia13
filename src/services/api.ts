@@ -25,12 +25,18 @@ class ApiClient {
     this.client.interceptors.request.use(
       (config) => {
         const authStore = useAuthStore();
-        console.log('🔐 [API Request] URL:', config.url);
+        const url = config.url || '';
+        console.log('🔐 [API Request] URL:', url);
         console.log('🔐 [API Request] Token from store:', authStore.token ? 'EXISTS' : 'MISSING');
 
-        if (authStore.token) {
+        // Skip adding token for public auth endpoints
+        const isPublicAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+        
+        if (authStore.token && !isPublicAuthEndpoint) {
           config.headers.Authorization = `Bearer ${authStore.token}`;
           console.log('✅ [API Request] Authorization header added');
+        } else if (isPublicAuthEndpoint) {
+          console.log('ℹ️ [API Request] Skipping auth header for public endpoint');
         } else {
           console.warn('⚠️ [API Request] NO TOKEN IN STORE!');
         }

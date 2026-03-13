@@ -58,6 +58,8 @@ def create_app():
     from app.routes.projects import projects_bp
     from app.routes.teams import teams_bp
     from app.routes.tasks import tasks_bp
+    from app.routes.epics import epics_bp
+    from app.routes.users import users_bp
     from app.routes.requirement_changes import requirement_changes_bp
     from app.routes.smart_sprint import smart_sprint_bp
     from app.routes.raci_weights import raci_weights_bp
@@ -66,6 +68,8 @@ def create_app():
     app.register_blueprint(projects_bp, url_prefix='/api/projects')
     app.register_blueprint(teams_bp, url_prefix='/api/teams')
     app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
+    app.register_blueprint(epics_bp, url_prefix='/api')
+    app.register_blueprint(users_bp, url_prefix='/api')
     app.register_blueprint(requirement_changes_bp, url_prefix='/api/projects')
     app.register_blueprint(smart_sprint_bp, url_prefix='/api/projects')
     app.register_blueprint(raci_weights_bp, url_prefix='/api/raci-weights')
@@ -95,13 +99,57 @@ def _run_auto_migrations():
             print("[INFO] Tasks table doesn't exist yet - skipping migrations")
             return
         
-        # Get existing columns
-        columns = {col['name'] for col in inspector.get_columns('tasks')}
-        
         migrations_applied = []
         
-        # Migration 1: Add task split fields
-        # No migrations needed - original task is deleted upon split
+        # Check if 'epics' table exists
+        if 'epics' in inspector.get_table_names():
+            epic_columns = {col['name'] for col in inspector.get_columns('epics')}
+            
+            # Migration: Add epic management fields
+            if 'owner_id' not in epic_columns:
+                try:
+                    db.session.execute(text(
+                        "ALTER TABLE epics ADD COLUMN owner_id INTEGER REFERENCES team_members(id) ON DELETE SET NULL"
+                    ))
+                    migrations_applied.append('epics.owner_id')
+                except:
+                    pass
+            
+            if 'priority' not in epic_columns:
+                try:
+                    db.session.execute(text(
+                        "ALTER TABLE epics ADD COLUMN priority VARCHAR(20) NOT NULL DEFAULT 'medium'"
+                    ))
+                    migrations_applied.append('epics.priority')
+                except:
+                    pass
+            
+            if 'labels' not in epic_columns:
+                try:
+                    db.session.execute(text(
+                        "ALTER TABLE epics ADD COLUMN labels JSON"
+                    ))
+                    migrations_applied.append('epics.labels')
+                except:
+                    pass
+            
+            if 'start_date' not in epic_columns:
+                try:
+                    db.session.execute(text(
+                        "ALTER TABLE epics ADD COLUMN start_date DATE"
+                    ))
+                    migrations_applied.append('epics.start_date')
+                except:
+                    pass
+            
+            if 'target_date' not in epic_columns:
+                try:
+                    db.session.execute(text(
+                        "ALTER TABLE epics ADD COLUMN target_date DATE"
+                    ))
+                    migrations_applied.append('epics.target_date')
+                except:
+                    pass
         
         if migrations_applied:
             db.session.commit()

@@ -257,6 +257,12 @@ const projectNavigation: NavigationItemProps[] = [
     route: '/raci-matrix',
   },
   {
+    title: 'Critical Path',
+    caption: 'Epic dependencies',
+    icon: 'timeline',
+    route: '/critical-path',
+  },
+  {
     title: 'PERT + RACI Integration',
     caption: 'Combined project analysis',
     icon: 'auto_awesome',
