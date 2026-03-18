@@ -1619,6 +1619,29 @@
         <!-- Analytics Tab -->
         <q-tab-panel name="analytics">
           <div class="row q-gutter-lg">
+            <!-- Velocity Chart -->
+            <div class="col-12">
+              <q-card>
+                <q-card-section>
+                  <div class="text-h6 text-weight-bold q-mb-md">
+                    <q-icon name="trending_up" class="q-mr-sm" />
+                    Velocity Chart
+                  </div>
+                  <p class="text-caption text-grey-7 q-mb-md">
+                    Story points completed per sprint. Use this to predict team capacity for future sprints.
+                  </p>
+                  <div v-if="velocityChartData.labels.length > 0" style="height: 280px">
+                    <Bar :data="velocityChartData" :options="velocityChartOptions" />
+                  </div>
+                  <div v-else class="text-center text-grey-6 q-pa-xl">
+                    <q-icon name="bar_chart" size="48px" class="q-mb-sm" />
+                    <div class="text-body2">No completed sprints yet</div>
+                    <div class="text-caption">Complete sprints to see velocity data</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+
             <!-- Charts and analytics -->
             <div class="col-12 col-md-6">
               <q-card>
@@ -2273,11 +2296,23 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { format } from 'date-fns';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
+import { Bar } from 'vue-chartjs';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import { useProjectStore, type Task, type Project, type Sprint } from 'src/stores/project-store';
 import { useTeamStore, type TeamMember } from 'src/stores/team-store';
 import { useEpicStore } from 'src/stores/epic-store';
 import EpicManagementTab from 'src/components/EpicManagementTab.vue';
 import type { AxiosError } from 'axios';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const router = useRouter();
 const route = useRoute();
@@ -2513,6 +2548,70 @@ const priorityStats = computed(() => {
     low: projectTasks.filter((t) => t.priority.toLowerCase() === 'low').length,
   };
 });
+
+// Velocity chart data: completed story points per sprint (completed sprints only)
+const velocityChartData = computed(() => {
+  const sprints = completedSprints.value;
+  if (!sprints.length || !project.value?.tasks) {
+    return {
+      labels: [] as string[],
+      datasets: [
+        {
+          label: 'Completed Story Points',
+          data: [] as number[],
+          backgroundColor: 'rgba(25, 118, 210, 0.7)',
+          borderColor: 'rgb(25, 118, 210)',
+          borderWidth: 1,
+        },
+      ],
+    };
+  }
+  const sorted = [...sprints].sort((a, b) => {
+    const dateA = new Date(a.endDate).getTime();
+    const dateB = new Date(b.endDate).getTime();
+    return dateA - dateB;
+  });
+  const labels = sorted.map((s) => s.name);
+  const completedSP = sorted.map((sprint) => {
+    const sprintTasks = getTasksForSprint(sprint.id);
+    return sprintTasks
+      .filter((t) => t.status === 'Done' || t.completed)
+      .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+  });
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Completed Story Points',
+        data: completedSP,
+        backgroundColor: 'rgba(25, 118, 210, 0.7)',
+        borderColor: 'rgb(25, 118, 210)',
+        borderWidth: 1,
+      },
+    ],
+  };
+});
+
+const velocityChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    title: {
+      display: false,
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: { stepSize: 1 },
+      title: { display: true, text: 'Story Points' },
+    },
+    x: {
+      title: { display: true, text: 'Sprint' },
+    },
+  },
+};
 
 const completedSprintTasks = computed(() => {
   if (!activeSprint.value) return 0;
