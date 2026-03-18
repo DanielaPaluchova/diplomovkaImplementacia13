@@ -254,6 +254,7 @@
               <!-- Tab Navigation -->
               <q-tabs v-model="activeTab" class="text-primary q-mt-md" dense align="left">
                 <q-tab name="active" icon="play_arrow" label="Aktívny Šprit" />
+                <q-tab name="planned" icon="event_available" label="Plánovaný Šprit" />
                 <q-tab name="past" icon="history" label="Minulé Šprinty" />
                 <q-tab name="future" icon="schedule" label="Budúce Tasky" />
               </q-tabs>
@@ -494,9 +495,9 @@
                       </q-td>
                       <q-td>{{ props.row.name }}</q-td>
                       <q-td>{{ props.row.storyPoints }}</q-td>
-                      <q-td>{{ props.row.optimistic }}</q-td>
-                      <q-td>{{ props.row.mostLikely }}</q-td>
-                      <q-td>{{ props.row.pessimistic }}</q-td>
+                      <q-td>{{ props.row.optimistic || 0 }}</q-td>
+                      <q-td>{{ props.row.mostLikely || 0 }}</q-td>
+                      <q-td>{{ props.row.pessimistic || 0 }}</q-td>
                       <q-td>
                         <div class="text-weight-medium">
                           {{ props.row.pertDuration.toFixed(2) }}d
@@ -931,6 +932,325 @@
                     </q-tr>
                   </template>
                 </q-table>
+              </q-tab-panel>
+
+              <!-- PLANNED SPRINT TAB -->
+              <q-tab-panel name="planned" class="q-pa-none">
+                <!-- No Planned Sprint Message -->
+                <div
+                  v-if="!plannedSprint"
+                  class="q-pa-xl text-center"
+                >
+                  <q-icon name="event_available" size="64px" color="grey-5" class="q-mb-md" />
+                  <div class="text-h6 text-grey-6 q-mb-sm">No Planned Sprint</div>
+                  <div class="text-body2 text-grey-7 q-mb-md">
+                    Create a planned sprint in Smart Sprint Planning to preview PERT/RACI analysis
+                  </div>
+                  <q-btn
+                    color="primary"
+                    icon="auto_awesome"
+                    label="Go to Smart Planning"
+                    @click="$router.push('/smart-sprint-planning')"
+                    unelevated
+                  />
+                </div>
+
+                <!-- Planned Sprint Analysis -->
+                <div v-else>
+                  <!-- Planned Sprint Info Banner -->
+                  <q-banner class="bg-blue-1 q-mb-lg">
+                    <template v-slot:avatar>
+                      <q-icon name="event_available" color="blue" size="32px" />
+                    </template>
+                    <div class="text-weight-bold text-blue-9">
+                      Planned Sprint Preview: "{{ plannedSprint.name }}"
+                    </div>
+                    <div class="text-body2 q-mt-xs">
+                      This is a preview of PERT/RACI analysis. Start the sprint to begin tracking progress.
+                    </div>
+                  </q-banner>
+
+                  <!-- RACI Weighted Workload for Planned Sprint -->
+                  <q-card flat bordered class="q-mb-lg">
+                    <q-card-section>
+                      <div class="text-h6 text-weight-bold q-mb-md">
+                        RACI Weighted Workload (Plánovaný Šprit naprieč projektami)
+                      </div>
+                      <div class="text-caption text-grey-7 q-mb-md">
+                        Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
+                          raciWorkloadWeights.accountable
+                        }}, C={{ raciWorkloadWeights.consulted }}, I={{
+                          raciWorkloadWeights.informed
+                        }}
+                      </div>
+
+                      <div v-if="plannedSprintRaciWorkload.length > 0" class="q-gutter-md">
+                        <q-expansion-item
+                          v-for="member in plannedSprintRaciWorkload"
+                          :key="member.memberId"
+                          expand-separator
+                          :label="member.memberName"
+                          :caption="`${member.weightedSP} SP (${member.workload}%)`"
+                          header-class="bg-grey-2"
+                        >
+                          <template v-slot:header>
+                            <div class="row items-center full-width">
+                              <div class="col-2 text-weight-medium">
+                                {{ member.memberName }}
+                              </div>
+                              <div class="col-8">
+                                <q-linear-progress
+                                  :value="member.workload / 100"
+                                  :color="
+                                    member.workload > 100
+                                      ? 'negative'
+                                      : member.workload > 80
+                                        ? 'warning'
+                                        : 'positive'
+                                  "
+                                  size="25px"
+                                  rounded
+                                >
+                                  <div class="absolute-full flex flex-center">
+                                    <q-badge
+                                      :color="
+                                        member.workload > 100
+                                          ? 'negative'
+                                          : member.workload > 80
+                                            ? 'warning'
+                                            : 'positive'
+                                      "
+                                      text-color="white"
+                                      :label="`${member.weightedSP} SP`"
+                                    />
+                                  </div>
+                                </q-linear-progress>
+                              </div>
+                              <div class="col-2 text-right text-weight-bold">
+                                {{ member.workload }}%
+                              </div>
+                            </div>
+                          </template>
+
+                          <q-card>
+                            <q-card-section>
+                              <div class="text-body2">
+                                <div class="text-weight-bold q-mb-sm">Member Details:</div>
+                                <div class="q-mb-xs">
+                                  <span class="text-grey-7">Weighted Story Points:</span>
+                                  <span class="text-weight-medium q-ml-sm"
+                                    >{{ member.weightedSP }} SP</span
+                                  >
+                                </div>
+                                <div class="q-mb-xs">
+                                  <span class="text-grey-7">Workload:</span>
+                                  <span class="text-weight-medium q-ml-sm">{{ member.workload }}%</span>
+                                </div>
+                                <div class="q-mb-xs">
+                                  <span class="text-grey-7">Aktívne projekty:</span>
+                                  <span class="q-ml-sm">{{
+                                    getMemberActiveProjects(member.memberId).join(', ') || 'Žiadne'
+                                  }}</span>
+                                </div>
+                                <div>
+                                  <span class="text-grey-7">Aktívne šprinty:</span>
+                                  <span class="q-ml-sm">{{
+                                    getMemberActiveSprints(member.memberId).join(', ') || 'Žiadne'
+                                  }}</span>
+                                </div>
+                              </div>
+                            </q-card-section>
+                          </q-card>
+                        </q-expansion-item>
+                      </div>
+
+                      <div v-else class="text-center text-grey-7 q-pa-md">
+                        <q-icon name="info" size="48px" class="q-mb-md" />
+                        <div>Žiadny RACI workload v plánovanom šprinte</div>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+
+                  <!-- Summary Cards for Planned Sprint -->
+                  <div v-if="plannedSprintTasks.length > 0" class="row q-gutter-md q-mb-lg">
+                    <div class="col">
+                      <q-card flat bordered>
+                        <q-card-section class="text-center">
+                          <div class="text-h6 text-weight-bold text-primary">
+                            {{ plannedSprintSummary.taskCount }}
+                          </div>
+                          <div class="text-caption text-grey-7">Tasks</div>
+                        </q-card-section>
+                      </q-card>
+                    </div>
+                    <div class="col">
+                      <q-card flat bordered>
+                        <q-card-section class="text-center">
+                          <div
+                            class="text-h6 text-weight-bold"
+                            :class="
+                              plannedSprintSummary.durationIncrease > 20
+                                ? 'text-negative'
+                                : plannedSprintSummary.durationIncrease > 10
+                                  ? 'text-warning'
+                                  : 'text-positive'
+                            "
+                          >
+                            {{ plannedSprintSummary.durationIncrease > 0 ? '+' : ''
+                            }}{{ plannedSprintSummary.durationIncrease.toFixed(1) }}%
+                          </div>
+                          <div class="text-caption text-grey-7">Average Task Increase</div>
+                          <q-tooltip max-width="300px">
+                            Priemerný percentuálny nárast duration taskov v sprinte kvôli RACI
+                            overhead. Počíta sa ako (Σ Adjusted - Σ PERT) / Σ PERT × 100%
+                          </q-tooltip>
+                        </q-card-section>
+                      </q-card>
+                    </div>
+                  </div>
+
+                  <div v-else class="text-center text-grey-7 q-pa-xl">
+                    <q-icon name="info" size="48px" class="q-mb-md" />
+                    <div>Žiadne tasky v plánovanom šprinte</div>
+                  </div>
+
+                  <!-- Table for Planned Sprint -->
+                  <q-table
+                    v-if="plannedSprintTasks.length > 0"
+                    :rows="
+                      plannedSprintTasks.map((task) => ({
+                        ...task,
+                        raciRoles: [
+                          { type: 'R', members: task.raciMembers.responsible },
+                          {
+                            type: 'A',
+                            members:
+                              task.raciMembers.accountable !== null
+                                ? [task.raciMembers.accountable]
+                                : [],
+                          },
+                          { type: 'C', members: task.raciMembers.consulted },
+                          { type: 'I', members: task.raciMembers.informed },
+                        ].filter((r) => r.members.length > 0),
+                      }))
+                    "
+                    :columns="taskColumns"
+                    row-key="id"
+                    flat
+                    bordered
+                    :rows-per-page-options="[10, 20, 50, 0]"
+                    class="shadow-2"
+                  >
+                    <template v-slot:header="props">
+                      <q-tr :props="props">
+                        <q-th v-for="col in props.cols" :key="col.name" :props="props">
+                          {{ col.label }}
+                        </q-th>
+                      </q-tr>
+                    </template>
+
+                    <template v-slot:body="props">
+                      <q-tr :props="props">
+                        <q-td key="name" :props="props">
+                          <div class="text-weight-medium">{{ props.row.name }}</div>
+                          <div class="text-caption text-grey-7">{{ props.row.type }}</div>
+                        </q-td>
+
+                        <q-td key="pertOptimistic" :props="props">
+                          {{ props.row.pertOptimistic }}d
+                        </q-td>
+
+                        <q-td key="pertMostLikely" :props="props">
+                          {{ props.row.pertMostLikely }}d
+                        </q-td>
+
+                        <q-td key="pertPessimistic" :props="props">
+                          {{ props.row.pertPessimistic }}d
+                        </q-td>
+
+                        <q-td key="pertDuration" :props="props">
+                          <q-badge color="primary">{{ props.row.pertDuration.toFixed(1) }}d</q-badge>
+                        </q-td>
+
+                        <q-td key="adjustedDuration" :props="props">
+                          <q-badge
+                            :color="
+                              props.row.increase > 50
+                                ? 'negative'
+                                : props.row.increase > 25
+                                  ? 'warning'
+                                  : 'positive'
+                            "
+                          >
+                            {{ props.row.adjustedDuration.toFixed(1) }}d
+                          </q-badge>
+                        </q-td>
+
+                        <q-td key="increase" :props="props">
+                          <q-badge
+                            :color="
+                              props.row.increase > 50
+                                ? 'negative'
+                                : props.row.increase > 25
+                                  ? 'warning'
+                                  : 'info'
+                            "
+                          >
+                            {{ props.row.increase > 0 ? '+' : '' }}{{ props.row.increase.toFixed(0) }}%
+                          </q-badge>
+                        </q-td>
+
+                        <q-td key="cv" :props="props">
+                          <q-badge
+                            :color="
+                              props.row.cv > 0.3 ? 'negative' : props.row.cv > 0.2 ? 'warning' : 'info'
+                            "
+                          >
+                            {{ props.row.cv.toFixed(2) }}
+                          </q-badge>
+                        </q-td>
+
+                        <q-td key="uncertainty" :props="props">
+                          <q-badge
+                            :color="
+                              props.row.cv > 0.3
+                                ? 'negative'
+                                : props.row.cv > 0.2
+                                  ? 'warning'
+                                  : 'positive'
+                            "
+                          >
+                            {{
+                              props.row.cv > 0.3 ? 'High' : props.row.cv > 0.2 ? 'Medium' : 'Low'
+                            }}
+                          </q-badge>
+                        </q-td>
+
+                        <q-td key="raci" :props="props">
+                          <q-card flat bordered class="q-pa-sm">
+                            <div class="row q-gutter-xs items-center">
+                              <template v-for="role in props.row.raciRoles" :key="role.type">
+                                <q-badge
+                                  :color="
+                                    role.type === 'R'
+                                      ? 'negative'
+                                      : role.type === 'A'
+                                        ? 'warning'
+                                        : role.type === 'C'
+                                          ? 'info'
+                                          : 'grey'
+                                  "
+                                  :label="role.type"
+                                />
+                                <span class="text-caption">{{ role.members.length }}</span>
+                              </template>
+                            </div>
+                          </q-card>
+                        </q-td>
+                      </q-tr>
+                    </template>
+                  </q-table>
+                </div>
               </q-tab-panel>
 
               <!-- PAST SPRINTS TAB -->
@@ -1760,9 +2080,9 @@
                       </q-td>
                       <q-td>{{ props.row.name }}</q-td>
                       <q-td>{{ props.row.storyPoints }}</q-td>
-                      <q-td>{{ props.row.optimistic }}</q-td>
-                      <q-td>{{ props.row.mostLikely }}</q-td>
-                      <q-td>{{ props.row.pessimistic }}</q-td>
+                      <q-td>{{ props.row.optimistic || 0 }}</q-td>
+                      <q-td>{{ props.row.mostLikely || 0 }}</q-td>
+                      <q-td>{{ props.row.pessimistic || 0 }}</q-td>
                       <q-td>
                         <div class="text-weight-medium">
                           {{ props.row.pertDuration.toFixed(2) }}d
@@ -2449,6 +2769,12 @@ const activeSprint = computed(() => {
   return selectedProject.value.sprints.find((s) => s.status === 'active') || null;
 });
 
+// Get planned sprint
+const plannedSprint = computed(() => {
+  if (!selectedProject.value || !selectedProject.value.sprints) return null;
+  return selectedProject.value.sprints.find((s) => s.status === 'planned') || null;
+});
+
 // Computed: Tasks from ACTIVE sprint
 const activeSprintTasks = computed<Task[]>(() => {
   if (!selectedProject.value || !selectedProject.value.tasks || !activeSprint.value) return [];
@@ -2456,6 +2782,15 @@ const activeSprintTasks = computed<Task[]>(() => {
   return selectedProject.value.tasks
     .filter((task) => task.sprintId === activeSprint.value!.id)
     .map((task) => convertToTask(task, activeSprint.value!.id, false));
+});
+
+// Computed: Tasks from PLANNED sprint
+const plannedSprintTasks = computed<Task[]>(() => {
+  if (!selectedProject.value || !selectedProject.value.tasks || !plannedSprint.value) return [];
+
+  return selectedProject.value.tasks
+    .filter((task) => task.sprintId === plannedSprint.value!.id)
+    .map((task) => convertToTask(task, plannedSprint.value!.id, false));
 });
 
 // Computed: Tasks from PAST sprints (grouped by sprint)
@@ -2599,6 +2934,23 @@ const activeSprintSummary = computed(() => {
   };
 });
 
+// Summary statistics for PLANNED sprint
+const plannedSprintSummary = computed(() => {
+  const totalPert = plannedSprintTasks.value.reduce((sum, task) => sum + task.pertDuration, 0);
+  const totalAdjusted = plannedSprintTasks.value.reduce(
+    (sum, task) => sum + task.adjustedDuration,
+    0,
+  );
+  const increase = totalPert === 0 ? 0 : ((totalAdjusted - totalPert) / totalPert) * 100;
+
+  return {
+    totalPertDuration: totalPert,
+    totalAdjustedDuration: totalAdjusted,
+    durationIncrease: increase,
+    taskCount: plannedSprintTasks.value.length,
+  };
+});
+
 // Summary statistics for PAST sprints
 const pastSprintsSummary = computed(() => {
   return pastSprintsTasks.value.map((sprintGroup) => {
@@ -2667,6 +3019,99 @@ const raciWeightedWorkload = computed(() => {
       project.tasks.forEach((task) => {
         // Only count tasks in THIS project's active sprint
         if (task.sprintId === projectActiveSprint.id) {
+          const sp = task.storyPoints || 0;
+
+          // Add weighted SP for Responsible (using workload weight)
+          if (task.raci?.responsible) {
+            task.raci.responsible.forEach((memberId: number) => {
+              const current = workloadMap.get(memberId);
+              if (current) {
+                current.workload += raciWorkloadWeights.value.responsible * sp;
+              }
+            });
+          }
+
+          // Add weighted SP for Accountable (using workload weight)
+          if (task.raci?.accountable) {
+            const memberId = task.raci.accountable;
+            const current = workloadMap.get(memberId);
+            if (current) {
+              current.workload += raciWorkloadWeights.value.accountable * sp;
+            }
+          }
+
+          // Add weighted SP for Consulted (using workload weight)
+          if (task.raci?.consulted) {
+            task.raci.consulted.forEach((memberId: number) => {
+              const current = workloadMap.get(memberId);
+              if (current) {
+                current.workload += raciWorkloadWeights.value.consulted * sp;
+              }
+            });
+          }
+
+          // Add weighted SP for Informed (using workload weight)
+          if (task.raci?.informed) {
+            task.raci.informed.forEach((memberId: number) => {
+              const current = workloadMap.get(memberId);
+              if (current) {
+                current.workload += raciWorkloadWeights.value.informed * sp;
+              }
+            });
+          }
+        }
+      });
+    }
+  });
+
+  // Convert map to array and calculate percentage workload
+  const workloadArray = Array.from(workloadMap.values())
+    .map((item) => {
+      // Get member's max story points
+      const member = projectMembers.find((m) => m.id === item.memberId);
+      const maxSP = member?.maxStoryPoints || 20;
+
+      return {
+        ...item,
+        weightedSP: Math.round(item.workload), // Round weighted SP to whole number
+        workload: Math.round((item.workload / maxSP) * 100), // Convert to percentage and round
+      };
+    })
+    // Show all project members, even with 0% workload (for consistency)
+    .sort((a, b) => b.workload - a.workload); // Sort by workload descending
+
+  return workloadArray;
+});
+
+// RACI Weighted Workload for Planned Sprint (cross-project calculation)
+const plannedSprintRaciWorkload = computed(() => {
+  if (!selectedProject.value) return [];
+
+  // Get members from current project only (but calculate cross-project workload for them)
+  const projectMembers = teamStore.teamMembers.filter((member) =>
+    selectedProject.value?.teamMemberIds?.includes(member.id),
+  );
+
+  const workloadMap = new Map<number, { memberId: number; memberName: string; workload: number }>();
+
+  // Initialize map with project members only
+  projectMembers.forEach((member) => {
+    workloadMap.set(member.id, {
+      memberId: member.id,
+      memberName: member.name,
+      workload: 0,
+    });
+  });
+
+  // Iterate through ALL projects in the store
+  projectStore.projects.forEach((project) => {
+    // Find planned sprint for EACH project
+    const projectPlannedSprint = project.sprints?.find((s) => s.status === 'planned');
+
+    if (project.tasks && projectPlannedSprint) {
+      project.tasks.forEach((task) => {
+        // Only count tasks in THIS project's planned sprint
+        if (task.sprintId === projectPlannedSprint.id) {
           const sp = task.storyPoints || 0;
 
           // Add weighted SP for Responsible (using workload weight)

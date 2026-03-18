@@ -143,6 +143,239 @@ class PertRaciAnalyzerService:
         
         return proposals
     
+    def find_raci_missing_assignments(
+        self,
+        tasks: List[Task],
+        team_members: List[TeamMember],
+        scope: str,
+        sprint_id: int = None,
+        project_id: int = None,
+        all_tasks: List[Task] = None
+    ) -> List[Dict]:
+        """
+        Find tasks missing RACI Responsible or Accountable roles.
+        Suggests assignees: Responsible by skills (+ workload if active sprint),
+        Accountable by project owner or random developer.
+        
+        Args:
+            tasks: List of tasks to analyze
+            team_members: Project team members
+            scope: 'current_sprint' | 'planned_sprint' | 'backlog' | 'all_sprints'
+            sprint_id: Sprint ID for workload (active sprint only)
+            project_id: Project ID for project roles (owner lookup)
+            all_tasks: All project tasks for workload calculation
+            
+        Returns:
+            List of RACI missing assignment proposals with suggested assignees
+        """
+        proposals = []
+        if not team_members:
+            return proposals
+
+        # Get workload for active sprint (skills + workload)
+        use_workload = scope == 'current_sprint' and sprint_id is not None
+        member_workloads = {}
+        if use_workload:
+            from app.utils.workload_calculator import calculate_cross_project_raci_workload
+            cross_project_workload = calculate_cross_project_raci_workload(
+                team_members, sprint_id=sprint_id
+            )
+            for m in team_members:
+                if m.id in cross_project_workload:
+                    member_workloads[m.id] = cross_project_workload[m.id]['weighted_sp']
+                else:
+                    member_workloads[m.id] = 0
+
+        # Get project owner (Accountable fallback)
+        project_owner_id = None
+        if project_id:
+            from app.models.project_role import ProjectRole
+            owner_role = ProjectRole.query.filter_by(
+                project_id=project_id, role='owner'
+            ).first()
+            if owner_role and owner_role.member_id in [m.id for m in team_members]:
+                project_owner_id = owner_role.member_id
+
+        # Developers for fallback (owner or random developer for Accountable)
+        developers = [
+            m for m in team_members
+            if (m.role and 'developer' in (m.role or '').lower())
+            or (m.system_role and m.system_role == 'developer')
+        ]
+        if not developers:
+            developers = list(team_members)
+
+        import random
+        for task in tasks:
+            if task.status == 'Done':
+                continue
+
+            has_responsible = bool(task.raci_responsible and len(task.raci_responsible) > 0)
+            has_accountable = task.raci_accountable is not None
+
+            if not has_responsible:
+                # Suggest Responsible: skills + workload (active) or skills only (planned/backlog)
+                task_reqs = {
+                    'required_skills': task.required_skills or [],
+                    'type': task.type,
+                    'priority': task.priority
+                }
+                task_sp = task.story_points or 0
+                candidates = []
+                for m in team_members:
+                    skill_match = self._calculate_skill_match(m, task_reqs)
+                    if skill_match < 0.3:  # 30% like raci_overload, duration_risk
+                        continue
+                    if use_workload:
+                        weighted_sp = member_workloads.get(m.id, 0)
+                        max_sp = m.max_story_points or 20
+                        new_ratio = (weighted_sp + task_sp) / max_sp if max_sp > 0 else 0
+                        if new_ratio > 1.0:
+                            continue
+                        workload_ratio = weighted_sp / max_sp if max_sp > 0 else 0
+                        workload_score = 1.0 - min(new_ratio, 1.0)
+                        score = (skill_match * 0.4) + (workload_score * 0.6)
+                        candidates.append((m, score, skill_match, weighted_sp, max_sp))
+                    else:
+                        score = skill_match
+                        candidates.append((m, score, skill_match, None, None))
+                candidates.sort(key=lambda x: x[1], reverse=True)
+                if candidates:
+                    best_member = candidates[0][0]
+                    skill_match_val = candidates[0][2]
+                    w_sp = candidates[0][3] if candidates[0][3] is not None else member_workloads.get(candidates[0][0].id, 0)
+                    max_sp = candidates[0][4] if candidates[0][4] is not None else (best_member.max_story_points or 20)
+                else:
+                    # Fallback: like bottleneck/risk_analyzer - score ALL by combined (60% workload, 40% skills)
+                    # Pick best combined score; tie-break by least loaded
+                    fallback_scores = []
+                    for m in team_members:
+                        skill_match = self._calculate_skill_match(m, task_reqs)
+                        if use_workload:
+                            weighted_sp = member_workloads.get(m.id, 0)
+                            max_sp = m.max_story_points or 20
+                            new_ratio = (weighted_sp + task_sp) / max_sp if max_sp > 0 else 0
+                            workload_score = max(0, 1.0 - new_ratio)
+                            score = (skill_match * 0.4) + (workload_score * 0.6)
+                            fallback_scores.append((m, score, skill_match, weighted_sp, max_sp, new_ratio))
+                        else:
+                            fallback_scores.append((m, skill_match, skill_match, None, m.max_story_points or 20, 0))
+                    fallback_scores.sort(key=lambda x: (-x[1], x[5]))  # best score, then least loaded
+                    best = fallback_scores[0]
+                    best_member = best[0]
+                    skill_match_val = best[2]
+                    w_sp = best[3] if best[3] is not None else member_workloads.get(best_member.id, 0)
+                    max_sp = best[4] or (best_member.max_story_points or 20)
+
+                # Build impact (aligned with raci_overload / reassignment format)
+                is_fallback = len(candidates) == 0
+                impact = {
+                    'taskSP': task_sp,
+                    'missingRole': 'Responsible',
+                    'suggestedMemberId': best_member.id,
+                    'suggestedMemberName': best_member.name,
+                    'toMember': best_member.name,
+                    'affectedMembers': [best_member.id],
+                    'skillMatch': round(skill_match_val * 100),
+                    'isFallback': is_fallback,
+                }
+                if use_workload and max_sp and max_sp > 0:
+                    to_before = (w_sp / max_sp) * 100
+                    to_after = ((w_sp + task_sp) / max_sp) * 100
+                    impact['toWorkloadBefore'] = round(to_before, 1)
+                    impact['toWorkload'] = round(to_after, 1)
+                    impact['weightedSP'] = round(w_sp, 1)
+
+                if is_fallback:
+                    desc = f"Task has no Responsible (R). No suitable candidate (30%+ skills, ≤100% capacity). Assign {best_member.name} (best by skills + workload)."
+                    reason = f"Task '{task.name}' has no Responsible. All overloaded or <30% skill match. Fallback: {best_member.name} (best combined score)."
+                else:
+                    desc = f"Task has no Responsible (R). Assign {best_member.name} based on {'skills and workload' if use_workload else 'skills'}."
+                    reason = f"Task '{task.name}' has no Responsible. Suggested: {best_member.name} (skill match: {round(skill_match_val * 100)}%)."
+
+                proposals.append({
+                    'id': f"raci-missing-responsible-{task.id}-{uuid.uuid4().hex[:8]}",
+                    'type': 'raci_missing_responsible',
+                    'severity': 'important',
+                    'category': 'workload',
+                    'title': f"Task without Responsible: '{task.name}'",
+                    'description': desc,
+                    'reason': reason,
+                    'score': 70,
+                    'source': 'pert_raci',
+                    'taskName': task.name,
+                    'taskSp': task_sp,
+                    'impact': impact,
+                    'action': {
+                        'type': 'assign_raci',
+                        'taskId': task.id,
+                        'assignRole': 'responsible',
+                        'toMemberId': best_member.id
+                    }
+                })
+
+            if not has_accountable:
+                # Suggest Accountable: project owner, else by workload (active sprint) or random developer
+                acct_member = None
+                if project_owner_id:
+                    acct_member = next((m for m in team_members if m.id == project_owner_id), None)
+                if not acct_member:
+                    if use_workload and developers:
+                        # Pick developer with lowest workload
+                        dev_loads = [
+                            (m, member_workloads.get(m.id, 0) / (m.max_story_points or 20))
+                            for m in developers
+                        ]
+                        dev_loads.sort(key=lambda x: x[1])
+                        acct_member = dev_loads[0][0]
+                    else:
+                        acct_member = random.choice(developers) if developers else team_members[0]
+
+                is_owner = acct_member.id == project_owner_id
+                task_sp = task.story_points or 0
+
+                # Build impact (aligned with reassignment format, workload for active sprint)
+                acct_impact = {
+                    'taskSP': task_sp,
+                    'missingRole': 'Accountable',
+                    'suggestedMemberId': acct_member.id,
+                    'suggestedMemberName': acct_member.name,
+                    'toMember': acct_member.name,
+                    'affectedMembers': [acct_member.id],
+                    'isProjectOwner': is_owner,
+                }
+                if use_workload:
+                    acct_w_sp = member_workloads.get(acct_member.id, 0)
+                    acct_max_sp = acct_member.max_story_points or 20
+                    # Accountable weight = 0.1
+                    acct_add = task_sp * self.RACI_WEIGHTS['accountable']
+                    acct_impact['toWorkloadBefore'] = round((acct_w_sp / acct_max_sp) * 100, 1)
+                    acct_impact['toWorkload'] = round(((acct_w_sp + acct_add) / acct_max_sp) * 100, 1)
+                    acct_impact['weightedSP'] = round(acct_w_sp, 1)
+
+                proposals.append({
+                    'id': f"raci-missing-accountable-{task.id}-{uuid.uuid4().hex[:8]}",
+                    'type': 'raci_missing_accountable',
+                    'severity': 'important',
+                    'category': 'workload',
+                    'title': f"Task without Accountable: '{task.name}'",
+                    'description': f"Task has no Accountable (A). Assign {acct_member.name}" + (" (project owner)" if is_owner else "."),
+                    'reason': f"Task '{task.name}' has no Accountable. Suggested: {acct_member.name}" + (" (project owner)." if is_owner else "."),
+                    'score': 70,
+                    'source': 'pert_raci',
+                    'taskName': task.name,
+                    'taskSp': task_sp,
+                    'impact': acct_impact,
+                    'action': {
+                        'type': 'assign_raci',
+                        'taskId': task.id,
+                        'assignRole': 'accountable',
+                        'toMemberId': acct_member.id
+                    }
+                })
+
+        return proposals
+    
     def find_raci_overload_risks(
         self,
         team_members: List[TeamMember],

@@ -286,7 +286,9 @@ def calculate_epic_critical_path(project_id):
             return jsonify({
                 'criticalPath': [],
                 'epicSchedule': {},
-                'projectDuration': 0
+                'projectDuration': 0,
+                'projectVariance': 0,
+                'projectStdDev': 0
             }), 200
         
         # Build epic info dictionary
@@ -383,6 +385,29 @@ def calculate_epic_critical_path(project_id):
             if abs(info['slack']) < 0.01  # Use small epsilon for float comparison
         ]
         
+        # PERT variance for each epic: σ² = ((P-O)/6)²
+        # Epic-level: use epic PERT if available; else sum task variances
+        for epic in epics:
+            variance = 0.0
+            if epic.pert_optimistic is not None and epic.pert_pessimistic is not None:
+                std_dev = (epic.pert_pessimistic - epic.pert_optimistic) / 6.0
+                variance = std_dev ** 2
+            else:
+                tasks_in_epic = Task.query.filter_by(epic_id=epic.id).all()
+                for task in tasks_in_epic:
+                    if task.pert_optimistic is not None and task.pert_pessimistic is not None:
+                        task_std = (task.pert_pessimistic - task.pert_optimistic) / 6.0
+                        variance += task_std ** 2
+            epic_info[epic.id]['variance'] = variance
+        
+        # Project PERT stats: sum variances of epics on critical path
+        project_variance = sum(
+            epic_info[epic_id]['variance'] 
+            for epic_id in critical_path 
+            if epic_id in epic_info
+        )
+        project_std_dev = (project_variance ** 0.5) if project_variance > 0 else 0.0
+        
         # Build response
         epic_schedule = {
             epic_id: {
@@ -394,7 +419,8 @@ def calculate_epic_critical_path(project_id):
                 'lateStart': round(info['ls'], 2),
                 'lateFinish': round(info['lf'], 2),
                 'slack': round(info['slack'], 2),
-                'isCritical': abs(info['slack']) < 0.01
+                'isCritical': abs(info['slack']) < 0.01,
+                'variance': round(info['variance'], 4)
             }
             for epic_id, info in epic_info.items()
         }
@@ -402,7 +428,9 @@ def calculate_epic_critical_path(project_id):
         return jsonify({
             'criticalPath': critical_path,
             'epicSchedule': epic_schedule,
-            'projectDuration': round(project_duration, 2)
+            'projectDuration': round(project_duration, 2),
+            'projectVariance': round(project_variance, 4),
+            'projectStdDev': round(project_std_dev, 2)
         }), 200
         
     except Exception as e:

@@ -2,13 +2,15 @@
 Projects API endpoints
 """
 from flask import Blueprint, request, jsonify
+from sqlalchemy.orm.attributes import flag_modified
 from app import db
 from app.models.project import Project
 from app.models.sprint import Sprint
 from app.models.project_role import ProjectRole
+from app.models.team_member import TeamMember
 from app.models.optimization_log import OptimizationLog
 from app.utils.auth import token_required
-from datetime import datetime
+from datetime import datetime, timedelta
 
 projects_bp = Blueprint('projects', __name__)
 
@@ -38,6 +40,74 @@ def get_project(project_id):
         return jsonify({'error': 'Failed to get project', 'message': str(e)}), 500
 
 
+def _get_next_sprint_dates(project):
+    """Calculate start_date and end_date for the next planned sprint."""
+    duration_days = project.sprint_duration_days or 14
+
+    # If we have last_planned_sprint_start_date (after deleting a planned sprint), reuse it
+    if project.last_planned_sprint_start_date:
+        start_dt = project.last_planned_sprint_start_date
+        if hasattr(start_dt, 'date'):
+            start_dt = start_dt
+        else:
+            start_dt = datetime.fromisoformat(str(start_dt).replace('Z', '+00:00'))
+            if start_dt.tzinfo:
+                start_dt = start_dt.replace(tzinfo=None)
+        end_dt = start_dt + timedelta(days=duration_days - 1)
+        return start_dt.strftime('%Y-%m-%d'), end_dt.strftime('%Y-%m-%d')
+
+    # Get last sprint (active or completed) by end_date
+    last_sprint = Sprint.query.filter(
+        Sprint.project_id == project.id,
+        Sprint.status.in_(['active', 'completed'])
+    ).order_by(Sprint.end_date.desc()).first()
+
+    if last_sprint:
+        last_end = last_sprint.end_date
+        if hasattr(last_end, 'date'):
+            start_dt = last_end + timedelta(days=1)
+        else:
+            start_dt = datetime.fromisoformat(str(last_end).replace('Z', '+00:00'))
+            if start_dt.tzinfo:
+                start_dt = start_dt.replace(tzinfo=None)
+            start_dt = start_dt + timedelta(days=1)
+        end_dt = start_dt + timedelta(days=duration_days - 1)
+        return start_dt.strftime('%Y-%m-%d'), end_dt.strftime('%Y-%m-%d')
+
+    # No sprints: use project sprint_start_date or today
+    if project.sprint_start_date:
+        start_dt = project.sprint_start_date
+        if hasattr(start_dt, 'date'):
+            pass
+        else:
+            start_dt = datetime.fromisoformat(str(start_dt).replace('Z', '+00:00'))
+            if start_dt.tzinfo:
+                start_dt = start_dt.replace(tzinfo=None)
+    else:
+        start_dt = datetime.utcnow()
+    end_dt = start_dt + timedelta(days=duration_days - 1)
+    return start_dt.strftime('%Y-%m-%d'), end_dt.strftime('%Y-%m-%d')
+
+
+@projects_bp.route('/<int:project_id>/next-sprint-dates', methods=['GET'])
+@token_required
+def get_next_sprint_dates(project_id):
+    """Get suggested start and end dates for the next planned sprint (2-week cadence)."""
+    try:
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        start_date, end_date = _get_next_sprint_dates(project)
+        return jsonify({
+            'startDate': start_date,
+            'endDate': end_date,
+            'sprintDurationDays': project.sprint_duration_days or 14
+        }), 200
+    except Exception as e:
+        return jsonify({'error': 'Failed to get next sprint dates', 'message': str(e)}), 500
+
+
 @projects_bp.route('/', methods=['POST'])
 @token_required
 def create_project():
@@ -49,14 +119,25 @@ def create_project():
         if not data.get('name'):
             return jsonify({'error': 'Project name is required'}), 400
         
+        sprint_start_date = None
+        if data.get('sprintStartDate'):
+            try:
+                sprint_start_date = datetime.fromisoformat(data['sprintStartDate'].replace('Z', '+00:00'))
+                if sprint_start_date.tzinfo:
+                    sprint_start_date = sprint_start_date.replace(tzinfo=None)
+            except (ValueError, TypeError):
+                pass
+
         project = Project(
             name=data['name'],
             description=data.get('description', ''),
             template=data.get('template'),
             icon=data.get('icon', 'folder'),
-            status=data.get('status', 'In Progress'),
+            status='In Progress',  # Legacy column - actual status computed in to_dict()
             due_date=datetime.fromisoformat(data['dueDate']) if data.get('dueDate') else None,
-            team_member_ids=data.get('teamMemberIds', [])
+            team_member_ids=data.get('teamMemberIds', []),
+            sprint_duration_days=data.get('sprintDurationDays', 14),
+            sprint_start_date=sprint_start_date
         )
         
         db.session.add(project)
@@ -105,9 +186,7 @@ def update_project(project_id):
             project.template = data['template']
         if 'icon' in data:
             project.icon = data['icon']
-        # progress, tasksCompleted, and totalTasks are computed automatically from tasks relationship
-        if 'status' in data:
-            project.status = data['status']
+        # progress, tasksCompleted, totalTasks, and status are computed automatically
         if 'dueDate' in data:
             project.due_date = datetime.fromisoformat(data['dueDate']) if data['dueDate'] else None
         if 'teamMemberIds' in data:
@@ -117,11 +196,13 @@ def update_project(project_id):
             # Find removed members
             removed_members = old_member_ids - new_member_ids
             
-            # Cleanup RACI for removed members
+            # Cleanup RACI and ProjectRole for removed members
             if removed_members:
                 from app.routes.tasks import cleanup_member_from_tasks
                 for member_id in removed_members:
                     cleanup_member_from_tasks(member_id, project_id=project_id)
+                    # Remove ProjectRole for removed member
+                    ProjectRole.query.filter_by(project_id=project_id, member_id=member_id).delete()
             
             project.team_member_ids = data['teamMemberIds']
         # tasksCompleted and totalTasks are now computed dynamically - no longer updated manually
@@ -135,7 +216,21 @@ def update_project(project_id):
             project.pert_weights = data['pertWeights']
         if 'maxStoryPointsPerPerson' in data:
             project.max_story_points_per_person = data['maxStoryPointsPerPerson']
-        
+        if 'sprintDurationDays' in data:
+            project.sprint_duration_days = data['sprintDurationDays']
+        if 'sprintStartDate' in data:
+            if data['sprintStartDate']:
+                try:
+                    project.sprint_start_date = datetime.fromisoformat(
+                        data['sprintStartDate'].replace('Z', '+00:00')
+                    )
+                    if project.sprint_start_date.tzinfo:
+                        project.sprint_start_date = project.sprint_start_date.replace(tzinfo=None)
+                except (ValueError, TypeError):
+                    pass
+            else:
+                project.sprint_start_date = None
+
         project.updated_at = datetime.utcnow()
         db.session.commit()
         
@@ -144,6 +239,72 @@ def update_project(project_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to update project', 'message': str(e)}), 500
+
+
+@projects_bp.route('/<int:project_id>/members', methods=['POST'])
+@token_required
+def add_project_member(project_id):
+    """Add a team member to a project with a role"""
+    try:
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        data = request.get_json()
+        member_id = data.get('memberId')
+        role = data.get('role', 'developer')
+
+        if not member_id:
+            return jsonify({'error': 'memberId is required'}), 400
+
+        if role not in ['owner', 'admin', 'developer', 'viewer']:
+            return jsonify({'error': 'Invalid role'}), 400
+
+        # Verify team member exists
+        member = TeamMember.query.get(member_id)
+        if not member:
+            return jsonify({'error': 'Team member not found'}), 404
+
+        # Check if already in project
+        current_ids = project.team_member_ids or []
+        if member_id in current_ids:
+            return jsonify({'error': 'Member is already in this project'}), 409
+
+        # Add to team_member_ids (flag_modified ensures JSON column change is persisted)
+        project.team_member_ids = current_ids + [member_id]
+        flag_modified(project, 'team_member_ids')
+
+        # Create ProjectRole
+        role_permissions = {
+            'owner': (True, True, True, True),
+            'admin': (True, True, True, True),
+            'developer': (True, False, False, False),
+            'viewer': (False, False, False, False),
+        }
+        can_edit, can_delete, can_manage_team, can_manage_sprints = role_permissions[role]
+
+        project_role = ProjectRole(
+            project_id=project_id,
+            member_id=member_id,
+            role=role,
+            can_edit=can_edit,
+            can_delete=can_delete,
+            can_manage_team=can_manage_team,
+            can_manage_sprints=can_manage_sprints,
+        )
+        db.session.add(project_role)
+        project.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Member added to project successfully',
+            'memberId': member_id,
+            'role': role,
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to add member to project', 'message': str(e)}), 500
 
 
 @projects_bp.route('/<int:project_id>', methods=['DELETE'])
@@ -176,22 +337,40 @@ def create_sprint(project_id):
             return jsonify({'error': 'Project not found'}), 404
         
         data = request.get_json()
+        requested_status = data.get('status', 'planned')
         
+        # Check for existing planned sprint - only 1 planned sprint allowed per project
+        if requested_status == 'planned':
+            existing_planned = Sprint.query.filter_by(
+                project_id=project_id,
+                status='planned'
+            ).first()
+            
+            if existing_planned:
+                return jsonify({
+                    'error': 'Cannot create new planned sprint',
+                    'message': f'Project already has a planned sprint: "{existing_planned.name}". Please start or delete it before creating a new one.',
+                    'existingPlannedSprint': existing_planned.to_dict()
+                }), 400
+
         sprint = Sprint(
             project_id=project_id,
             name=data['name'],
             goal=data.get('goal', ''),
             start_date=datetime.fromisoformat(data['startDate']),
             end_date=datetime.fromisoformat(data['endDate']),
-            status=data.get('status', 'planned'),
+            status=requested_status,
             task_ids=data.get('taskIds', [])
         )
-        
+
         db.session.add(sprint)
+        # Clear last_planned_sprint_start_date when creating planned sprint (reset for next cycle)
+        if requested_status == 'planned' and project:
+            project.last_planned_sprint_start_date = None
         db.session.commit()
-        
+
         return jsonify(sprint.to_dict()), 201
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to create sprint', 'message': str(e)}), 500
@@ -208,6 +387,22 @@ def update_sprint(project_id, sprint_id):
         
         data = request.get_json()
         
+        # Validate status change to 'active'
+        if 'status' in data and data['status'] == 'active' and sprint.status != 'active':
+            # Check if another active sprint exists
+            existing_active = Sprint.query.filter(
+                Sprint.project_id == project_id,
+                Sprint.status == 'active',
+                Sprint.id != sprint_id
+            ).first()
+            
+            if existing_active:
+                return jsonify({
+                    'error': 'Cannot start sprint',
+                    'message': f'Project already has an active sprint: "{existing_active.name}". Please complete it before starting another.',
+                    'existingActiveSprint': existing_active.to_dict()
+                }), 400
+        
         if 'name' in data:
             sprint.name = data['name']
         if 'goal' in data:
@@ -218,7 +413,12 @@ def update_sprint(project_id, sprint_id):
             sprint.end_date = datetime.fromisoformat(data['endDate'])
         if 'status' in data:
             sprint.status = data['status']
-        # totalTasks, completedTasks, and taskIds are computed automatically from tasks relationship
+        # When completing sprint, persist total/completed counts (incomplete tasks move to backlog)
+        if data.get('status') == 'completed':
+            if 'totalTasks' in data and data['totalTasks'] is not None:
+                sprint.total_tasks = data['totalTasks']
+            if 'completedTasks' in data and data['completedTasks'] is not None:
+                sprint.completed_tasks = data['completedTasks']
         
         sprint.updated_at = datetime.utcnow()
         db.session.commit()
@@ -233,17 +433,25 @@ def update_sprint(project_id, sprint_id):
 @projects_bp.route('/<int:project_id>/sprints/<int:sprint_id>', methods=['DELETE'])
 @token_required
 def delete_sprint(project_id, sprint_id):
-    """Delete sprint"""
+    """Delete sprint. When deleting a planned sprint, save its start_date for next planned sprint."""
     try:
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
         sprint = Sprint.query.filter_by(id=sprint_id, project_id=project_id).first()
         if not sprint:
             return jsonify({'error': 'Sprint not found'}), 404
-        
+
+        # When deleting planned sprint, preserve its start_date for next planned sprint
+        if sprint.status == 'planned':
+            project.last_planned_sprint_start_date = sprint.start_date
+
         db.session.delete(sprint)
         db.session.commit()
-        
+
         return jsonify({'message': 'Sprint deleted successfully'}), 200
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to delete sprint', 'message': str(e)}), 500

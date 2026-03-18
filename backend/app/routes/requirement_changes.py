@@ -38,11 +38,11 @@ pert_raci_analyzer = PertRaciAnalyzerService()
 def auto_optimize_project(project_id):
     """
     Automatically analyze entire project and suggest all possible improvements
-    Supports scope: current_sprint, backlog, or all_sprints
+    Supports scope: current_sprint, planned_sprint, backlog, or all_sprints
     """
     try:
         data = request.get_json() or {}
-        scope = data.get('scope', 'backlog')  # 'current_sprint', 'backlog', or 'all_sprints'
+        scope = data.get('scope', 'backlog')  # 'current_sprint', 'planned_sprint', 'backlog', or 'all_sprints'
         
         # Validate project exists
         project = Project.query.get(project_id)
@@ -67,6 +67,13 @@ def auto_optimize_project(project_id):
                 tasks = [t for t in active_tasks if t.sprint_id == active_sprint.id]
             else:
                 tasks = []
+        elif scope == 'planned_sprint':
+            # Get planned sprint
+            planned_sprint = next((s for s in sprints if s.status == 'planned'), None)
+            if planned_sprint:
+                tasks = [t for t in active_tasks if t.sprint_id == planned_sprint.id]
+            else:
+                tasks = []
         elif scope == 'backlog':
             # Get only tasks not assigned to any sprint
             tasks = [t for t in active_tasks if t.sprint_id is None]
@@ -82,9 +89,9 @@ def auto_optimize_project(project_id):
         # Generate all possible optimization proposals
         proposals = []
         
-        # Workload-based optimizations only make sense for current_sprint scope
+        # Workload-based optimizations make sense for sprint scopes (current or planned)
         # Backlog tasks are not in a sprint yet, so workload analysis is not applicable
-        is_sprint_scope = (scope == 'current_sprint')
+        is_sprint_scope = (scope in ['current_sprint', 'planned_sprint'])
         
         # 1. CRITICAL: Deadline risks
         deadline_proposals = risk_analyzer.find_deadline_risks(tasks)
@@ -316,7 +323,7 @@ def analyze_pert_raci(project_id):
     Generate specialized proposals for PERT uncertainty, RACI overload, and duration risks
     
     Body:
-        scope: "current_sprint" | "backlog" | "all_sprints" (default: "backlog")
+        scope: "current_sprint" | "planned_sprint" | "backlog" | "all_sprints" (default: "backlog")
     """
     try:
         data = request.get_json() or {}
@@ -347,6 +354,15 @@ def analyze_pert_raci(project_id):
             else:
                 tasks = []
                 sprint_id = None
+        elif scope == 'planned_sprint':
+            # Get planned sprint
+            planned_sprint = next((s for s in sprints if s.status == 'planned'), None)
+            if planned_sprint:
+                tasks = [t for t in active_tasks if t.sprint_id == planned_sprint.id]
+                sprint_id = planned_sprint.id
+            else:
+                tasks = []
+                sprint_id = None
         elif scope == 'backlog':
             # Get only tasks not assigned to any sprint
             tasks = [t for t in active_tasks if t.sprint_id is None]
@@ -361,23 +377,29 @@ def analyze_pert_raci(project_id):
         # Generate PERT/RACI specific proposals
         proposals = []
         
-        # RACI workload-based analyses only make sense for current_sprint scope
+        # RACI workload-based analyses make sense for sprint scopes (current or planned)
         # Backlog tasks are not in a sprint yet, so RACI workload and duration adjustments don't apply
-        is_sprint_scope = (scope == 'current_sprint')
+        is_sprint_scope = (scope in ['current_sprint', 'planned_sprint'])
         
         # 1. PERT Uncertainty Risks (analyze filtered tasks) - applies to ALL scopes
         # Uncertainty in estimates is relevant regardless of whether task is in backlog or sprint
         pert_uncertainty_proposals = pert_raci_analyzer.find_pert_uncertainty_risks(tasks)
         proposals.extend(pert_uncertainty_proposals)
         
-        # 2. RACI Overload Risks (only for sprint scope - backlog doesn't contribute to current workload)
+        # 2. RACI Missing Assignments (tasks without Responsible or Accountable) - applies to ALL scopes
+        raci_missing_proposals = pert_raci_analyzer.find_raci_missing_assignments(
+            tasks, team_members, scope, sprint_id, project_id, all_tasks
+        )
+        proposals.extend(raci_missing_proposals)
+        
+        # 3. RACI Overload Risks (only for sprint scope - backlog doesn't contribute to current workload)
         if is_sprint_scope:
             raci_overload_proposals = pert_raci_analyzer.find_raci_overload_risks(
                 team_members, tasks, sprint_id, all_tasks
             )
             proposals.extend(raci_overload_proposals)
         
-        # 3. Adjusted Duration Risks (only for sprint scope - backlog doesn't affect current workload/duration)
+        # 4. Adjusted Duration Risks (only for sprint scope - backlog doesn't affect current workload/duration)
         if is_sprint_scope:
             duration_risk_proposals = pert_raci_analyzer.find_adjusted_duration_risks(
                 tasks, team_members, sprint_id, all_tasks
@@ -541,6 +563,7 @@ def apply_requirement_changes(project_id):
         
         applied = 0
         failed = 0
+        skipped = 0  # Informational proposals (e.g. raci_missing) - require manual action
         errors = []
         applied_results = []
         
@@ -690,6 +713,25 @@ def apply_requirement_changes(project_id):
                     else:
                         failed += 1
                         errors.append(f"Unsupported action for duration_risk: {action.get('type')}")
+                elif proposal_type in ['raci_missing_responsible', 'raci_missing_accountable']:
+                    # Apply RACI assignment if action has assign_raci with toMemberId
+                    if action.get('type') == 'assign_raci' and action.get('toMemberId'):
+                        _apply_raci_assignment(action)
+                        applied += 1
+                        applied_results.append({
+                            'type': proposal_type,
+                            'action': 'assign_raci',
+                            'taskId': task_id,
+                            'toMemberId': action.get('toMemberId')
+                        })
+                    else:
+                        skipped += 1
+                        applied_results.append({
+                            'type': proposal_type,
+                            'action': 'skipped',
+                            'taskId': task_id,
+                            'reason': 'No assignee specified'
+                        })
                 elif proposal_type == 'raci_overload':
                     # RACI overload typically results in reassignment
                     if action.get('type') == 'reassign':
@@ -739,11 +781,17 @@ def apply_requirement_changes(project_id):
         # Reload project with updated data
         updated_project = Project.query.get(project_id)
         
+        msg_parts = [f'Applied {applied} changes']
+        if failed > 0:
+            msg_parts.append(f'{failed} failed')
+        if skipped > 0:
+            msg_parts.append(f'{skipped} skipped (manual action required)')
         return jsonify({
             'applied': applied,
             'failed': failed,
+            'skipped': skipped,
             'errors': errors if errors else None,
-            'message': f'Applied {applied} changes, {failed} failed'
+            'message': ', '.join(msg_parts)
         }), 200
         
     except Exception as e:
@@ -1203,6 +1251,26 @@ def _generate_dependency_proposals(change_data, tasks):
 
 
 # Application functions
+
+def _apply_raci_assignment(action):
+    """Apply RACI assignment (Responsible or Accountable) to task"""
+    task_id = action.get('taskId')
+    to_member_id = action.get('toMemberId')
+    assign_role = action.get('assignRole')  # 'responsible' | 'accountable'
+
+    task = Task.query.get(task_id)
+    if not task:
+        raise ValueError(f"Task {task_id} not found")
+
+    if assign_role == 'responsible':
+        current = task.raci_responsible or []
+        if to_member_id not in current:
+            task.raci_responsible = current + [to_member_id]
+    elif assign_role == 'accountable':
+        task.raci_accountable = to_member_id
+
+    db.session.add(task)
+
 
 def _apply_reassignment(action):
     """Apply task reassignment"""

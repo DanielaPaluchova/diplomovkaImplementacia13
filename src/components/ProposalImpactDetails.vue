@@ -494,6 +494,140 @@
       </div>
     </div>
 
+    <!-- RACI Missing Assignment Details (aligned with reassignment layout) -->
+    <div v-else-if="isRaciMissingProposal(proposal)">
+      <div class="text-subtitle2 text-weight-bold q-mb-sm">
+        {{ getRaciMissingRoleLabel(proposal) }} Assignment
+      </div>
+
+      <!-- Task Info -->
+      <div class="q-mb-md">
+        <strong>Task:</strong> {{ proposal.taskName || 'Task' }}
+        <span
+          v-if="proposal.taskSp || proposal.impact?.taskSP"
+          class="text-primary text-weight-bold"
+        >
+          ({{ proposal.taskSp || proposal.impact?.taskSP }} SP)
+        </span>
+      </div>
+
+      <!-- Assignment: Empty → Suggested Member -->
+      <div v-if="proposal.impact?.toMember" class="q-mb-md">
+        <div class="text-caption text-grey-7 q-mb-xs">Team Member Assignment</div>
+        <div class="row items-center q-gutter-sm">
+          <div class="reassignment-member">
+            <q-avatar color="grey-5" text-color="white" size="32px">
+              <q-icon name="person_off" />
+            </q-avatar>
+            <div class="text-caption q-mt-xs">Unassigned</div>
+          </div>
+          <q-icon name="arrow_forward" size="24px" color="primary" />
+          <div class="reassignment-member">
+            <q-avatar color="green" text-color="white" size="32px">
+              <q-icon name="person" />
+            </q-avatar>
+            <div class="text-caption q-mt-xs">{{ proposal.impact.toMember }}</div>
+            <q-badge
+              v-if="proposal.impact?.isProjectOwner"
+              color="indigo"
+              label="Owner"
+              class="q-mt-xs"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Workload Impact (active sprint only) -->
+      <div
+        v-if="
+          proposal.impact?.toWorkloadBefore !== undefined &&
+          proposal.impact?.toWorkload !== undefined &&
+          props.scope === 'current_sprint'
+        "
+        class="q-mb-md"
+      >
+        <div class="text-caption text-grey-7 q-mb-xs">Workload Impact</div>
+        <div class="text-weight-bold text-caption q-mb-xs">{{ proposal.impact.toMember }}</div>
+        <!-- Before -->
+        <div v-if="proposal.impact.toWorkloadBefore !== undefined" class="q-mb-xs">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption">Before</span>
+            <span
+              class="text-caption text-weight-bold"
+              :class="getWorkloadColorClass(proposal.impact.toWorkloadBefore)"
+            >
+              {{ proposal.impact.toWorkloadBefore }}%
+            </span>
+          </div>
+          <q-linear-progress
+            :value="proposal.impact.toWorkloadBefore / 100"
+            :color="getWorkloadColor(proposal.impact.toWorkloadBefore)"
+            size="8px"
+            rounded
+          />
+        </div>
+        <!-- After -->
+        <div class="q-mb-xs">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption">After</span>
+            <span
+              class="text-caption text-weight-bold"
+              :class="getWorkloadColorClass(proposal.impact.toWorkload)"
+            >
+              {{ proposal.impact.toWorkload }}%
+            </span>
+          </div>
+          <q-linear-progress
+            :value="proposal.impact.toWorkload / 100"
+            :color="getWorkloadColor(proposal.impact.toWorkload)"
+            size="8px"
+            rounded
+          />
+        </div>
+      </div>
+
+      <!-- Skill Match (Responsible only) -->
+      <div
+        v-if="
+          proposal.type === 'raci_missing_responsible' &&
+          proposal.impact?.skillMatch !== undefined
+        "
+        class="q-mt-sm"
+      >
+        <q-banner dense class="bg-blue-1 text-blue-9">
+          <template v-slot:avatar>
+            <q-icon name="psychology" color="blue" />
+          </template>
+          <div class="text-caption">
+            <strong>Skill Match:</strong> {{ proposal.impact.skillMatch }}%
+          </div>
+        </q-banner>
+      </div>
+
+      <!-- Fallback warning (no suitable candidate) -->
+      <div v-if="proposal.impact?.isFallback" class="q-mt-sm">
+        <q-banner dense class="bg-orange-1 text-orange-9">
+          <template v-slot:avatar>
+            <q-icon name="warning" color="orange" />
+          </template>
+          <div class="text-caption">
+            <strong>Fallback:</strong> No team member has 30%+ skill match and ≤100% capacity.
+            Assigned best by combined score (skills + workload). Consider adding resources or moving task to backlog.
+          </div>
+        </q-banner>
+      </div>
+
+      <!-- Apply hint -->
+      <q-banner dense class="bg-grey-2 q-mt-sm">
+        <template v-slot:avatar>
+          <q-icon name="check_circle" color="primary" />
+        </template>
+        <div class="text-caption">
+          <strong>Apply:</strong> Click "Apply Changes" to assign the suggested team member.
+        </div>
+      </q-banner>
+    </div>
+
     <!-- Generic Details -->
     <div v-else>
       <div class="text-subtitle2 text-weight-bold q-mb-sm">Details:</div>
@@ -514,6 +648,20 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+function isRaciMissingProposal(proposal: Proposal): boolean {
+  return (
+    proposal.type === 'raci_missing_responsible' ||
+    proposal.type === 'raci_missing_accountable'
+  );
+}
+
+function getRaciMissingRoleLabel(proposal: Proposal): string {
+  return (
+    proposal.impact?.missingRole ||
+    (proposal.type === 'raci_missing_responsible' ? 'Responsible (R)' : 'Accountable (A)')
+  );
+}
 
 function getWorkloadColor(workload: number): string {
   if (workload >= 90) return 'red';

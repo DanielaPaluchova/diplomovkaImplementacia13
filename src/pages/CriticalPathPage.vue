@@ -314,6 +314,86 @@
               </div>
             </q-banner>
 
+            <!-- PERT Statistics for Critical Path -->
+            <div v-if="criticalPathData" class="q-mb-lg">
+              <div class="text-subtitle2 text-weight-bold q-mb-sm">
+                <q-icon name="analytics" class="q-mr-xs" />
+                PERT Statistics (Critical Path)
+              </div>
+              <div v-if="hasPertStats" class="row q-gutter-md">
+                <q-card flat bordered class="col" style="min-width: 120px">
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-caption text-grey-7">Variance (σ²)</div>
+                    <div class="text-h6 text-weight-bold">{{ pertStats.projectVariance.toFixed(3) }}</div>
+                  </q-card-section>
+                </q-card>
+                <q-card flat bordered class="col" style="min-width: 120px">
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-caption text-grey-7">Std Dev (σ)</div>
+                    <div class="text-h6 text-weight-bold">{{ pertStats.projectStdDev.toFixed(2) }} days</div>
+                  </q-card-section>
+                </q-card>
+                <q-card flat bordered class="col" style="min-width: 200px">
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-caption text-grey-7">68% Confidence</div>
+                    <div class="text-body2 text-weight-medium">
+                      {{ pertStats.conf68Lower.toFixed(1) }} – {{ pertStats.conf68Upper.toFixed(1) }} days
+                    </div>
+                  </q-card-section>
+                </q-card>
+                <q-card flat bordered class="col" style="min-width: 200px">
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-caption text-grey-7">95% Confidence</div>
+                    <div class="text-body2 text-weight-medium">
+                      {{ pertStats.conf95Lower.toFixed(1) }} – {{ pertStats.conf95Upper.toFixed(1) }} days
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
+              <div v-else class="text-caption text-grey-6">
+                Add PERT estimates (optimistic, pessimistic) to epics or their tasks for variance calculation.
+              </div>
+            </div>
+
+            <!-- Completion Probability -->
+            <div v-if="criticalPathData && hasPertStats" class="q-mb-lg">
+              <div class="text-subtitle2 text-weight-bold q-mb-sm">
+                <q-icon name="event_available" class="q-mr-xs" />
+                Probability of Completion by Deadline
+              </div>
+              <div class="row items-center q-gutter-md">
+                <q-input
+                  v-model="targetDateStr"
+                  type="date"
+                  label="Target deadline"
+                  outlined
+                  dense
+                  style="max-width: 200px"
+                  :min="todayStr"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="event" />
+                  </template>
+                </q-input>
+                <div v-if="targetDateStr" class="row items-center q-gutter-sm">
+                  <q-chip
+                    :color="completionProbabilityColor"
+                    text-color="white"
+                    size="md"
+                    icon="percent"
+                  >
+                    {{ completionProbabilityText }}
+                  </q-chip>
+                  <span class="text-caption text-grey-7">
+                    Z = {{ zScore.toFixed(2) }}
+                  </span>
+                </div>
+              </div>
+              <div v-if="targetDateStr && completionProbability < 90" class="text-caption text-orange q-mt-xs">
+                Suggested buffer: +{{ suggestedBufferDays.toFixed(1) }} days for 90% confidence
+              </div>
+            </div>
+
             <div class="text-subtitle2 q-mb-sm">Critical Path Sequence:</div>
             <div class="row q-gutter-xs q-mb-lg">
               <q-chip
@@ -348,6 +428,15 @@
                       {{ props.row.epicName }}
                     </span>
                   </div>
+                </q-td>
+              </template>
+
+              <template v-slot:body-cell-variance="props">
+                <q-td :props="props">
+                  <span v-if="props.row.variance != null && props.row.variance > 0">
+                    {{ Number(props.row.variance).toFixed(3) }}
+                  </span>
+                  <span v-else class="text-grey-5">—</span>
                 </q-td>
               </template>
 
@@ -399,6 +488,7 @@ const selectedProjectId = ref<number | null>(null);
 const loading = ref(false);
 const loadingCriticalPath = ref(false);
 const criticalPathData = ref<EpicCriticalPathResponse | null>(null);
+const targetDateStr = ref<string | null>(null);
 
 const zoomLevel = ref(1);
 const panX = ref(0);
@@ -640,9 +730,109 @@ const criticalPathTableData = computed(() => {
   });
 });
 
+// PERT statistics for critical path
+const pertStats = computed(() => {
+  if (!criticalPathData.value) {
+    return {
+      projectVariance: 0,
+      projectStdDev: 0,
+      conf68Lower: 0,
+      conf68Upper: 0,
+      conf95Lower: 0,
+      conf95Upper: 0,
+    };
+  }
+  const variance = criticalPathData.value.projectVariance ?? 0;
+  const stdDev = criticalPathData.value.projectStdDev ?? Math.sqrt(variance);
+  const expected = criticalPathData.value.projectDuration;
+  return {
+    projectVariance: variance,
+    projectStdDev: stdDev,
+    conf68Lower: Math.max(0, expected - stdDev),
+    conf68Upper: expected + stdDev,
+    conf95Lower: Math.max(0, expected - 2 * stdDev),
+    conf95Upper: expected + 2 * stdDev,
+  };
+});
+
+const hasPertStats = computed(() => (pertStats.value.projectStdDev ?? 0) > 0);
+
+// Standard normal CDF (approximation)
+function standardNormalCDF(z: number): number {
+  if (z > 6) return 1;
+  if (z < -6) return 0;
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+  const t = 1 / (1 + p * Math.abs(z));
+  const y =
+    1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp((-z * z) / 2);
+  return z >= 0 ? y : 1 - y;
+}
+
+const todayStr = computed(() => {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+});
+
+const daysUntilTarget = computed(() => {
+  if (!targetDateStr.value) return null;
+  const target = new Date(targetDateStr.value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+});
+
+const zScore = computed(() => {
+  if (
+    !criticalPathData.value ||
+    daysUntilTarget.value == null ||
+    !hasPertStats.value
+  ) {
+    return 0;
+  }
+  const expected = criticalPathData.value.projectDuration;
+  const stdDev = pertStats.value.projectStdDev;
+  if (stdDev <= 0) return daysUntilTarget.value >= expected ? 3 : -3;
+  return (daysUntilTarget.value - expected) / stdDev;
+});
+
+const completionProbability = computed(() => {
+  if (!targetDateStr.value || !hasPertStats.value) return 0;
+  return Math.round(standardNormalCDF(zScore.value) * 100);
+});
+
+const completionProbabilityText = computed(() => {
+  if (!targetDateStr.value) return '';
+  return `${completionProbability.value}%`;
+});
+
+const completionProbabilityColor = computed(() => {
+  const p = completionProbability.value;
+  if (p >= 90) return 'green';
+  if (p >= 70) return 'blue';
+  if (p >= 50) return 'orange';
+  return 'red';
+});
+
+// Days to add for 90% confidence (Z ≈ 1.28)
+const suggestedBufferDays = computed(() => {
+  if (!hasPertStats.value) return 0;
+  const stdDev = pertStats.value.projectStdDev;
+  const z90 = 1.28;
+  const daysFor90 = criticalPathData.value!.projectDuration + z90 * stdDev;
+  const currentDays = daysUntilTarget.value ?? 0;
+  return Math.max(0, daysFor90 - currentDays);
+});
+
 const criticalPathColumns = [
   { name: 'epicName', label: 'Epic Name', field: 'epicName', align: 'left' as const },
   { name: 'duration', label: 'Duration (days)', field: 'duration', align: 'center' as const },
+  { name: 'variance', label: 'Variance (σ²)', field: 'variance', align: 'center' as const },
   { name: 'earlyStart', label: 'Early Start', field: 'earlyStart', align: 'center' as const },
   { name: 'earlyFinish', label: 'Early Finish', field: 'earlyFinish', align: 'center' as const },
   { name: 'lateStart', label: 'Late Start', field: 'lateStart', align: 'center' as const },

@@ -212,6 +212,15 @@
             :rules="[(val) => !!val || 'Due date is required']"
           />
 
+          <q-input
+            v-model="projectForm.sprintStartDate"
+            label="Sprint Start Date (first day of first sprint)"
+            type="date"
+            filled
+            class="q-mb-md"
+            hint="All sprints will be 2 weeks. Dates are calculated automatically from this start."
+          />
+
           <q-select
             v-model="projectForm.teamMembers"
             :options="availableTeamMembers"
@@ -341,6 +350,7 @@ interface ProjectForm {
   template: string;
   icon: string;
   dueDate: string;
+  sprintStartDate: string;
   teamMembers: TeamMember[];
 }
 
@@ -350,6 +360,7 @@ const projectForm = ref<ProjectForm>({
   template: 'Agile Development',
   icon: 'folder',
   dueDate: '',
+  sprintStartDate: '',
   teamMembers: [],
 });
 
@@ -369,7 +380,7 @@ const iconOptions = [
   'design_services',
 ];
 
-const statusOptions = ['On Track', 'In Progress', 'At Risk', 'Delayed', 'Completed'];
+const statusOptions = ['Not started', 'In progress', 'Completed'];
 
 const sortOptions = ['Recent', 'Name', 'Due Date', 'Progress'];
 
@@ -426,16 +437,12 @@ const filteredProjects = computed(() => {
 // Methods
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'On Track':
-      return 'green';
-    case 'In Progress':
-      return 'blue';
-    case 'At Risk':
-      return 'orange';
-    case 'Delayed':
-      return 'red';
-    case 'Completed':
+    case 'Not started':
       return 'grey';
+    case 'In progress':
+      return 'blue';
+    case 'Completed':
+      return 'green';
     default:
       return 'grey';
   }
@@ -458,12 +465,14 @@ function navigateToProject(projectId: number) {
 
 function editProject(project: Project) {
   editingProject.value = project;
+  const p = project as Project & { sprintStartDate?: string };
   projectForm.value = {
     name: project.name,
     description: project.description,
     template: project.template,
     icon: project.icon,
     dueDate: format(project.dueDate, 'yyyy-MM-dd'),
+    sprintStartDate: p.sprintStartDate || '',
     teamMembers: [...project.teamMembers],
   };
   showNewProjectDialog.value = true;
@@ -520,6 +529,7 @@ async function saveProject() {
         icon: projectForm.value.icon,
         dueDate: new Date(projectForm.value.dueDate),
         teamMemberIds: projectForm.value.teamMembers.map((m) => m.id),
+        sprintStartDate: projectForm.value.sprintStartDate || null,
       });
       $q.notify({
         message: `Project "${projectForm.value.name}" updated successfully`,
@@ -537,7 +547,7 @@ async function saveProject() {
         progress: 0,
         tasksCompleted: 0,
         totalTasks: 0,
-        status: 'In Progress',
+        status: 'Not started',
         dueDate: new Date(projectForm.value.dueDate),
         createdAt: new Date(),
         teamMemberIds: projectForm.value.teamMembers.map((m) => m.id),
@@ -546,6 +556,8 @@ async function saveProject() {
         tasks: [],
         totalStoryPoints: 0,
         estimatedDuration: 0,
+        sprintDurationDays: 14,
+        sprintStartDate: projectForm.value.sprintStartDate || null,
       });
       $q.notify({
         message: `Project "${projectForm.value.name}" created successfully`,
@@ -576,6 +588,7 @@ function cancelProjectDialog() {
     template: 'Agile Development',
     icon: 'folder',
     dueDate: '',
+    sprintStartDate: '',
     teamMembers: [],
   };
 }

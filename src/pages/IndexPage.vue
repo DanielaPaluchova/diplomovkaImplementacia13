@@ -40,7 +40,7 @@
               <div class="row items-center">
                 <q-icon name="check_circle" class="text-green" size="16px" />
                 <span class="text-caption q-ml-xs text-green">{{ projectsOnTrack }}</span>
-                <span class="text-caption text-grey-7 q-ml-xs">on track</span>
+                <span class="text-caption text-grey-7 q-ml-xs">in progress</span>
               </div>
             </q-card-section>
           </q-card>
@@ -253,7 +253,7 @@ onMounted(async () => {
 const totalProjects = computed(() => projectStore.projects.length);
 
 const projectsOnTrack = computed(() => {
-  return projectStore.projects.filter((p) => p.status === 'On Track').length;
+  return projectStore.projects.filter((p) => p.status === 'In progress').length;
 });
 
 const averageProgress = computed(() => {
@@ -294,19 +294,19 @@ const activeProjects = computed(() => {
         icon: project.icon || 'work',
         color: getProjectColor(project.status),
         progress: project.progress, // Backend now calculates this dynamically
-        status: project.status || 'In Progress',
+        status: project.status || 'Not started',
       };
     });
 });
 
 function getProjectColor(status: string): string {
   switch (status) {
-    case 'On Track':
+    case 'Not started':
+      return 'grey';
+    case 'In progress':
+      return 'primary';
+    case 'Completed':
       return 'green';
-    case 'At Risk':
-      return 'orange';
-    case 'Delayed':
-      return 'red';
     default:
       return 'primary';
   }
@@ -319,14 +319,12 @@ function navigateTo(path: string) {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'On Track':
-      return 'green';
-    case 'In Progress':
+    case 'Not started':
+      return 'grey';
+    case 'In progress':
       return 'blue';
-    case 'At Risk':
-      return 'orange';
-    case 'Delayed':
-      return 'red';
+    case 'Completed':
+      return 'green';
     default:
       return 'grey';
   }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { api } from 'src/services/api';
 
 // Strategy configuration
@@ -219,6 +219,211 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
   const strategies = ref<SprintStrategy[]>([]);
   const applyingPlan = ref(false);
 
+  // Editable plan state (synced from planningResult, user can modify before apply)
+  const editableTasks = ref<SprintTask[]>([]);
+  const editableAssignments = ref<Record<string, TaskAssignment>>({});
+
+  function syncEditableFromPlan() {
+    if (!planningResult.value) {
+      editableTasks.value = [];
+      editableAssignments.value = {};
+      return;
+    }
+    editableTasks.value = [...planningResult.value.suggestedTasks];
+    editableAssignments.value = { ...planningResult.value.assignments };
+  }
+
+  function updateTaskAssignment(
+    taskId: number,
+    memberId: number | null,
+    memberName?: string
+  ) {
+    const key = String(taskId);
+    if (memberId == null || memberName == null) {
+      if (key in editableAssignments.value) {
+        const rest = { ...editableAssignments.value };
+        delete rest[key];
+        editableAssignments.value = rest;
+      }
+      return;
+    }
+    const task = editableTasks.value.find((t) => t.id === taskId);
+    if (!task) return;
+    editableAssignments.value = {
+      ...editableAssignments.value,
+      [key]: {
+        taskId,
+        taskName: task.name || task.title,
+        memberId,
+        memberName,
+        role: 'responsible',
+        storyPoints: task.storyPoints || 0,
+      },
+    };
+  }
+
+  function removeTaskFromPlan(taskId: number) {
+    editableTasks.value = editableTasks.value.filter((t) => t.id !== taskId);
+    const key = String(taskId);
+    if (key in editableAssignments.value) {
+      const rest = { ...editableAssignments.value };
+      delete rest[key];
+      editableAssignments.value = rest;
+    }
+  }
+
+  function addTaskToPlan(
+    task: SprintTask,
+    memberId?: number,
+    memberName?: string
+  ) {
+    if (editableTasks.value.some((t) => t.id === task.id)) return;
+    editableTasks.value = [...editableTasks.value, task];
+    if (memberId != null && memberName) {
+      editableAssignments.value = {
+        ...editableAssignments.value,
+        [String(task.id)]: {
+          taskId: task.id,
+          taskName: task.name || task.title,
+          memberId,
+          memberName,
+          role: 'responsible',
+          storyPoints: task.storyPoints || 0,
+        },
+      };
+    }
+  }
+
+  // Recalculated metrics and team analysis based on editable state
+  const editableMetrics = computed<SprintMetrics | null>(() => {
+    const plan = planningResult.value;
+    if (!plan?.metrics) return null;
+
+    const totalStoryPoints = editableTasks.value.reduce(
+      (sum, t) => sum + (t.storyPoints || 0),
+      0
+    );
+    const taskCount = editableTasks.value.length;
+    const teamCapacity = plan.metrics.teamCapacity;
+
+    const priorityDistribution = { high: 0, medium: 0, low: 0 };
+    for (const t of editableTasks.value) {
+      const p = (t.priority || 'medium').toLowerCase();
+      if (p in priorityDistribution) {
+        priorityDistribution[p as keyof typeof priorityDistribution]++;
+      }
+    }
+
+    // Member workloads from assignments (SP per member in this sprint)
+    const memberWorkloads: Record<number, number> = {};
+    for (const a of Object.values(editableAssignments.value)) {
+      memberWorkloads[a.memberId] = (memberWorkloads[a.memberId] || 0) + a.storyPoints;
+    }
+
+    const utilization =
+      teamCapacity > 0 ? (totalStoryPoints / teamCapacity) * 100 : 0;
+
+    // Balance score: lower variance in workload % = higher score
+    const members = plan.teamAnalysis?.members ?? [];
+    let balanceScore = 100;
+    if (members.length >= 2 && Object.keys(memberWorkloads).length > 0) {
+      const considerCross = plan.teamAnalysis?.considerCrossProject ?? false;
+      const workloadPcts: number[] = [];
+      for (const m of members) {
+        let workload = memberWorkloads[m.memberId] || 0;
+        if (considerCross) workload += m.crossProjectWorkload || 0;
+        const pct =
+          m.maxCapacity > 0 ? (workload / m.maxCapacity) * 100 : 0;
+        workloadPcts.push(pct);
+      }
+      const avg = workloadPcts.reduce((s, x) => s + x, 0) / workloadPcts.length;
+      const variance =
+        workloadPcts.reduce((s, x) => s + (x - avg) ** 2, 0) /
+        workloadPcts.length;
+      const stdDev = Math.sqrt(variance);
+      balanceScore = Math.max(0, 100 - stdDev * 2);
+    }
+
+    return {
+      ...plan.metrics,
+      totalStoryPoints,
+      taskCount,
+      utilization: Math.round(utilization * 10) / 10,
+      balanceScore: Math.round(balanceScore * 10) / 10,
+      priorityDistribution,
+    };
+  });
+
+  const editableTeamAnalysis = computed<TeamAnalysis | null>(() => {
+    const plan = planningResult.value;
+    const analysis = plan?.teamAnalysis;
+    if (!analysis) return null;
+
+    const memberSprintSp: Record<number, number> = {};
+    for (const a of Object.values(editableAssignments.value)) {
+      memberSprintSp[a.memberId] =
+        (memberSprintSp[a.memberId] || 0) + a.storyPoints;
+    }
+
+    const members: TeamMemberAnalysis[] = analysis.members.map((m) => {
+      const sprintSp = memberSprintSp[m.memberId] || 0;
+      const crossSp = m.crossProjectWorkload || 0;
+      const totalSp = crossSp + sprintSp;
+      const availableSp = Math.max(0, m.maxCapacity - totalSp);
+      const utilPct =
+        m.maxCapacity > 0 ? (totalSp / m.maxCapacity) * 100 : 0;
+
+      let status: TeamMemberAnalysis['status'] = 'available';
+      if (totalSp >= m.maxCapacity) status = 'at_capacity';
+      else if (totalSp > m.maxCapacity * 0.9) status = 'nearly_full';
+      else if (sprintSp > 0) status = 'assigned';
+
+      let reason: string;
+      if (sprintSp === 0) {
+        if (analysis.considerCrossProject && crossSp > 0) {
+          reason = `Not assigned - has ${crossSp} SP in other projects`;
+        } else if (totalSp >= m.maxCapacity) {
+          reason = 'Not assigned - at maximum capacity';
+        } else {
+          reason = 'Not assigned - tasks matched better with other team members';
+        }
+      } else {
+        if (analysis.considerCrossProject && crossSp > 0) {
+          reason = `Assigned ${sprintSp} SP (considering ${crossSp} SP from other projects)`;
+        } else {
+          reason = `Assigned ${sprintSp} SP`;
+        }
+      }
+
+      return {
+        ...m,
+        assignedInThisSprint: sprintSp,
+        totalWorkload: totalSp,
+        availableCapacity: availableSp,
+        utilizationPercentage: utilPct,
+        status,
+        reason,
+        taskCount: Object.values(editableAssignments.value).filter(
+          (a) => a.memberId === m.memberId
+        ).length,
+      };
+    });
+
+    members.sort((a, b) => b.totalWorkload - a.totalWorkload);
+
+    return {
+      ...analysis,
+      members,
+      summary: {
+        totalMembers: analysis.summary.totalMembers,
+        assignedMembers: members.filter((m) => m.assignedInThisSprint > 0)
+          .length,
+        atCapacity: members.filter((m) => m.status === 'at_capacity').length,
+        available: members.filter((m) => m.status === 'available').length,
+      },
+    };
+  });
+
   // Load available strategies
   async function loadStrategies(projectId: number): Promise<SprintStrategy[] | null> {
     loading.value = true;
@@ -257,6 +462,7 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
       );
 
       planningResult.value = response;
+      syncEditableFromPlan();
 
       return response;
     } catch (err) {
@@ -302,6 +508,7 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
   function clearPlan() {
     planningResult.value = null;
     error.value = null;
+    syncEditableFromPlan();
   }
 
   // Set selected strategy
@@ -313,6 +520,10 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
     loading,
     error,
     planningResult,
+    editableTasks,
+    editableAssignments,
+    editableMetrics,
+    editableTeamAnalysis,
     selectedStrategy,
     strategies,
     applyingPlan,
@@ -321,6 +532,10 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
     applySprintPlan,
     clearPlan,
     setStrategy,
+    syncEditableFromPlan,
+    updateTaskAssignment,
+    removeTaskFromPlan,
+    addTaskToPlan,
   };
 });
 

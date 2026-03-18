@@ -251,6 +251,38 @@
                     <div class="text-weight-bold text-primary">{{ props.row.expected }}h</div>
                   </q-td>
                 </template>
+
+                <template v-slot:body-cell-stdDev="props">
+                  <q-td :props="props">
+                    <span v-if="props.row.stdDev != null" class="text-caption">
+                      {{ props.row.stdDev }}h
+                    </span>
+                    <span v-else class="text-grey-5 text-caption">—</span>
+                  </q-td>
+                </template>
+
+                <template v-slot:body-cell-variance="props">
+                  <q-td :props="props">
+                    <span v-if="props.row.variance != null" class="text-caption">
+                      {{ props.row.variance }}
+                    </span>
+                    <span v-else class="text-grey-5 text-caption">—</span>
+                  </q-td>
+                </template>
+
+                <template v-slot:body-cell-cv="props">
+                  <q-td :props="props">
+                    <q-chip
+                      v-if="props.row.cv != null"
+                      :color="props.row.cv >= 33 ? 'red' : props.row.cv >= 20 ? 'orange' : 'grey-5'"
+                      text-color="white"
+                      size="sm"
+                    >
+                      {{ props.row.cv }}%
+                    </q-chip>
+                    <span v-else class="text-grey-5 text-caption">—</span>
+                  </q-td>
+                </template>
               </q-table>
             </q-card-section>
           </q-card>
@@ -407,22 +439,68 @@ const pertColumns = [
     align: 'center' as const,
     sortable: true,
   },
+  {
+    name: 'stdDev',
+    label: 'σ',
+    field: 'stdDev',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'variance',
+    label: 'Variance',
+    field: 'variance',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'cv',
+    label: 'CV %',
+    field: 'cv',
+    align: 'center' as const,
+    sortable: true,
+  },
 ];
+
+// PERT statistical formulas (standard PERT: σ = (P-O)/6)
+function calcPertStats(
+  optimistic: number,
+  pessimistic: number,
+  expected: number,
+): { stdDev: number | null; variance: number | null; cv: number | null } {
+  if (optimistic == null || pessimistic == null || expected == null || expected <= 0) {
+    return { stdDev: null, variance: null, cv: null };
+  }
+  const stdDev = (pessimistic - optimistic) / 6;
+  const variance = stdDev * stdDev;
+  const cv = (stdDev / expected) * 100;
+  return { stdDev, variance, cv };
+}
 
 // Task estimates from selected project
 const taskEstimates = computed(() => {
   if (!selectedProject.value || !selectedProject.value.tasks) return [];
 
-  return selectedProject.value.tasks.map((task) => ({
-    id: task.id,
-    title: task.title,
-    type: task.type,
-    optimistic: Number((task.pert.optimistic || 0).toFixed(2)),
-    mostLikely: Number((task.pert.mostLikely || 0).toFixed(2)),
-    pessimistic: Number((task.pert.pessimistic || 0).toFixed(2)),
-    expected: Number((task.pert.expected || 0).toFixed(2)),
-    status: task.status,
-  }));
+  return selectedProject.value.tasks.map((task) => {
+    const optimistic = Number((task.pert.optimistic ?? 0));
+    const pessimistic = Number((task.pert.pessimistic ?? 0));
+    const expected = Number((task.pert.expected ?? 0).toFixed(2));
+    const stats = calcPertStats(optimistic, pessimistic, expected);
+
+    return {
+      id: task.id,
+      title: task.title,
+      type: task.type,
+      optimistic: Number(optimistic.toFixed(2)),
+      mostLikely: Number((task.pert.mostLikely ?? 0).toFixed(2)),
+      pessimistic: Number(pessimistic.toFixed(2)),
+      expected,
+      stdDev: stats.stdDev != null ? Number(stats.stdDev.toFixed(2)) : null,
+      variance: stats.variance != null ? Number(stats.variance.toFixed(3)) : null,
+      cv: stats.cv != null ? Number(stats.cv.toFixed(1)) : null,
+      status: task.status,
+    };
+  });
 });
 
 // Computed properties

@@ -606,275 +606,421 @@
 
         <!-- Backlog & Sprint Planning Tab -->
         <q-tab-panel name="backlog">
-          <!-- Sprint Info Bar -->
-          <div v-if="activeSprint" class="q-mb-lg">
-            <q-card class="bg-green-1">
-              <q-card-section>
-                <div class="row items-center">
-                  <q-icon name="play_circle" size="32px" class="text-green q-mr-md" />
-                  <div class="col">
-                    <div class="text-h6 text-weight-bold text-green">{{ activeSprint.name }}</div>
-                    <div class="text-caption text-grey-7">
-                      {{ formatDate(activeSprint.startDate) }} -
-                      {{ formatDate(activeSprint.endDate) }}
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <q-btn
-                      flat
-                      color="green"
-                      icon="check_circle"
-                      label="Complete Sprint"
-                      @click="completeSprint(activeSprint)"
-                    />
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
+          <!-- Header with Create Sprint Button -->
+          <div class="row items-center q-mb-lg">
+            <div class="text-h5 text-weight-bold">Sprint Backlog</div>
+            <q-space />
+            <q-btn
+              color="primary"
+              icon="add"
+              label="Create Sprint"
+              @click="openCreateSprintDialog"
+            />
           </div>
 
-          <!-- Sprint Planning Board -->
-          <div class="row q-col-gutter-lg">
-            <!-- Product Backlog -->
-            <div class="col-12 col-lg-6">
-              <q-card>
-                <q-card-section class="bg-grey-3">
-                  <div class="row items-center">
-                    <div class="text-h6 text-weight-bold">Product Backlog</div>
-                    <q-space />
-                    <q-badge color="grey-7" :label="backlogTasks.length" />
-                    <q-btn
-                      flat
-                      color="primary"
-                      icon="add"
-                      label="New Task"
-                      class="q-ml-sm"
-                      @click="showNewTaskDialog = true"
-                    />
-                  </div>
-                </q-card-section>
-                <q-separator />
-                <q-card-section
-                  class="q-pa-sm"
-                  style="height: 650px; overflow-y: auto; overflow-x: hidden"
-                >
-                  <div class="column q-gutter-sm">
-                    <q-card
-                      v-for="task in backlogTasks"
-                      :key="task.id"
-                      class="task-card cursor-pointer"
-                      draggable="true"
-                      @dragstart="onDragStart(task)"
-                      @dragend="onDragEnd"
-                      @click="openEditTaskDialog(task)"
-                      @contextmenu.prevent="showTaskContextMenu($event, task, 'backlog')"
-                    >
-                      <q-card-section class="q-pa-sm">
-                        <div class="row items-start q-mb-xs">
-                          <div class="col">
-                            <div class="text-subtitle2 text-weight-medium">{{ task.title }}</div>
-                          </div>
-                          <div class="row q-gutter-xs">
-                            <q-chip
-                              :color="getPriorityColor(task.priority)"
-                              text-color="white"
-                              size="sm"
-                              dense
-                            >
-                              {{ task.priority }}
-                            </q-chip>
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="delete"
-                              size="sm"
-                              color="negative"
-                              @click.stop="confirmDeleteTask(task)"
-                            >
-                              <q-tooltip>Delete task</q-tooltip>
-                            </q-btn>
-                          </div>
+          <!-- Product Backlog -->
+          <q-card class="q-mb-lg">
+            <q-card-section class="bg-grey-3 cursor-pointer" @click="backlogExpanded = !backlogExpanded">
+              <div class="row items-center">
+                <q-icon
+                  :name="backlogExpanded ? 'expand_more' : 'chevron_right'"
+                  size="sm"
+                  class="q-mr-sm"
+                />
+                <div class="text-h6 text-weight-bold">Product Backlog</div>
+                <q-space />
+                <q-badge color="grey-7" :label="backlogTasks.length" />
+                <q-btn
+                  flat
+                  color="primary"
+                  icon="add"
+                  label="New Task"
+                  class="q-ml-sm"
+                  @click.stop="showNewTaskDialog = true"
+                />
+              </div>
+            </q-card-section>
+            <q-separator v-if="backlogExpanded" />
+            <q-slide-transition>
+              <q-card-section
+                v-if="backlogExpanded"
+                class="q-pa-sm"
+                style="max-height: 500px; overflow-y: auto"
+              >
+                <div class="column q-gutter-sm">
+                  <q-card
+                    v-for="task in backlogTasks"
+                    :key="task.id"
+                    class="task-card cursor-pointer"
+                    draggable="true"
+                    @dragstart="onDragStart(task)"
+                    @dragend="onDragEnd"
+                    @click="openEditTaskDialog(task)"
+                    @contextmenu.prevent="showTaskContextMenu($event, task, 'backlog')"
+                  >
+                    <q-card-section class="q-pa-sm">
+                      <div class="row items-start q-mb-xs">
+                        <div class="col">
+                          <div class="text-subtitle2 text-weight-medium">{{ task.title }}</div>
                         </div>
-                        <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
-                        <div class="row items-center justify-between q-mb-xs">
-                          <div class="row items-center q-gutter-xs">
-                            <q-chip
-                              v-for="label in task.labels"
-                              :key="label"
-                              size="sm"
-                              dense
-                              color="blue-1"
-                              text-color="blue-9"
-                            >
-                              {{ label }}
-                            </q-chip>
-                          </div>
+                        <div class="row q-gutter-xs">
+                          <q-chip
+                            :color="getPriorityColor(task.priority)"
+                            text-color="white"
+                            size="sm"
+                            dense
+                          >
+                            {{ task.priority }}
+                          </q-chip>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            size="sm"
+                            color="negative"
+                            @click.stop="confirmDeleteTask(task)"
+                          >
+                            <q-tooltip>Delete task</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </div>
+                      <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
+                      <div class="row items-center justify-between q-mb-xs">
+                        <div class="row items-center q-gutter-xs">
+                          <q-chip
+                            v-for="label in task.labels"
+                            :key="label"
+                            size="sm"
+                            dense
+                            color="blue-1"
+                            text-color="blue-9"
+                          >
+                            {{ label }}
+                          </q-chip>
+                        </div>
+                        <div class="text-caption text-weight-medium">
+                          {{ task.storyPoints }} SP
+                        </div>
+                      </div>
+                      <div class="row items-center q-gutter-xs">
+                        <q-icon name="person" size="16px" color="grey-6" />
+                        <span class="text-caption text-grey-7">
+                          {{ getResponsibleNames(task.raci?.responsible || []) }}
+                        </span>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+                <div v-if="backlogTasks.length === 0" class="text-center text-grey-5 q-pa-xl">
+                  <q-icon name="inbox" size="64px" class="q-mb-md" />
+                  <div>No tasks in backlog</div>
+                </div>
+              </q-card-section>
+            </q-slide-transition>
+          </q-card>
+
+          <!-- Active Sprint -->
+          <q-card
+            v-if="activeSprint"
+            class="q-mb-lg sprint-drop-zone"
+            :class="{ 'drag-over': isDragOver && dragTarget === 'active' }"
+            @dragover.prevent="onDragOver('active')"
+            @dragleave="onDragLeave"
+            @drop="onDrop(activeSprint.id)"
+          >
+            <q-card-section class="bg-green-1 cursor-pointer" @click="activeSprintExpanded = !activeSprintExpanded">
+              <div class="row items-center">
+                <q-icon
+                  :name="activeSprintExpanded ? 'expand_more' : 'chevron_right'"
+                  size="sm"
+                  class="q-mr-sm"
+                />
+                <q-icon name="play_circle" size="24px" class="text-green q-mr-sm" />
+                <div class="col">
+                  <div class="text-h6 text-weight-bold text-green">{{ activeSprint.name }}</div>
+                  <div class="text-caption text-grey-7">
+                    {{ formatDate(activeSprint.startDate) }} - {{ formatDate(activeSprint.endDate) }}
+                  </div>
+                </div>
+                <q-badge color="green" text-color="white" :label="sprintTasks.length" />
+                <q-btn
+                  flat
+                  color="green"
+                  icon="check_circle"
+                  label="Complete"
+                  class="q-ml-sm"
+                  @click.stop="completeSprint(activeSprint)"
+                />
+              </div>
+              <div v-if="activeSprintExpanded" class="q-mt-sm">
+                <div class="row q-gutter-md text-caption">
+                  <div>Total: {{ sprintTasks.length }} tasks</div>
+                  <div>Completed: {{ completedSprintTasks }} tasks</div>
+                  <div>Remaining: {{ remainingSprintTasks }} tasks</div>
+                </div>
+                <q-linear-progress
+                  :value="sprintTasks.length > 0 ? completedSprintTasks / sprintTasks.length : 0"
+                  color="green"
+                  class="q-mt-sm"
+                />
+              </div>
+            </q-card-section>
+            <q-separator v-if="activeSprintExpanded" />
+            <q-slide-transition>
+              <q-card-section
+                v-if="activeSprintExpanded"
+                class="q-pa-sm"
+                style="max-height: 500px; overflow-y: auto"
+              >
+                <div class="column q-gutter-sm">
+                  <q-card
+                    v-for="task in sprintTasks"
+                    :key="task.id"
+                    class="task-card cursor-pointer bg-blue-1"
+                    @click="openEditTaskDialog(task)"
+                    @contextmenu.prevent="showTaskContextMenu($event, task, 'sprint')"
+                  >
+                    <q-card-section class="q-pa-sm">
+                      <div class="row items-start q-mb-xs">
+                        <div class="col">
+                          <div class="text-subtitle2 text-weight-medium">{{ task.title }}</div>
+                        </div>
+                        <div class="row q-gutter-xs">
+                          <q-chip
+                            :color="getPriorityColor(task.priority)"
+                            text-color="white"
+                            size="sm"
+                            dense
+                          >
+                            {{ task.priority }}
+                          </q-chip>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="close"
+                            size="sm"
+                            color="grey-6"
+                            @click.stop="removeFromSprint(task.id)"
+                          >
+                            <q-tooltip>Remove from sprint</q-tooltip>
+                          </q-btn>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            size="sm"
+                            color="negative"
+                            @click.stop="confirmDeleteTask(task)"
+                          >
+                            <q-tooltip>Delete task</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </div>
+                      <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
+                      <div class="row items-center justify-between q-mb-xs">
+                        <div class="row items-center q-gutter-xs">
+                          <q-chip
+                            v-for="label in task.labels"
+                            :key="label"
+                            size="sm"
+                            dense
+                            color="blue-2"
+                            text-color="blue-10"
+                          >
+                            {{ label }}
+                          </q-chip>
+                        </div>
+                        <div class="row items-center q-gutter-sm">
+                          <q-checkbox
+                            :model-value="task.status === 'Done'"
+                            @update:model-value="toggleTaskStatus(task)"
+                            color="primary"
+                            size="sm"
+                          >
+                            <q-tooltip>Mark as done</q-tooltip>
+                          </q-checkbox>
                           <div class="text-caption text-weight-medium">
                             {{ task.storyPoints }} SP
                           </div>
                         </div>
-                        <div class="row items-center q-gutter-xs">
-                          <q-icon name="person" size="16px" color="grey-6" />
-                          <span class="text-caption text-grey-7">
-                            {{ getResponsibleNames(task.raci?.responsible || []) }}
-                          </span>
-                        </div>
-                      </q-card-section>
-                    </q-card>
-                  </div>
-                  <div v-if="backlogTasks.length === 0" class="text-center text-grey-5 q-pa-xl">
-                    <q-icon name="inbox" size="64px" class="q-mb-md" />
-                    <div>No tasks in backlog</div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
+                      </div>
+                      <div class="row items-center q-gutter-xs">
+                        <q-icon name="person" size="16px" color="grey-6" />
+                        <span class="text-caption text-grey-7">
+                          {{ getResponsibleNames(task.raci?.responsible || []) }}
+                        </span>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+                <div v-if="sprintTasks.length === 0" class="text-center text-grey-5 q-pa-md">
+                  <q-icon name="timeline" size="48px" class="q-mb-sm" />
+                  <div>Drag tasks here to add to sprint</div>
+                </div>
+              </q-card-section>
+            </q-slide-transition>
+          </q-card>
 
-            <!-- Sprint Backlog -->
-            <div class="col-12 col-lg-6">
-              <q-card
-                class="sprint-drop-zone"
-                :class="{ 'drag-over': isDragOver }"
-                @dragover.prevent="onDragOver"
-                @dragleave="onDragLeave"
-                @drop="onDrop"
-              >
-                <q-card-section class="bg-primary text-white">
-                  <div class="row items-center">
-                    <div class="text-h6 text-weight-bold">
-                      {{ activeSprint ? activeSprint.name : 'Sprint Backlog' }}
-                    </div>
-                    <q-space />
-                    <q-badge color="white" text-color="primary" :label="sprintTasks.length" />
+          <!-- Planned Sprints -->
+          <q-card
+            v-for="sprint in plannedSprints"
+            :key="sprint.id"
+            class="q-mb-lg sprint-drop-zone"
+            :class="{ 'drag-over': isDragOver && dragTarget === sprint.id }"
+            @dragover.prevent="onDragOver(sprint.id)"
+            @dragleave="onDragLeave"
+            @drop="onDrop(sprint.id)"
+          >
+            <q-card-section class="bg-blue-1 cursor-pointer" @click="togglePlannedSprint(sprint.id)">
+              <div class="row items-center">
+                <q-icon
+                  :name="isPlannedSprintExpanded(sprint.id) ? 'expand_more' : 'chevron_right'"
+                  size="sm"
+                  class="q-mr-sm"
+                />
+                <q-icon name="schedule" size="24px" class="text-blue q-mr-sm" />
+                <div class="col">
+                  <div class="text-h6 text-weight-bold text-blue">{{ sprint.name }}</div>
+                  <div class="text-caption text-grey-7">
+                    {{ formatDate(sprint.startDate) }} - {{ formatDate(sprint.endDate) }}
                   </div>
-                  <div v-if="activeSprint" class="q-mt-sm">
-                    <div class="row q-gutter-md text-caption">
-                      <div>Total: {{ sprintTasks.length }} tasks</div>
-                      <div>Completed: {{ completedSprintTasks }} tasks</div>
-                      <div>Remaining: {{ remainingSprintTasks }} tasks</div>
-                    </div>
-                    <q-linear-progress
-                      :value="
-                        sprintTasks.length > 0 ? completedSprintTasks / sprintTasks.length : 0
-                      "
-                      color="white"
-                      class="q-mt-sm"
-                    />
-                  </div>
-                </q-card-section>
-                <q-separator />
-                <q-card-section
-                  class="q-pa-sm"
-                  style="height: 650px; overflow-y: auto; overflow-x: hidden"
+                </div>
+                <q-badge color="blue" text-color="white" :label="getSprintTasks(sprint.id).length" />
+                <q-btn
+                  flat
+                  color="blue"
+                  icon="play_arrow"
+                  label="Start"
+                  class="q-ml-sm"
+                  @click.stop="startSprint(sprint)"
+                />
+                <q-btn
+                  flat
+                  color="grey-7"
+                  icon="edit"
+                  size="sm"
+                  dense
+                  class="q-ml-xs"
+                  @click.stop="editSprint(sprint)"
                 >
-                  <div v-if="!activeSprint" class="text-center text-grey-5 q-pa-xl">
-                    <q-icon name="event_busy" size="64px" class="q-mb-md" />
-                    <div class="text-h6 q-mb-sm">No Active Sprint</div>
-                    <div class="text-caption q-mb-md">Start a sprint to plan tasks</div>
-                    <q-btn
-                      color="primary"
-                      icon="play_arrow"
-                      label="Start Sprint"
-                      @click="activeTab = 'sprints'"
-                    />
-                  </div>
-
-                  <div v-else class="column q-gutter-sm">
-                    <q-card
-                      v-for="task in sprintTasks"
-                      :key="task.id"
-                      class="task-card cursor-pointer bg-blue-1"
-                      @click="openEditTaskDialog(task)"
-                      @contextmenu.prevent="showTaskContextMenu($event, task, 'sprint')"
-                    >
-                      <q-card-section class="q-pa-sm">
-                        <div class="row items-start q-mb-xs">
-                          <div class="col">
-                            <div class="text-subtitle2 text-weight-medium">{{ task.title }}</div>
-                          </div>
-                          <div class="row q-gutter-xs">
-                            <q-chip
-                              :color="getPriorityColor(task.priority)"
-                              text-color="white"
-                              size="sm"
-                              dense
-                            >
-                              {{ task.priority }}
-                            </q-chip>
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="close"
-                              size="sm"
-                              color="grey-6"
-                              @click.stop="removeFromSprint(task.id)"
-                            >
-                              <q-tooltip>Remove from sprint</q-tooltip>
-                            </q-btn>
-                            <q-btn
-                              flat
-                              round
-                              dense
-                              icon="delete"
-                              size="sm"
-                              color="negative"
-                              @click.stop="confirmDeleteTask(task)"
-                            >
-                              <q-tooltip>Delete task</q-tooltip>
-                            </q-btn>
-                          </div>
-                        </div>
-                        <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
-                        <div class="row items-center justify-between q-mb-xs">
-                          <div class="row items-center q-gutter-xs">
-                            <q-chip
-                              v-for="label in task.labels"
-                              :key="label"
-                              size="sm"
-                              dense
-                              color="blue-2"
-                              text-color="blue-10"
-                            >
-                              {{ label }}
-                            </q-chip>
-                          </div>
-                          <div class="row items-center q-gutter-sm">
-                            <q-checkbox
-                              :model-value="task.status === 'Done'"
-                              @update:model-value="toggleTaskStatus(task)"
-                              color="primary"
-                              size="sm"
-                            >
-                              <q-tooltip>Mark as done</q-tooltip>
-                            </q-checkbox>
-                            <div class="text-caption text-weight-medium">
-                              {{ task.storyPoints }} SP
-                            </div>
-                          </div>
-                        </div>
-                        <div class="row items-center q-gutter-xs">
-                          <q-icon name="person" size="16px" color="grey-6" />
-                          <span class="text-caption text-grey-7">
-                            {{ getResponsibleNames(task.raci?.responsible || []) }}
-                          </span>
-                        </div>
-                      </q-card-section>
-                    </q-card>
-                  </div>
-
-                  <div
-                    v-if="activeSprint && sprintTasks.length === 0"
-                    class="text-center text-grey-5 q-pa-xl"
+                  <q-tooltip>Edit Sprint</q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat
+                  color="negative"
+                  icon="delete"
+                  size="sm"
+                  dense
+                  class="q-ml-xs"
+                  @click.stop="confirmDeleteSprint(sprint)"
+                >
+                  <q-tooltip>Delete Sprint</q-tooltip>
+                </q-btn>
+              </div>
+            </q-card-section>
+            <q-separator v-if="isPlannedSprintExpanded(sprint.id)" />
+            <q-slide-transition>
+              <q-card-section
+                v-if="isPlannedSprintExpanded(sprint.id)"
+                class="q-pa-sm"
+                style="max-height: 500px; overflow-y: auto"
+              >
+                <div class="column q-gutter-sm">
+                  <q-card
+                    v-for="task in getSprintTasks(sprint.id)"
+                    :key="task.id"
+                    class="task-card cursor-pointer bg-grey-2"
+                    @click="openEditTaskDialog(task)"
+                    @contextmenu.prevent="showTaskContextMenu($event, task, 'sprint')"
                   >
-                    <q-icon name="timeline" size="64px" class="q-mb-md" />
-                    <div>Drag tasks here to add to sprint</div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
+                    <q-card-section class="q-pa-sm">
+                      <div class="row items-start q-mb-xs">
+                        <div class="col">
+                          <div class="text-subtitle2 text-weight-medium">{{ task.title }}</div>
+                        </div>
+                        <div class="row q-gutter-xs">
+                          <q-chip
+                            :color="getPriorityColor(task.priority)"
+                            text-color="white"
+                            size="sm"
+                            dense
+                          >
+                            {{ task.priority }}
+                          </q-chip>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="close"
+                            size="sm"
+                            color="grey-6"
+                            @click.stop="removeFromSprint(task.id)"
+                          >
+                            <q-tooltip>Remove from sprint</q-tooltip>
+                          </q-btn>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            size="sm"
+                            color="negative"
+                            @click.stop="confirmDeleteTask(task)"
+                          >
+                            <q-tooltip>Delete task</q-tooltip>
+                          </q-btn>
+                        </div>
+                      </div>
+                      <div class="text-caption text-grey-7 q-mb-sm">{{ task.description }}</div>
+                      <div class="row items-center justify-between q-mb-xs">
+                        <div class="row items-center q-gutter-xs">
+                          <q-chip
+                            v-for="label in task.labels"
+                            :key="label"
+                            size="sm"
+                            dense
+                            color="blue-1"
+                            text-color="blue-9"
+                          >
+                            {{ label }}
+                          </q-chip>
+                        </div>
+                        <div class="text-caption text-weight-medium">
+                          {{ task.storyPoints }} SP
+                        </div>
+                      </div>
+                      <div class="row items-center q-gutter-xs">
+                        <q-icon name="person" size="16px" color="grey-6" />
+                        <span class="text-caption text-grey-7">
+                          {{ getResponsibleNames(task.raci?.responsible || []) }}
+                        </span>
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+                <div v-if="getSprintTasks(sprint.id).length === 0" class="text-center text-grey-5 q-pa-md">
+                  <q-icon name="timeline" size="48px" class="q-mb-sm" />
+                  <div>Drag tasks here to add to sprint</div>
+                </div>
+              </q-card-section>
+            </q-slide-transition>
+          </q-card>
+
+          <!-- Empty State: No Sprints -->
+          <q-card v-if="!activeSprint && plannedSprints.length === 0" class="text-center q-pa-xl">
+            <q-icon name="event_note" size="64px" color="grey-5" class="q-mb-md" />
+            <div class="text-h6 text-grey-7 q-mb-sm">No Sprints Yet</div>
+            <div class="text-caption text-grey-6 q-mb-md">Create your first sprint to start planning</div>
+            <q-btn
+              color="primary"
+              icon="add"
+              label="Create Sprint"
+              @click="openCreateSprintDialog"
+            />
+          </q-card>
 
           <!-- Context Menu -->
           <q-menu
@@ -886,7 +1032,7 @@
           >
             <q-list dense style="min-width: 200px">
               <q-item
-                v-if="contextMenuSource === 'backlog' && activeSprint"
+                v-if="contextMenuSource === 'backlog' && (activeSprint || plannedSprints.length > 0)"
                 clickable
                 v-close-popup
                 @click="moveTaskToSprint"
@@ -932,7 +1078,7 @@
               color="primary"
               icon="add"
               label="New Sprint"
-              @click="showNewSprintDialog = true"
+              @click="openCreateSprintDialog"
             />
           </div>
 
@@ -1080,59 +1226,210 @@
               </q-card>
             </div>
 
-            <!-- Completed Sprints -->
-            <div class="col-12 col-md-6">
+            <!-- Completed Sprints Report -->
+            <div class="col-12">
               <q-card>
                 <q-card-section class="bg-grey-3">
-                  <div class="text-h6 text-weight-bold text-grey-8">
-                    <q-icon name="check_circle" class="q-mr-sm" />
-                    Completed Sprints
+                  <div class="row items-center">
+                    <div class="col">
+                      <div class="text-h6 text-weight-bold text-grey-8">
+                        <q-icon name="assessment" class="q-mr-sm" />
+                        Sprint Report – dokončené šprinty
+                      </div>
+                      <div class="text-caption text-grey-7 q-mt-xs">
+                        Kliknúť na šprint pre rozbalenie detailov a taskov
+                      </div>
+                    </div>
+                    <div v-if="completedSprints.length > 0" class="col-auto">
+                      <div class="row q-gutter-md">
+                        <q-card flat bordered class="bg-white">
+                          <q-card-section class="q-pa-sm">
+                            <div class="text-caption text-grey-7">Dokončených šprintov</div>
+                            <div class="text-h6 text-weight-bold text-primary">
+                              {{ completedSprints.length }}
+                            </div>
+                          </q-card-section>
+                        </q-card>
+                        <q-card flat bordered class="bg-white">
+                          <q-card-section class="q-pa-sm">
+                            <div class="text-caption text-grey-7">Celkom dokončených taskov</div>
+                            <div class="text-h6 text-weight-bold text-green">
+                              {{ completedSprintsReportTotalCompleted }}
+                            </div>
+                          </q-card-section>
+                        </q-card>
+                        <q-card flat bordered class="bg-white">
+                          <q-card-section class="q-pa-sm">
+                            <div class="text-caption text-grey-7">Celkom nedokončených</div>
+                            <div class="text-h6 text-weight-bold text-orange">
+                              {{ completedSprintsReportTotalIncomplete }}
+                            </div>
+                          </q-card-section>
+                        </q-card>
+                        <q-card flat bordered class="bg-white">
+                          <q-card-section class="q-pa-sm">
+                            <div class="text-caption text-grey-7">Priemerná úspešnosť</div>
+                            <div class="text-h6 text-weight-bold text-blue">
+                              {{ completedSprintsReportAvgRate }}%
+                            </div>
+                          </q-card-section>
+                        </q-card>
+                      </div>
+                    </div>
                   </div>
                 </q-card-section>
                 <q-separator />
-                <q-list>
-                  <q-item v-for="sprint in completedSprints" :key="sprint.id">
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">{{ sprint.name }}</q-item-label>
-                      <q-item-label caption>{{ sprint.goal }}</q-item-label>
-                      <q-item-label caption class="q-mt-xs">
-                        <q-icon name="event" size="xs" class="q-mr-xs" />
-                        {{ formatDate(sprint.startDate) }} - {{ formatDate(sprint.endDate) }}
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <div class="column items-end">
-                        <div class="text-caption text-weight-medium q-mb-xs">
-                          {{ sprint.completedTasks }}/{{ sprint.totalTasks }} tasks
+                <q-list v-if="completedSprints.length > 0">
+                  <q-expansion-item
+                    v-for="sprint in completedSprints"
+                    :key="sprint.id"
+                    expand-separator
+                    header-class="text-weight-medium"
+                    class="sprint-report-item"
+                  >
+                    <template v-slot:header>
+                      <q-item-section>
+                        <q-item-label class="text-weight-medium">{{ sprint.name }}</q-item-label>
+                        <q-item-label caption>{{ sprint.goal }}</q-item-label>
+                        <q-item-label caption class="q-mt-xs">
+                          <q-icon name="event" size="xs" class="q-mr-xs" />
+                          {{ formatDate(sprint.startDate) }} – {{ formatDate(sprint.endDate) }}
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <div class="text-center">
+                          <div class="text-caption text-weight-medium">
+                            {{ sprint.completedTasks }}/{{ sprint.totalTasks }} dokončených
+                          </div>
+                          <q-linear-progress
+                            :value="
+                              sprint.totalTasks > 0 ? sprint.completedTasks / sprint.totalTasks : 0
+                            "
+                            :color="sprint.completedTasks === sprint.totalTasks ? 'green' : 'orange'"
+                            size="6px"
+                            class="q-mt-xs"
+                            style="width: 100px"
+                          />
+                          <q-btn
+                            flat
+                            icon="delete"
+                            size="sm"
+                            dense
+                            color="red"
+                            class="q-mt-xs"
+                            @click.stop="confirmDeleteSprint(sprint)"
+                          >
+                            <q-tooltip>Delete Sprint</q-tooltip>
+                          </q-btn>
                         </div>
-                        <q-linear-progress
-                          :value="
-                            sprint.totalTasks > 0 ? sprint.completedTasks / sprint.totalTasks : 0
-                          "
-                          color="green"
-                          size="4px"
-                          class="q-mb-sm"
-                          style="width: 80px"
-                        />
-                        <q-btn
-                          flat
-                          icon="delete"
-                          size="sm"
-                          dense
-                          color="red"
-                          @click="confirmDeleteSprint(sprint)"
+                      </q-item-section>
+                    </template>
+                    <q-card flat bordered class="q-ml-md q-mr-md q-mb-md bg-grey-1">
+                      <q-card-section>
+                        <div class="text-subtitle2 text-weight-medium q-mb-md">
+                          Tasky v šprinte ({{ getTasksForSprint(sprint.id).length }} v šprinte)
+                        </div>
+                        <div class="text-caption text-grey-7 q-mb-md">
+                          Dokončené tasky ostali v šprinte, nedokončené boli presunuté do backlogu
+                        </div>
+                        <q-list separator>
+                          <q-expansion-item
+                            v-for="task in getTasksForSprint(sprint.id)"
+                            :key="task.id"
+                            expand-separator
+                            dense
+                            class="rounded-borders bg-white q-mb-xs"
+                          >
+                            <template v-slot:header>
+                              <q-item-section avatar>
+                                <q-icon
+                                  :name="task.status === 'Done' ? 'check_circle' : 'radio_button_unchecked'"
+                                  :color="task.status === 'Done' ? 'positive' : 'grey'"
+                                  size="24px"
+                                />
+                              </q-item-section>
+                              <q-item-section>
+                                <q-item-label>{{ task.title }}</q-item-label>
+                                <q-item-label caption>
+                                  <q-chip
+                                    size="xs"
+                                    dense
+                                    :color="task.status === 'Done' ? 'positive' : 'grey'"
+                                    text-color="white"
+                                  >
+                                    {{ task.status }}
+                                  </q-chip>
+                                  <q-chip size="xs" dense>{{ task.storyPoints }} SP</q-chip>
+                                  <q-chip
+                                    size="xs"
+                                    dense
+                                    :color="getPriorityColor(task.priority)"
+                                    text-color="white"
+                                  >
+                                    {{ task.priority }}
+                                  </q-chip>
+                                </q-item-label>
+                              </q-item-section>
+                              <q-item-section side>
+                                <q-btn
+                                  flat
+                                  icon="edit"
+                                  size="sm"
+                                  dense
+                                  @click.stop="openEditTaskDialog(task)"
+                                >
+                                  <q-tooltip>Edit task</q-tooltip>
+                                </q-btn>
+                              </q-item-section>
+                            </template>
+                            <q-card flat bordered class="q-ml-md q-mr-md q-mb-md bg-white">
+                              <q-card-section>
+                                <div v-if="task.description" class="text-body2 q-mb-sm">
+                                  {{ task.description }}
+                                </div>
+                                <div class="row q-gutter-sm">
+                                  <q-chip size="sm" dense icon="functions">
+                                    {{ task.storyPoints }} SP
+                                  </q-chip>
+                                  <q-chip
+                                    size="sm"
+                                    dense
+                                    :color="getPriorityColor(task.priority)"
+                                    text-color="white"
+                                  >
+                                    {{ task.priority }}
+                                  </q-chip>
+                                  <q-chip size="sm" dense>{{ task.type }}</q-chip>
+                                  <div
+                                    v-if="task.raci?.responsible && task.raci.responsible.length > 0"
+                                    class="q-ml-sm"
+                                  >
+                                    <q-chip size="sm" dense icon="people">
+                                      {{ getResponsibleNames(task.raci.responsible) }}
+                                    </q-chip>
+                                  </div>
+                                </div>
+                              </q-card-section>
+                            </q-card>
+                          </q-expansion-item>
+                        </q-list>
+                        <div
+                          v-if="getTasksForSprint(sprint.id).length === 0"
+                          class="text-center text-grey-6 q-pa-md"
                         >
-                          <q-tooltip>Delete Sprint</q-tooltip>
-                        </q-btn>
-                      </div>
-                    </q-item-section>
-                  </q-item>
-                  <q-item v-if="completedSprints.length === 0">
-                    <q-item-section class="text-center text-grey-6">
-                      <div class="text-caption">No completed sprints</div>
-                    </q-item-section>
-                  </q-item>
+                          Žiadne tasky v šprinte (všetky boli presunuté do backlogu pri dokončení)
+                        </div>
+                      </q-card-section>
+                    </q-card>
+                  </q-expansion-item>
                 </q-list>
+                <q-card-section v-else class="text-center text-grey-6">
+                  <q-icon name="check_circle" size="48px" class="q-mb-sm" />
+                  <div class="text-body1">Žiadne dokončené šprinty</div>
+                  <div class="text-caption q-mt-xs">
+                    Po dokončení aktívneho šprintu sa tu zobrazí report
+                  </div>
+                </q-card-section>
               </q-card>
             </div>
           </div>
@@ -1418,14 +1715,6 @@
                 filled
               />
             </div>
-            <div class="col">
-              <q-input
-                v-model.number="newTask.complexity"
-                label="Complexity (1-10)"
-                type="number"
-                filled
-              />
-            </div>
           </div>
           <q-select
             v-model="newTask.labels"
@@ -1483,26 +1772,21 @@
             </div>
           </div>
 
-          <div class="row q-gutter-md q-mb-md">
-            <div class="col">
-              <q-input
-                v-model.number="newTask.estimatedHours"
-                label="Estimated Hours"
-                type="number"
-                filled
-                hint="Estimated time to complete"
-              />
-            </div>
-            <div class="col">
-              <q-select
-                v-model="newTask.riskLevel"
-                :options="['low', 'medium', 'high', 'critical']"
-                label="Risk Level"
-                filled
-                hint="Risk assessment"
-              />
-            </div>
-          </div>
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Time Tracking</div>
+          <q-input
+            v-model.number="newTask.actualHours"
+            label="Actual Hours"
+            type="number"
+            filled
+            min="0"
+            hint="How long the task actually took (hours)"
+            class="q-mb-md"
+          >
+            <template v-slot:prepend>
+              <q-icon name="schedule" />
+            </template>
+          </q-input>
 
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
@@ -1599,24 +1883,6 @@
           />
 
           <q-separator class="q-my-md" />
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">Strategic Planning</div>
-          <q-select
-            v-model="newTask.epicId"
-            :options="epicOptions"
-            label="Epic (Optional)"
-            filled
-            clearable
-            class="q-mb-md"
-            emit-value
-            map-options
-            hint="Link this task to a strategic epic"
-          >
-            <template v-slot:prepend>
-              <q-icon name="star" color="orange" />
-            </template>
-          </q-select>
-
-          <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">Task Dependencies</div>
           <q-select
             v-model="newTask.dependencies"
@@ -1638,23 +1904,6 @@
                   >
                 </q-item-section>
               </q-item>
-            </template>
-          </q-select>
-
-          <q-separator class="q-my-md" />
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">Epic (Optional)</div>
-          <q-select
-            v-model="newTask.epicId"
-            :options="epicOptions"
-            label="Assign to Epic"
-            filled
-            clearable
-            emit-value
-            map-options
-            hint="Link this task to a strategic epic"
-          >
-            <template v-slot:prepend>
-              <q-icon name="star" />
             </template>
           </q-select>
         </q-card-section>
@@ -1719,14 +1968,6 @@
                 filled
               />
             </div>
-            <div class="col">
-              <q-input
-                v-model.number="editTask.complexity"
-                label="Complexity (1-10)"
-                type="number"
-                filled
-              />
-            </div>
           </div>
           <q-select
             v-model="editTask.labels"
@@ -1784,26 +2025,21 @@
             </div>
           </div>
 
-          <div class="row q-gutter-md q-mb-md">
-            <div class="col">
-              <q-input
-                v-model.number="editTask.estimatedHours"
-                label="Estimated Hours"
-                type="number"
-                filled
-                hint="Estimated time to complete"
-              />
-            </div>
-            <div class="col">
-              <q-select
-                v-model="editTask.riskLevel"
-                :options="['low', 'medium', 'high', 'critical']"
-                label="Risk Level"
-                filled
-                hint="Risk assessment"
-              />
-            </div>
-          </div>
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">Time Tracking</div>
+          <q-input
+            v-model.number="editTask.actualHours"
+            label="Actual Hours"
+            type="number"
+            filled
+            min="0"
+            hint="How long the task actually took (hours)"
+            class="q-mb-md"
+          >
+            <template v-slot:prepend>
+              <q-icon name="schedule" />
+            </template>
+          </q-input>
 
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
@@ -1898,24 +2134,6 @@
             map-options
             class="q-mb-md"
           />
-
-          <q-separator class="q-my-md" />
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">Strategic Planning</div>
-          <q-select
-            v-model="editTask.epicId"
-            :options="epicOptions"
-            label="Epic (Optional)"
-            filled
-            clearable
-            class="q-mb-md"
-            emit-value
-            map-options
-            hint="Link this task to a strategic epic"
-          >
-            <template v-slot:prepend>
-              <q-icon name="star" color="orange" />
-            </template>
-          </q-select>
 
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-weight-medium q-mb-sm">Task Dependencies</div>
@@ -2155,6 +2373,12 @@ const selectedRole = ref('developer');
 // Drag and drop state
 const isDragOver = ref(false);
 const draggedTask = ref<Task | null>(null);
+const dragTarget = ref<number | string | null>(null); // 'active' or sprint ID
+
+// Expand/collapse state for sprints
+const backlogExpanded = ref(true);
+const activeSprintExpanded = ref(true);
+const expandedPlannedSprints = ref<Set<number>>(new Set());
 
 // Context menu state
 const showContextMenu = ref(false);
@@ -2277,6 +2501,27 @@ const plannedSprints = computed(
 const completedSprints = computed(
   () => project.value.sprints?.filter((s) => s.status === 'completed') || [],
 );
+
+// Sprint report – tasks in a sprint (for completed sprints: only completed tasks remain)
+function getTasksForSprint(sprintId: number) {
+  if (!project.value?.tasks) return [];
+  return project.value.tasks.filter(
+    (t) => t.projectId === project.value.id && t.sprintId === sprintId,
+  );
+}
+
+// Sprint report summary
+const completedSprintsReportTotalCompleted = computed(() =>
+  completedSprints.value.reduce((sum, s) => sum + s.completedTasks, 0),
+);
+const completedSprintsReportTotalIncomplete = computed(() =>
+  completedSprints.value.reduce((sum, s) => sum + (s.totalTasks - s.completedTasks), 0),
+);
+const completedSprintsReportAvgRate = computed(() => {
+  const total = completedSprints.value.reduce((sum, s) => sum + s.totalTasks, 0);
+  const completed = completedSprintsReportTotalCompleted.value;
+  return total > 0 ? Math.round((completed / total) * 100) : 0;
+});
 
 // Task stats - filter by current project ID
 const taskStats = computed(() => {
@@ -2432,13 +2677,11 @@ const newTask = ref({
   priority: 'medium' as 'high' | 'medium' | 'low',
   type: 'feature' as 'feature' | 'bug' | 'task',
   storyPoints: 5,
-  complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
   epicId: null as number | null,
   requiredSkills: [] as string[],
-  estimatedHours: 0,
-  riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
+  actualHours: 0,
   dueDate: '',
   pert: {
     optimistic: 8,
@@ -2462,13 +2705,11 @@ const editTask = ref({
   type: 'feature' as 'feature' | 'bug' | 'task',
   status: 'To Do' as 'To Do' | 'In Progress' | 'Done' | 'Split' | 'Blocked',
   storyPoints: 5,
-  complexity: 5,
   labels: [] as string[],
   dependencies: [] as number[],
   epicId: null as number | null,
   requiredSkills: [] as string[],
-  estimatedHours: 0,
-  riskLevel: 'low' as 'low' | 'medium' | 'high' | 'critical',
+  actualHours: 0,
   dueDate: '',
   pert: {
     optimistic: 8,
@@ -2508,14 +2749,12 @@ function navigateBack() {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'On Track':
-      return 'green';
-    case 'In Progress':
+    case 'Not started':
+      return 'grey';
+    case 'In progress':
       return 'blue';
-    case 'At Risk':
-      return 'orange';
-    case 'Delayed':
-      return 'red';
+    case 'Completed':
+      return 'green';
     default:
       return 'grey';
   }
@@ -2554,60 +2793,52 @@ function onDragStart(task: Task) {
 function onDragEnd() {
   draggedTask.value = null;
   isDragOver.value = false;
+  dragTarget.value = null;
 }
 
-function onDragOver() {
+function onDragOver(target: number | string) {
   isDragOver.value = true;
+  dragTarget.value = target;
 }
 
 function onDragLeave() {
   isDragOver.value = false;
+  dragTarget.value = null;
 }
 
-async function onDrop() {
+async function onDrop(sprintId: number) {
   isDragOver.value = false;
+  dragTarget.value = null;
 
   if (!draggedTask.value) return;
 
-  if (!activeSprint.value) {
-    $q.notify({
-      message:
-        'Nie je aktívny žiadny sprint. Prosím aktivuj ďalší sprint v sekcii "Sprint Management".',
-      color: 'warning',
-      icon: 'warning',
-      position: 'top',
-      timeout: 3000,
-      actions: [
-        {
-          label: 'Prejsť na Sprint Management',
-          color: 'white',
-          handler: () => {
-            activeTab.value = 'sprints';
-          },
-        },
-      ],
-    });
-    draggedTask.value = null;
-    return;
-  }
-
   // Find the task in the project
   const task = project.value.tasks?.find((t) => t.id === draggedTask.value!.id);
-  if (task && task.sprintId === null) {
+  if (task) {
     const oldSprintId = task.sprintId;
-    task.sprintId = activeSprint.value.id;
+    
+    // Don't move if already in the target sprint
+    if (task.sprintId === sprintId) {
+      draggedTask.value = null;
+      return;
+    }
+    
+    task.sprintId = sprintId;
 
     // Save to backend
     try {
       await projectStore.updateTask(task.id, {
-        sprintId: activeSprint.value.id,
+        sprintId: sprintId,
       });
 
       // Reload project to get updated sprint stats
       await projectStore.getProject(projectId.value);
 
+      const sprint = project.value.sprints?.find(s => s.id === sprintId);
+      const sprintName = sprint ? sprint.name : 'Sprint';
+
       $q.notify({
-        message: `Added "${task.title}" to ${activeSprint.value.name}`,
+        message: `Added "${task.title}" to ${sprintName}`,
         color: 'positive',
         icon: 'check',
         position: 'top',
@@ -2626,6 +2857,26 @@ async function onDrop() {
   }
 
   draggedTask.value = null;
+}
+
+// Helper functions for planned sprints
+function togglePlannedSprint(sprintId: number) {
+  if (expandedPlannedSprints.value.has(sprintId)) {
+    expandedPlannedSprints.value.delete(sprintId);
+  } else {
+    expandedPlannedSprints.value.add(sprintId);
+  }
+}
+
+function isPlannedSprintExpanded(sprintId: number): boolean {
+  return expandedPlannedSprints.value.has(sprintId);
+}
+
+function getSprintTasks(sprintId: number): Task[] {
+  if (!project.value || !project.value.tasks) return [];
+  return project.value.tasks.filter(
+    (task) => task.projectId === project.value.id && task.sprintId === sprintId
+  );
 }
 
 // Context menu functions
@@ -2857,11 +3108,9 @@ async function createTask() {
     dueDate: newTask.value.dueDate ? new Date(newTask.value.dueDate).toISOString() : '',
     completed: false,
     labels: newTask.value.labels,
-    complexity: newTask.value.complexity,
     dependencies: newTask.value.dependencies,
     requiredSkills: newTask.value.requiredSkills,
-    estimatedHours: newTask.value.estimatedHours,
-    riskLevel: newTask.value.riskLevel,
+    actualHours: newTask.value.actualHours,
     pert: {
       optimistic: newTask.value.pert.optimistic,
       mostLikely: newTask.value.pert.mostLikely,
@@ -2908,13 +3157,11 @@ function cancelNewTask() {
     priority: 'medium',
     type: 'feature',
     storyPoints: 5,
-    complexity: 5,
     labels: [],
     dependencies: [],
     epicId: null,
     requiredSkills: [],
-    estimatedHours: 0,
-    riskLevel: 'low',
+    actualHours: 0,
     dueDate: '',
     pert: {
       optimistic: 8,
@@ -2956,13 +3203,11 @@ function openEditTaskDialog(task: Task) {
     type: task.type,
     status: task.status,
     storyPoints: task.storyPoints,
-    complexity: task.complexity,
     labels: [...task.labels],
     dependencies: task.dependencies ? [...task.dependencies] : [],
     epicId: task.epicId || null,
     requiredSkills: task.requiredSkills ? [...task.requiredSkills] : [],
-    estimatedHours: task.estimatedHours || 0,
-    riskLevel: (task.riskLevel || 'low') as 'low' | 'medium' | 'high' | 'critical',
+    actualHours: task.actualHours || 0,
     dueDate: dueDateFormatted,
     pert: {
       optimistic: task.pert?.optimistic || 8,
@@ -3009,14 +3254,12 @@ async function saveEditTask() {
         type: editTask.value.type,
         status: editTask.value.status,
         storyPoints: editTask.value.storyPoints,
-        complexity: editTask.value.complexity,
         labels: editTask.value.labels,
         dependencies: editTask.value.dependencies,
         epicId: editTask.value.epicId,
         completed: editTask.value.status === 'Done',
         requiredSkills: editTask.value.requiredSkills,
-        estimatedHours: editTask.value.estimatedHours,
-        riskLevel: editTask.value.riskLevel,
+        actualHours: editTask.value.actualHours,
         dueDate: editTask.value.dueDate ? new Date(editTask.value.dueDate).toISOString() : '',
         pert: {
           optimistic: editTask.value.pert.optimistic,
@@ -3064,13 +3307,11 @@ function cancelEditTask() {
     type: 'feature',
     status: 'To Do',
     storyPoints: 5,
-    complexity: 5,
     labels: [],
     dependencies: [],
     epicId: null,
     requiredSkills: [],
-    estimatedHours: 0,
-    riskLevel: 'low',
+    actualHours: 0,
     dueDate: '',
     pert: {
       optimistic: 8,
@@ -3098,7 +3339,7 @@ function editSprint(sprint: Sprint) {
   showNewSprintDialog.value = true;
 }
 
-function startSprint(sprint: Sprint) {
+async function startSprint(sprint: Sprint) {
   // Check if there's already an active sprint
   if (activeSprint.value) {
     $q.notify({
@@ -3110,22 +3351,37 @@ function startSprint(sprint: Sprint) {
     return;
   }
 
-  projectStore.updateSprint(projectId.value, sprint.id, {
-    status: 'active',
-  });
+  try {
+    await projectStore.updateSprint(projectId.value, sprint.id, {
+      status: 'active',
+    });
 
-  $q.notify({
-    message: `Sprint "${sprint.name}" started`,
-    color: 'positive',
-    icon: 'play_arrow',
-    position: 'top',
-  });
+    // Reload project to get updated data
+    await projectStore.getProject(projectId.value);
+
+    $q.notify({
+      message: `Sprint "${sprint.name}" started`,
+      color: 'positive',
+      icon: 'play_arrow',
+      position: 'top',
+    });
+  } catch (error) {
+    $q.notify({
+      message: getErrorMessage(error, 'Failed to start sprint'),
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 async function completeSprint(sprint: Sprint) {
-  // Find incomplete tasks in this sprint
-  const incompleteTasks =
-    project.value.tasks?.filter((t) => t.sprintId === sprint.id && t.status !== 'Done') || [];
+  // Find tasks in this sprint before completing
+  const sprintTasks =
+    project.value.tasks?.filter((t) => t.sprintId === sprint.id) || [];
+  const incompleteTasks = sprintTasks.filter((t) => t.status !== 'Done');
+  const completedCount = sprintTasks.filter((t) => t.status === 'Done').length;
+  const totalPlanned = sprintTasks.length;
 
   try {
     // Automatically move incomplete tasks to backlog
@@ -3137,9 +3393,11 @@ async function completeSprint(sprint: Sprint) {
       }
     }
 
-    // Complete the sprint
+    // Complete the sprint - pass counts for report (incomplete tasks moved to backlog)
     await projectStore.updateSprint(projectId.value, sprint.id, {
       status: 'completed',
+      totalTasks: totalPlanned,
+      completedTasks: completedCount,
     });
 
     // Reload project
@@ -3224,7 +3482,7 @@ async function deleteSprint(sprint: Sprint) {
   }
 }
 
-function createSprint() {
+async function createSprint() {
   if (!isSprintFormValid.value) {
     $q.notify({
       message: 'Please fill in all required fields',
@@ -3235,47 +3493,74 @@ function createSprint() {
     return;
   }
 
-  if (editingSprintId.value) {
-    // Update existing sprint
-    const sprint = project.value.sprints?.find((s) => s.id === editingSprintId.value);
-    if (sprint) {
-      projectStore.updateSprint(projectId.value, sprint.id, {
+  try {
+    if (editingSprintId.value) {
+      // Update existing sprint
+      const sprint = project.value.sprints?.find((s) => s.id === editingSprintId.value);
+      if (sprint) {
+        await projectStore.updateSprint(projectId.value, sprint.id, {
+          name: sprintForm.value.name,
+          goal: sprintForm.value.goal,
+          startDate: new Date(sprintForm.value.startDate),
+          endDate: new Date(sprintForm.value.endDate),
+        });
+
+        $q.notify({
+          message: `Sprint "${sprintForm.value.name}" updated successfully!`,
+          color: 'positive',
+          icon: 'check_circle',
+          position: 'top',
+        });
+      }
+    } else {
+      // Create new sprint
+      await projectStore.addSprint(projectId.value, {
         name: sprintForm.value.name,
         goal: sprintForm.value.goal,
         startDate: new Date(sprintForm.value.startDate),
         endDate: new Date(sprintForm.value.endDate),
+        status: 'planned',
+        totalTasks: 0,
+        completedTasks: 0,
+        taskIds: [],
       });
 
       $q.notify({
-        message: `Sprint "${sprintForm.value.name}" updated successfully!`,
+        message: `Sprint "${sprintForm.value.name}" created successfully!`,
         color: 'positive',
         icon: 'check_circle',
         position: 'top',
       });
     }
-  } else {
-    // Create new sprint
-    projectStore.addSprint(projectId.value, {
-      name: sprintForm.value.name,
-      goal: sprintForm.value.goal,
-      startDate: new Date(sprintForm.value.startDate),
-      endDate: new Date(sprintForm.value.endDate),
-      status: 'planned',
-      totalTasks: 0,
-      completedTasks: 0,
-      taskIds: [],
-    });
 
+    showNewSprintDialog.value = false;
+    cancelSprintDialog();
+  } catch (error) {
     $q.notify({
-      message: `Sprint "${sprintForm.value.name}" created successfully!`,
-      color: 'positive',
-      icon: 'check_circle',
+      message: getErrorMessage(error, 'Failed to create sprint'),
+      color: 'negative',
+      icon: 'error',
       position: 'top',
     });
   }
+}
 
-  showNewSprintDialog.value = false;
-  cancelSprintDialog();
+async function openCreateSprintDialog() {
+  editingSprintId.value = null;
+  const sprintCount = (project.value.sprints?.length || 0) + 1;
+  sprintForm.value = {
+    name: `Sprint ${sprintCount}`,
+    goal: '',
+    startDate: '',
+    endDate: '',
+  };
+  // Fetch next sprint dates from API (2-week cadence)
+  const nextDates = await projectStore.getNextSprintDates(projectId.value);
+  if (nextDates) {
+    sprintForm.value.startDate = nextDates.startDate;
+    sprintForm.value.endDate = nextDates.endDate;
+  }
+  showNewSprintDialog.value = true;
 }
 
 function cancelSprintDialog() {
@@ -3345,35 +3630,53 @@ function cancelChangeRole() {
   selectedRole.value = 'developer';
 }
 
-function removeMember(member: TeamMember) {
-  projectStore.removeMemberFromProject(projectId.value, member.id);
+async function removeMember(member: TeamMember) {
+  try {
+    await projectStore.removeMemberFromProject(projectId.value, member.id);
 
-  $q.notify({
-    message: `${member.name} removed from project`,
-    color: 'positive',
-    icon: 'person_remove',
-    position: 'top',
-  });
+    $q.notify({
+      message: `${member.name} removed from project`,
+      color: 'positive',
+      icon: 'person_remove',
+      position: 'top',
+    });
+  } catch {
+    $q.notify({
+      message: projectStore.error || 'Failed to remove member from project',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
-function addMemberToProject() {
+async function addMemberToProject() {
   if (!selectedMemberToAdd.value) return;
 
-  projectStore.addMemberToProject(
-    projectId.value,
-    selectedMemberToAdd.value.id,
-    newMemberRole.value as 'owner' | 'admin' | 'developer' | 'viewer',
-  );
+  try {
+    await projectStore.addMemberToProject(
+      projectId.value,
+      selectedMemberToAdd.value.id,
+      newMemberRole.value as 'owner' | 'admin' | 'developer' | 'viewer',
+    );
 
-  $q.notify({
-    message: `${selectedMemberToAdd.value.name} added to project successfully!`,
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
-  });
+    $q.notify({
+      message: `${selectedMemberToAdd.value.name} added to project successfully!`,
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
+    });
 
-  showAddMemberDialog.value = false;
-  cancelAddMember();
+    showAddMemberDialog.value = false;
+    cancelAddMember();
+  } catch {
+    $q.notify({
+      message: projectStore.error || 'Failed to add member to project',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
 }
 
 function cancelAddMember() {

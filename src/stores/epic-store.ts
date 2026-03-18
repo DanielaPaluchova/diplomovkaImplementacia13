@@ -54,12 +54,15 @@ export interface EpicSchedule {
   lateFinish: number;
   slack: number;
   isCritical: boolean;
+  variance?: number;
 }
 
 export interface EpicCriticalPathResponse {
   criticalPath: number[];
   epicSchedule: Record<number, EpicSchedule>;
   projectDuration: number;
+  projectVariance?: number;
+  projectStdDev?: number;
 }
 
 export const useEpicStore = defineStore('epic', () => {

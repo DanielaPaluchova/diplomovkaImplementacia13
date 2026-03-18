@@ -6,11 +6,6 @@
     @click="$emit('toggle')"
   >
     <q-card-section class="row items-start q-pa-md">
-      <!-- Checkbox -->
-      <div class="col-auto q-pr-md">
-        <q-checkbox :model-value="selected" color="primary" size="md" />
-      </div>
-
       <!-- Icon -->
       <div class="col-auto q-pr-md">
         <q-avatar :color="getIconColor(proposal.type)" text-color="white" size="48px">
@@ -118,6 +113,8 @@ function getProposalIcon(type: string): string {
     pert_uncertainty: 'schedule',
     raci_overload: 'people',
     duration_risk: 'schedule_send',
+    raci_missing_responsible: 'person_add',
+    raci_missing_accountable: 'verified_user',
   };
   return icons[type] || 'change_circle';
 }
@@ -138,6 +135,8 @@ function getIconColor(type: string): string {
     pert_uncertainty: 'orange',
     raci_overload: 'red',
     duration_risk: 'orange',
+    raci_missing_responsible: 'teal',
+    raci_missing_accountable: 'indigo',
   };
   return colors[type] || 'grey';
 }
@@ -187,6 +186,8 @@ function getTypeLabel(type: string): string {
     pert_uncertainty: 'PERT Uncertainty',
     raci_overload: 'RACI Overload',
     duration_risk: 'Duration Risk',
+    raci_missing_responsible: 'Task without Responsible',
+    raci_missing_accountable: 'Task without Accountable',
   };
   return labels[type] || type;
 }

@@ -145,6 +145,14 @@ export interface Project {
   raciWeights?: RaciWeights;
   pertWeights?: PertWeights;
   maxStoryPointsPerPerson?: number;
+  sprintDurationDays?: number;
+  sprintStartDate?: string | null;
+}
+
+export interface NextSprintDates {
+  startDate: string;
+  endDate: string;
+  sprintDurationDays: number;
 }
 
 export const useProjectStore = defineStore('project', () => {
@@ -193,6 +201,18 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
+  // Get suggested dates for next planned sprint (2-week cadence)
+  async function getNextSprintDates(projectId: number): Promise<NextSprintDates | undefined> {
+    try {
+      const data = await api.get<NextSprintDates>(`/projects/${projectId}/next-sprint-dates`);
+      return data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to get next sprint dates';
+      console.error('Failed to get next sprint dates:', err);
+      return undefined;
+    }
+  }
+
   // Get project by ID from local state (sync)
   function getProjectById(id: number): Project | undefined {
     return projects.value.find((p) => p.id === id);
@@ -216,22 +236,42 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   // Project member management
-  function addMemberToProject(projectId: number, memberId: number, role: ProjectRole['role']) {
-    const project = projects.value.find((p) => p.id === projectId);
-    if (project) {
-      const permissions = getRolePermissions(role);
-      if (!project.teamMemberIds) {
-        project.teamMemberIds = [];
+  async function addMemberToProject(projectId: number, memberId: number, role: ProjectRole['role']) {
+    loading.value = true;
+    error.value = null;
+    try {
+      await api.post(`/projects/${projectId}/members`, { memberId, role });
+
+      // Update local state
+      const project = projects.value.find((p) => p.id === projectId);
+      if (project) {
+        const permissions = getRolePermissions(role);
+        if (!project.teamMemberIds) {
+          project.teamMemberIds = [];
+        }
+        if (!project.roles) {
+          project.roles = [];
+        }
+        project.teamMemberIds.push(memberId);
+        project.roles.push({
+          memberId,
+          role,
+          permissions,
+        });
       }
-      if (!project.roles) {
-        project.roles = [];
-      }
-      project.teamMemberIds.push(memberId);
-      project.roles.push({
-        memberId,
-        role,
-        permissions,
-      });
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string; message?: string } } }).response?.data?.error ||
+            (err as { response?: { data?: { error?: string; message?: string } } }).response?.data?.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to add member to project';
+      error.value = msg || 'Failed to add member to project';
+      console.error('Failed to add member to project:', err);
+      throw err;
+    } finally {
+      loading.value = false;
     }
   }
 
@@ -270,15 +310,30 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  function removeMemberFromProject(projectId: number, memberId: number) {
+  async function removeMemberFromProject(projectId: number, memberId: number) {
     const project = projects.value.find((p) => p.id === projectId);
-    if (project) {
-      if (project.teamMemberIds) {
-        project.teamMemberIds = project.teamMemberIds.filter((id) => id !== memberId);
-      }
+    if (!project) return;
+
+    const newTeamMemberIds = (project.teamMemberIds || []).filter((id) => id !== memberId);
+
+    loading.value = true;
+    error.value = null;
+    try {
+      await api.put(`/projects/${projectId}`, {
+        teamMemberIds: newTeamMemberIds,
+      });
+
+      // Update local state
+      project.teamMemberIds = newTeamMemberIds;
       if (project.roles) {
         project.roles = project.roles.filter((r) => r.memberId !== memberId);
       }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove member from project';
+      console.error('Failed to remove member from project:', err);
+      throw err;
+    } finally {
+      loading.value = false;
     }
   }
 
@@ -354,7 +409,7 @@ export const useProjectStore = defineStore('project', () => {
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create sprint';
       console.error('Failed to create sprint:', err);
-      return null;
+      throw err;
     } finally {
       loading.value = false;
     }
@@ -594,6 +649,7 @@ export const useProjectStore = defineStore('project', () => {
     error,
     fetchProjects,
     getProject,
+    getNextSprintDates,
     getProjectById,
     getProjectWithActiveTasks,
     filterActiveTasks,

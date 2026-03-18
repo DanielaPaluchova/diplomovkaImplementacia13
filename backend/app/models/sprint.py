@@ -35,9 +35,14 @@ class Sprint(db.Model):
         # Dynamically compute task_ids from tasks relationship
         task_ids = [task.id for task in self.tasks]
         
-        # Dynamically compute total_tasks and completed_tasks
-        total_tasks = len(self.tasks)
-        completed_tasks = sum(1 for task in self.tasks if task.completed or task.status == 'Done')
+        # For completed sprints, use stored values (preserved at completion time)
+        # since incomplete tasks are moved to backlog and no longer in tasks
+        if self.status == 'completed' and self.total_tasks > 0:
+            total_tasks = self.total_tasks
+            completed_tasks = self.completed_tasks
+        else:
+            total_tasks = len(self.tasks)
+            completed_tasks = sum(1 for task in self.tasks if task.completed or task.status == 'Done')
         
         return {
             'id': self.id,

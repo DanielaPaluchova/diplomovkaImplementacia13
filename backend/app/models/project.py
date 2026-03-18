@@ -33,6 +33,11 @@ class Project(db.Model):
     pert_weights = db.Column(db.JSON, nullable=True)  # PERT formula weights
     max_story_points_per_person = db.Column(db.Integer, nullable=False, default=20)  # Maximum story points per person
     
+    # Sprint cadence: fixed 2-week sprints
+    sprint_duration_days = db.Column(db.Integer, nullable=False, default=14)  # Always 14 for 2-week sprints
+    sprint_start_date = db.Column(db.DateTime, nullable=True)  # First day of first sprint (set when creating project)
+    last_planned_sprint_start_date = db.Column(db.DateTime, nullable=True)  # Preserved when deleting planned sprint
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -41,6 +46,33 @@ class Project(db.Model):
     tasks = db.relationship('Task', backref='project', lazy=True, cascade='all, delete-orphan')
     epics = db.relationship('Epic', backref='project', lazy=True, cascade='all, delete-orphan')
     roles = db.relationship('ProjectRole', backref='project', lazy=True, cascade='all, delete-orphan')
+    
+    def compute_status(self):
+        """
+        Compute project status automatically based on tasks, epics, and sprints.
+        - Not started: No tasks, no epics, no sprints
+        - In progress: Has at least one task/epic/sprint and not everything is completed
+        - Completed: All tasks Done, all epics completed, all sprints completed
+        """
+        from app.models.task import Task
+        from app.models.epic import Epic
+        from app.models.sprint import Sprint
+        
+        all_tasks = Task.query.filter_by(project_id=self.id).all()
+        all_epics = Epic.query.filter_by(project_id=self.id).all()
+        all_sprints = Sprint.query.filter_by(project_id=self.id).all()
+        
+        if len(all_tasks) == 0 and len(all_epics) == 0 and len(all_sprints) == 0:
+            return 'Not started'
+        
+        all_tasks_done = all(t.status == 'Done' for t in all_tasks)
+        all_epics_completed = all(e.status == 'completed' for e in all_epics)
+        all_sprints_completed = all(s.status == 'completed' for s in all_sprints)
+        
+        if all_tasks_done and all_epics_completed and all_sprints_completed:
+            return 'Completed'
+        
+        return 'In progress'
     
     def to_dict(self, include_details=False):
         """Convert project to dictionary"""
@@ -82,7 +114,7 @@ class Project(db.Model):
             'progress': progress,  # Computed dynamically from actual tasks
             'tasksCompleted': tasks_completed,  # Computed dynamically
             'totalTasks': total_tasks,  # Computed dynamically
-            'status': self.status,
+            'status': self.compute_status(),
             'dueDate': self.due_date.isoformat() if self.due_date else None,
             'totalStoryPoints': self.total_story_points,
             'estimatedDuration': self.estimated_duration,
@@ -92,6 +124,8 @@ class Project(db.Model):
             'raciWeights': self.raci_weights or default_raci_weights,
             'pertWeights': self.pert_weights or default_pert_weights,
             'maxStoryPointsPerPerson': self.max_story_points_per_person,
+            'sprintDurationDays': self.sprint_duration_days,
+            'sprintStartDate': self.sprint_start_date.isoformat()[:10] if self.sprint_start_date else None,
             'createdAt': self.created_at.isoformat() if self.created_at else None
         }
         

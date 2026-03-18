@@ -30,12 +30,10 @@
             label="Apply Plan"
             @click="onApplyPlan"
             :loading="smartSprintStore.applyingPlan"
-            :disable="!canApplyPlan"
             unelevated
           >
-            <q-tooltip v-if="!canApplyPlan" max-width="300px">
-              Cannot apply: Sprint "{{ activeSprint?.name }}" is currently active.
-              Please enable "Close active sprint when applying" option in the warning banner above.
+            <q-tooltip max-width="300px">
+              Apply the plan and create a new planned sprint. You can adjust it before starting.
             </q-tooltip>
           </q-btn>
         </div>
@@ -110,9 +108,9 @@
         </div>
       </q-card>
 
-      <!-- Active Sprint Warning -->
+      <!-- Existing Planned Sprint Warning -->
       <q-banner
-        v-if="selectedProject && activeSprint"
+        v-if="selectedProject && plannedSprint"
         class="bg-orange-1 q-mb-lg"
         rounded
       >
@@ -120,28 +118,66 @@
           <q-icon name="warning" color="orange" size="32px" />
         </template>
         <div class="text-weight-bold text-orange-9 q-mb-sm">
-          <q-icon name="info" size="20px" class="q-mr-xs" />
-          Active Sprint Detected: "{{ activeSprint.name }}"
+          <q-icon name="schedule" size="20px" class="q-mr-xs" />
+          Planned Sprint Already Exists: "{{ plannedSprint.name }}"
         </div>
         <div class="text-body2 q-mb-sm">
-          To apply a new sprint plan, you must close the active sprint first.
+          Project can have only <strong>one planned sprint</strong> at a time.
         </div>
-        <div class="text-body2 text-weight-medium">
-          <q-icon name="arrow_forward" size="16px" class="q-mr-xs" />
-          Check the option below to automatically close the active sprint when applying:
+        
+        <!-- If active sprint is running -->
+        <div v-if="activeSprint" class="text-body2 bg-red-1 q-pa-sm rounded-borders q-mb-sm">
+          <q-icon name="block" size="16px" color="red" class="q-mr-xs" />
+          <strong>Cannot start:</strong> Sprint "{{ activeSprint.name }}" is already active. 
+          Complete it before starting "{{ plannedSprint.name }}".
         </div>
+        
+        <!-- If no active sprint -->
+        <div v-else class="text-body2">
+          <strong>Options:</strong><br>
+          • Start "{{ plannedSprint.name }}" to make it active, then create new planned sprint<br>
+          • Delete "{{ plannedSprint.name }}" if no longer needed
+        </div>
+        
         <template v-slot:action>
-          <q-checkbox
-            v-model="closeActiveSprint"
-            label="Close active sprint when applying"
-            color="orange"
-            class="text-weight-bold"
-          >
-            <q-tooltip v-if="!closeActiveSprint" max-width="300px">
-              Required to apply the plan. This will mark "{{ activeSprint.name }}" as completed.
-            </q-tooltip>
-          </q-checkbox>
+          <div class="column q-gutter-sm">
+            <q-btn
+              v-if="!activeSprint"
+              color="green"
+              icon="play_arrow"
+              label="Start Sprint"
+              size="sm"
+              @click="startExistingPlannedSprint"
+            />
+            <q-btn
+              flat
+              color="negative"
+              icon="delete"
+              label="Delete Sprint"
+              size="sm"
+              @click="deleteExistingPlannedSprint"
+            />
+          </div>
         </template>
+      </q-banner>
+
+      <!-- Active Sprint Info (informative only) -->
+      <q-banner
+        v-if="selectedProject && activeSprint && !plannedSprint"
+        class="bg-blue-1 q-mb-lg"
+        rounded
+      >
+        <template v-slot:avatar>
+          <q-icon name="info" color="blue" size="32px" />
+        </template>
+        <div class="text-weight-bold text-blue-9 q-mb-sm">
+          <q-icon name="play_circle" size="20px" class="q-mr-xs" />
+          Active Sprint Running: "{{ activeSprint.name }}"
+        </div>
+        <div class="text-body2">
+          The AI will create a new <strong>planned sprint</strong>. Your active sprint will continue running.
+          You can review and adjust the planned sprint before starting it.
+        </div>
       </q-banner>
 
       <!-- Configuration Section -->
@@ -170,15 +206,16 @@
               </q-input>
             </div>
 
-            <!-- Sprint Duration -->
+            <!-- Sprint Duration (read-only, always 2 weeks) -->
             <div class="col-12 col-md-6">
               <q-input
                 v-model.number="sprintDuration"
-                label="Sprint Duration (days) *"
+                label="Sprint Duration (days)"
                 type="number"
                 outlined
                 dense
-                :rules="[(val) => val > 0 || 'Duration must be positive']"
+                readonly
+                hint="Fixed 2-week sprints per project"
               >
                 <template #prepend>
                   <q-icon name="schedule" />
@@ -186,7 +223,7 @@
               </q-input>
             </div>
 
-            <!-- Start Date -->
+            <!-- Start Date (auto from project cadence) -->
             <div class="col-12 col-md-6">
               <q-input
                 v-model="startDate"
@@ -194,7 +231,9 @@
                 type="date"
                 outlined
                 dense
+                readonly
                 :rules="[(val) => !!val || 'Start date is required']"
+                hint="Auto-calculated from project sprint cadence"
               >
                 <template #prepend>
                   <q-icon name="event" />
@@ -202,7 +241,7 @@
               </q-input>
             </div>
 
-            <!-- End Date -->
+            <!-- End Date (auto from project cadence) -->
             <div class="col-12 col-md-6">
               <q-input
                 v-model="endDate"
@@ -210,8 +249,9 @@
                 type="date"
                 outlined
                 dense
+                readonly
                 :rules="[(val) => !!val || 'End date is required']"
-                :disable="true"
+                hint="Auto-calculated (2 weeks)"
               >
                 <template #prepend>
                   <q-icon name="event" />
@@ -363,7 +403,12 @@
             :loading="smartSprintStore.loading"
             :disable="!canGeneratePlan"
             unelevated
-          />
+          >
+            <q-tooltip v-if="plannedSprint" max-width="300px">
+              Cannot generate: Project already has a planned sprint "{{ plannedSprint.name }}".
+              Please start or delete it first.
+            </q-tooltip>
+          </q-btn>
         </q-card-actions>
       </q-card>
 
@@ -394,7 +439,7 @@
                 <div class="metric-card">
                   <q-icon name="format_list_numbered" size="32px" color="blue" class="q-mb-sm" />
                   <div class="text-h4 text-weight-bold">
-                    {{ planningResult.metrics.totalStoryPoints }}
+                    {{ displayMetrics?.totalStoryPoints }}
                   </div>
                   <div class="text-caption text-grey-7">Total Story Points</div>
                 </div>
@@ -405,7 +450,7 @@
                 <div class="metric-card">
                   <q-icon name="task" size="32px" color="green" class="q-mb-sm" />
                   <div class="text-h4 text-weight-bold">
-                    {{ planningResult.metrics.taskCount }}
+                    {{ displayMetrics?.taskCount }}
                   </div>
                   <div class="text-caption text-grey-7">Tasks Selected</div>
                 </div>
@@ -416,12 +461,12 @@
                 <div class="metric-card cursor-pointer">
                   <q-icon name="speed" size="32px" color="orange" class="q-mb-sm" />
                   <div class="text-h4 text-weight-bold">
-                    {{ planningResult.metrics.utilization.toFixed(1) }}%
+                    {{ displayMetrics?.utilization?.toFixed(1) }}%
                   </div>
                   <div class="text-caption text-grey-7">Team Utilization</div>
                   <q-linear-progress
-                    :value="planningResult.metrics.utilization / 100"
-                    :color="getUtilizationColor(planningResult.metrics.utilization)"
+                    :value="(displayMetrics?.utilization ?? 0) / 100"
+                    :color="getUtilizationColor(displayMetrics?.utilization ?? 0)"
                     size="8px"
                     class="q-mt-sm"
                   />
@@ -434,8 +479,8 @@
                       <strong>Formula:</strong> (Total SP / Team Capacity) × 100
                     </div>
                     <div class="q-mb-xs">
-                      <strong>This Sprint:</strong> {{ planningResult.metrics.totalStoryPoints }} SP
-                      / {{ planningResult.metrics.teamCapacity }} SP capacity
+                      <strong>This Sprint:</strong> {{ displayMetrics?.totalStoryPoints }} SP
+                      / {{ displayMetrics?.teamCapacity }} SP capacity
                     </div>
                     <div class="q-mt-sm text-caption">
                       <div>
@@ -456,11 +501,11 @@
                 <div class="metric-card cursor-pointer">
                   <q-icon name="balance" size="32px" color="purple" class="q-mb-sm" />
                   <div class="text-h4 text-weight-bold">
-                    {{ planningResult.metrics.balanceScore.toFixed(1) }}
+                    {{ displayMetrics?.balanceScore?.toFixed(1) }}
                   </div>
                   <div class="text-caption text-grey-7">Balance Score</div>
                   <q-linear-progress
-                    :value="planningResult.metrics.balanceScore / 100"
+                    :value="(displayMetrics?.balanceScore ?? 0) / 100"
                     color="purple"
                     size="8px"
                     class="q-mt-sm"
@@ -492,20 +537,20 @@
                       <div>• &lt;50: Significant imbalance</div>
                     </div>
                     <div
-                      v-if="planningResult.teamAnalysis"
+                      v-if="displayTeamAnalysis"
                       class="q-mt-sm q-pt-sm"
                       style="border-top: 1px solid rgba(255, 255, 255, 0.3)"
                     >
                       <div class="text-caption text-weight-bold">Current Distribution:</div>
                       <div
-                        v-for="member in planningResult.teamAnalysis.members.slice(0, 3)"
+                        v-for="member in displayTeamAnalysis.members.slice(0, 3)"
                         :key="member.memberId"
                         class="text-caption"
                       >
                         {{ member.memberName }}: {{ member.utilizationPercentage.toFixed(0) }}%
                       </div>
-                      <div v-if="planningResult.teamAnalysis.members.length > 3" class="text-caption">
-                        ... and {{ planningResult.teamAnalysis.members.length - 3 }} more
+                      <div v-if="displayTeamAnalysis.members.length > 3" class="text-caption">
+                        ... and {{ displayTeamAnalysis.members.length - 3 }} more
                       </div>
                     </div>
                   </q-tooltip>
@@ -515,22 +560,22 @@
           </q-card-section>
 
           <!-- Priority Distribution -->
-          <q-card-section v-if="planningResult.metrics.priorityDistribution">
+          <q-card-section v-if="displayMetrics?.priorityDistribution">
             <div class="text-subtitle2 q-mb-sm">Priority Distribution</div>
             <div class="row q-col-gutter-sm">
               <div class="col">
                 <q-chip color="red" text-color="white" dense>
-                  High: {{ planningResult.metrics.priorityDistribution.high }}
+                  High: {{ displayMetrics?.priorityDistribution?.high }}
                 </q-chip>
               </div>
               <div class="col">
                 <q-chip color="orange" text-color="white" dense>
-                  Medium: {{ planningResult.metrics.priorityDistribution.medium }}
+                  Medium: {{ displayMetrics?.priorityDistribution?.medium }}
                 </q-chip>
               </div>
               <div class="col">
                 <q-chip color="blue" text-color="white" dense>
-                  Low: {{ planningResult.metrics.priorityDistribution.low }}
+                  Low: {{ displayMetrics?.priorityDistribution?.low }}
                 </q-chip>
               </div>
             </div>
@@ -538,13 +583,13 @@
         </q-card>
 
         <!-- Team Analysis - Shows ALL team members -->
-        <q-card v-if="planningResult.teamAnalysis" class="q-mb-lg shadow-3">
+        <q-card v-if="displayTeamAnalysis" class="q-mb-lg shadow-3">
           <q-card-section class="bg-indigo-1">
             <div class="text-h6 text-weight-bold">
               <q-icon name="groups" class="q-mr-sm" />
               Team Capacity Analysis
               <q-chip
-                v-if="planningResult.teamAnalysis.considerCrossProject"
+                v-if="displayTeamAnalysis.considerCrossProject"
                 color="primary"
                 text-color="white"
                 size="sm"
@@ -554,9 +599,9 @@
               </q-chip>
             </div>
             <div class="text-caption text-grey-7 q-mt-xs">
-              Shows workload for all {{ planningResult.teamAnalysis.summary.totalMembers }} team
+              Shows workload for all {{ displayTeamAnalysis.summary.totalMembers }} team
               members
-              <span v-if="planningResult.teamAnalysis.considerCrossProject">
+              <span v-if="displayTeamAnalysis.considerCrossProject">
                 (including work from other projects)
               </span>
             </div>
@@ -564,7 +609,7 @@
 
           <q-card-section>
             <div
-              v-for="member in planningResult.teamAnalysis.members"
+              v-for="member in displayTeamAnalysis.members"
               :key="member.memberId"
               class="q-mb-lg"
             >
@@ -657,19 +702,19 @@
             <div class="row q-col-gutter-md text-center">
               <div class="col">
                 <div class="text-h6 text-weight-bold">
-                  {{ planningResult.teamAnalysis.summary.assignedMembers }}
+                  {{ displayTeamAnalysis.summary.assignedMembers }}
                 </div>
                 <div class="text-caption text-grey-7">Assigned Tasks</div>
               </div>
               <div class="col">
                 <div class="text-h6 text-weight-bold text-negative">
-                  {{ planningResult.teamAnalysis.summary.atCapacity }}
+                  {{ displayTeamAnalysis.summary.atCapacity }}
                 </div>
                 <div class="text-caption text-grey-7">At Capacity</div>
               </div>
               <div class="col">
                 <div class="text-h6 text-weight-bold text-positive">
-                  {{ planningResult.teamAnalysis.summary.available }}
+                  {{ displayTeamAnalysis.summary.available }}
                 </div>
                 <div class="text-caption text-grey-7">Available</div>
               </div>
@@ -677,23 +722,46 @@
           </q-card-section>
         </q-card>
 
-        <!-- Selected Tasks Table -->
+        <!-- Selected Tasks Table (editable) -->
         <q-card class="q-mb-lg shadow-3">
           <q-card-section class="bg-primary text-white">
-            <div class="text-h6 text-weight-bold">
-              <q-icon name="list" class="q-mr-sm" />
-              Selected Tasks ({{ planningResult.suggestedTasks.length }})
+            <div class="row items-center justify-between">
+              <div class="text-h6 text-weight-bold">
+                <q-icon name="list" class="q-mr-sm" />
+                Selected Tasks ({{ smartSprintStore.editableTasks.length }})
+              </div>
+              <q-btn
+                color="white"
+                size="sm"
+                icon="add"
+                label="Add Task"
+                @click="showAddTaskDialog = true"
+                :disable="availableTasksToAdd.length === 0"
+                flat
+              >
+                <q-tooltip v-if="availableTasksToAdd.length === 0">
+                  No tasks available to add (all are in plan or Done)
+                </q-tooltip>
+              </q-btn>
+            </div>
+            <div class="text-caption opacity-90 q-mt-xs">
+              You can change assignee, remove tasks, or add tasks before applying
             </div>
           </q-card-section>
 
           <q-card-section class="q-pa-none">
             <q-table
-              :rows="planningResult.suggestedTasks"
+              :rows="smartSprintStore.editableTasks"
               :columns="taskColumns"
               row-key="id"
               flat
               :pagination="{ rowsPerPage: 10 }"
             >
+              <template v-slot:body-cell-name="props">
+                <q-td :props="props">
+                  {{ props.row.title || props.row.name }}
+                </q-td>
+              </template>
               <template v-slot:body-cell-priority="props">
                 <q-td :props="props">
                   <q-chip
@@ -717,21 +785,29 @@
 
               <template v-slot:body-cell-assignedTo="props">
                 <q-td :props="props">
-                  <div v-if="props.row.id && planningResult.assignments[props.row.id]">
-                    <q-chip color="primary" text-color="white" dense size="sm">
-                      <q-avatar>
-                        <q-icon name="person" />
-                      </q-avatar>
-                      {{ planningResult.assignments[props.row.id]?.memberName || '—' }}
-                    </q-chip>
-                  </div>
-                  <div v-else class="text-grey-7">—</div>
+                  <q-select
+                    :model-value="smartSprintStore.editableAssignments[props.row.id]?.memberId ?? null"
+                    :options="memberOptions"
+                    emit-value
+                    map-options
+                    dense
+                    outlined
+                    options-dense
+                    clearable
+                    class="assignee-select"
+                    style="min-width: 160px"
+                    @update:model-value="(val) => onAssigneeChange(props.row.id, val)"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="person" size="small" />
+                    </template>
+                  </q-select>
                 </q-td>
               </template>
 
               <template v-slot:body-cell-reasoning="props">
                 <q-td :props="props">
-                  <div v-if="props.row.id && planningResult.reasoning[props.row.id]">
+                  <div v-if="props.row.id && planningResult?.reasoning?.[props.row.id]">
                     <div class="text-caption">
                       {{ planningResult.reasoning[props.row.id]?.reason || '' }}
                     </div>
@@ -756,9 +832,57 @@
                   </div>
                 </q-td>
               </template>
+
+              <template v-slot:body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    color="negative"
+                    icon="remove_circle_outline"
+                    size="sm"
+                    @click="onRemoveTask(props.row.id)"
+                  >
+                    <q-tooltip>Remove from sprint</q-tooltip>
+                  </q-btn>
+                </q-td>
+              </template>
             </q-table>
           </q-card-section>
         </q-card>
+
+        <!-- Add Task Dialog -->
+        <q-dialog v-model="showAddTaskDialog" persistent>
+          <q-card style="min-width: 400px">
+            <q-card-section>
+              <div class="text-h6">Add Task to Sprint</div>
+              <div class="text-caption text-grey-7 q-mb-md">
+                Select a task to add to the sprint plan
+              </div>
+              <q-list v-if="availableTasksToAdd.length > 0" bordered separator>
+                <q-item
+                  v-for="task in availableTasksToAdd"
+                  :key="task.id"
+                  clickable
+                  v-close-popup
+                  @click="onAddTask(task)"
+                >
+                  <q-item-section> {{ task.title || task.name }} </q-item-section>
+                  <q-item-section side>
+                    <q-chip dense size="sm">{{ task.storyPoints }} SP</q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-caption text-grey-7 q-pa-md">
+                No tasks available to add
+              </div>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" color="grey" v-close-popup />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
       </div>
     </div>
   </q-page>
@@ -769,11 +893,14 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useSmartSprintStore } from 'src/stores/smart-sprint-store';
-import type { SprintPlanConfig } from 'src/stores/smart-sprint-store';
+import { useTeamStore } from 'src/stores/team-store';
+import type { SprintPlanConfig, SprintTask } from 'src/stores/smart-sprint-store';
+import type { Task } from 'src/stores/project-store';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const smartSprintStore = useSmartSprintStore();
+const teamStore = useTeamStore();
 
 // State
 const selectedProjectId = ref<number | null>(null);
@@ -784,7 +911,6 @@ const sprintDuration = ref(14);
 const startDate = ref<string>('');
 const endDate = ref<string>('');
 const targetUtilization = ref(85);
-const closeActiveSprint = ref(false);
 const considerCrossProject = ref(true); // Default: consider workload from other projects
 const hybridWeights = ref({
   priority: 0.30,
@@ -792,6 +918,7 @@ const hybridWeights = ref({
   skills: 0.30,
   dependency: 0.15,
 });
+const showAddTaskDialog = ref(false);
 
 // Computed
 const projectOptions = computed(() =>
@@ -810,10 +937,16 @@ const activeSprint = computed(() => {
   return selectedProject.value.sprints?.find((s) => s.status === 'active');
 });
 
+const plannedSprint = computed(() => {
+  if (!selectedProject.value) return null;
+  return selectedProject.value.sprints?.find((s) => s.status === 'planned');
+});
+
 const eligibleTasksCount = computed(() => {
   if (!selectedProject.value) return 0;
   const tasks = selectedProject.value.tasks || [];
-  if (activeSprint.value && !closeActiveSprint.value) {
+  // Exclude tasks from active sprint (can't plan already running tasks)
+  if (activeSprint.value) {
     return tasks.filter(
       (t) => t.status !== 'Done' && t.sprintId !== activeSprint.value?.id
     ).length;
@@ -827,7 +960,8 @@ const canGeneratePlan = computed(() => {
     sprintName.value &&
     startDate.value &&
     endDate.value &&
-    sprintDuration.value > 0
+    sprintDuration.value > 0 &&
+    !plannedSprint.value  // Cannot generate if planned sprint already exists
   );
 });
 
@@ -835,12 +969,48 @@ const hasGeneratedPlan = computed(() => {
   return !!smartSprintStore.planningResult;
 });
 
-const canApplyPlan = computed(() => {
-  // Can apply if there's no active sprint, or if closeActiveSprint is enabled
-  return !activeSprint.value || closeActiveSprint.value;
-});
+// Note: canApplyPlan check removed - AI now creates PLANNED sprints which don't conflict with active sprints
 
 const planningResult = computed(() => smartSprintStore.planningResult);
+
+// Use recalculated metrics/team analysis (updates when user edits plan)
+// Explicitly depend on editableTasks/editableAssignments to trigger recalculation
+const displayMetrics = computed(() => {
+  void smartSprintStore.editableTasks.length;
+  void Object.keys(smartSprintStore.editableAssignments).length;
+  return (
+    smartSprintStore.editableMetrics ?? smartSprintStore.planningResult?.metrics
+  );
+});
+const displayTeamAnalysis = computed(() => {
+  void smartSprintStore.editableTasks.length;
+  void Object.keys(smartSprintStore.editableAssignments).length;
+  return (
+    smartSprintStore.editableTeamAnalysis ??
+    smartSprintStore.planningResult?.teamAnalysis
+  );
+});
+
+const projectTeamMembers = computed(() => {
+  if (!selectedProject.value?.teamMemberIds?.length) return [];
+  return selectedProject.value.teamMemberIds
+    .map((id) => teamStore.teamMembers.find((m) => m.id === id))
+    .filter((m): m is NonNullable<typeof m> => !!m);
+});
+
+const memberOptions = computed(() =>
+  projectTeamMembers.value.map((m) => ({ label: m.name, value: m.id }))
+);
+
+const availableTasksToAdd = computed(() => {
+  if (!selectedProject.value?.tasks) return [];
+  const inPlanIds = new Set(smartSprintStore.editableTasks.map((t) => t.id));
+  return selectedProject.value.tasks.filter((t) => {
+    if (t.status === 'Done') return false;
+    if (activeSprint.value && t.sprintId === activeSprint.value?.id) return false;
+    return !inPlanIds.has(t.id);
+  });
+});
 
 // Table columns
 const taskColumns = [
@@ -884,6 +1054,13 @@ const taskColumns = [
     align: 'left' as const,
     field: 'id',
   },
+  {
+    name: 'actions',
+    label: '',
+    align: 'center' as const,
+    field: 'id',
+    sortable: false,
+  },
 ];
 
 // Watchers
@@ -908,22 +1085,32 @@ watch(startDate, (newStartDate) => {
 // Methods
 async function onProjectChange() {
   smartSprintStore.clearPlan();
-  closeActiveSprint.value = false;
 
   if (selectedProjectId.value) {
-    // Load strategies
-    await smartSprintStore.loadStrategies(selectedProjectId.value);
+    // Load project details (including tasks) and strategies
+    await Promise.all([
+      projectStore.getProject(selectedProjectId.value),
+      smartSprintStore.loadStrategies(selectedProjectId.value),
+    ]);
 
     // Set default sprint name
     const sprintCount = (selectedProject.value?.sprints?.length || 0) + 1;
     sprintName.value = `Sprint ${sprintCount}`;
 
-    // Set default dates
-    const today = new Date();
-    startDate.value = today.toISOString().split('T')[0] || '';
-    const endDateCalc = new Date(today);
-    endDateCalc.setDate(today.getDate() + sprintDuration.value);
-    endDate.value = endDateCalc.toISOString().split('T')[0] || '';
+    // Fetch next sprint dates from API (2-week cadence, auto-calculated)
+    const nextDates = await projectStore.getNextSprintDates(selectedProjectId.value);
+    if (nextDates) {
+      startDate.value = nextDates.startDate;
+      endDate.value = nextDates.endDate;
+      sprintDuration.value = nextDates.sprintDurationDays;
+    } else {
+      const today = new Date();
+      startDate.value = today.toISOString().split('T')[0] || '';
+      const endDateCalc = new Date(today);
+      endDateCalc.setDate(today.getDate() + 14);
+      endDate.value = endDateCalc.toISOString().split('T')[0] || '';
+      sprintDuration.value = 14;
+    }
   }
 }
 
@@ -938,7 +1125,7 @@ async function onGeneratePlan() {
     endDate: endDate.value,
     sprintDuration: sprintDuration.value,
     targetUtilization: targetUtilization.value,
-    closeActiveSprint: closeActiveSprint.value,
+    closeActiveSprint: false,
     considerCrossProjectWorkload: considerCrossProject.value,
   };
 
@@ -970,13 +1157,102 @@ function onRegenerate() {
   smartSprintStore.clearPlan();
 }
 
-async function onApplyPlan() {
-  if (!planningResult.value || !selectedProjectId.value) return;
+async function startExistingPlannedSprint() {
+  if (!plannedSprint.value || !selectedProjectId.value) return;
 
-  const taskIds = planningResult.value.suggestedTasks.map((t) => t.id);
+  // Check if there's already an active sprint
+  if (activeSprint.value) {
+    $q.notify({
+      message: `Cannot start sprint: "${activeSprint.value.name}" is already active. Please complete it first.`,
+      color: 'warning',
+      icon: 'warning',
+      position: 'top',
+    });
+    return;
+  }
+
+  const sprintName = plannedSprint.value.name;
+
+  try {
+    await projectStore.updateSprint(selectedProjectId.value, plannedSprint.value.id, {
+      status: 'active',
+    });
+
+    // Show success immediately after update
+    $q.notify({
+      message: `Sprint "${sprintName}" started! You can now create a new planned sprint.`,
+      color: 'positive',
+      icon: 'play_arrow',
+      position: 'top',
+    });
+
+    // Reload project data (non-critical - if fails, user can manually refresh)
+    try {
+      await projectStore.getProject(selectedProjectId.value);
+    } catch (reloadError) {
+      console.warn('Failed to reload project after start:', reloadError);
+    }
+  } catch {
+    $q.notify({
+      message: projectStore.error || 'Failed to start sprint',
+      color: 'negative',
+      icon: 'error',
+      position: 'top',
+    });
+  }
+}
+
+async function deleteExistingPlannedSprint() {
+  if (!plannedSprint.value || !selectedProjectId.value) return;
+
+  $q.dialog({
+    title: 'Delete Planned Sprint',
+    message: `Are you sure you want to delete "${plannedSprint.value.name}"? This action cannot be undone.`,
+    cancel: true,
+    persistent: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative',
+      flat: true,
+    },
+  }).onOk(async () => {
+    const sprintName = plannedSprint.value!.name;
+    
+    try {
+      await projectStore.deleteSprint(selectedProjectId.value!, plannedSprint.value!.id);
+      
+      // Show success immediately after delete
+      $q.notify({
+        message: `Sprint "${sprintName}" deleted. You can now create a new planned sprint.`,
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top',
+      });
+      
+      // Reload project data (non-critical - if fails, user can manually refresh)
+      try {
+        await projectStore.getProject(selectedProjectId.value!);
+      } catch (reloadError) {
+        console.warn('Failed to reload project after delete:', reloadError);
+      }
+    } catch {
+      $q.notify({
+        message: projectStore.error || 'Failed to delete sprint',
+        color: 'negative',
+        icon: 'error',
+        position: 'top',
+      });
+    }
+  });
+}
+
+async function onApplyPlan() {
+  if (!selectedProjectId.value || smartSprintStore.editableTasks.length === 0) return;
+
+  const taskIds = smartSprintStore.editableTasks.map((t) => t.id);
   const assignments: Record<string, { memberId: number; role: string }> = {};
 
-  Object.entries(planningResult.value.assignments).forEach(([taskId, assignment]) => {
+  Object.entries(smartSprintStore.editableAssignments).forEach(([taskId, assignment]) => {
     assignments[taskId] = {
       memberId: assignment.memberId,
       role: assignment.role,
@@ -984,13 +1260,13 @@ async function onApplyPlan() {
   });
 
   // Build confirmation message
-  let confirmMessage = `This will create "${sprintName.value}" with ${taskIds.length} tasks and assign them to team members.`;
+  let confirmMessage = `This will create a new planned sprint "${sprintName.value}" with ${taskIds.length} tasks and assign them to team members.`;
 
-  if (activeSprint.value && closeActiveSprint.value) {
-    confirmMessage += `\n\n✓ The active sprint "${activeSprint.value.name}" will be closed and marked as completed.`;
+  if (activeSprint.value) {
+    confirmMessage += `\n\n✓ Your active sprint "${activeSprint.value.name}" will continue running.`;
   }
 
-  confirmMessage += '\n\nContinue?';
+  confirmMessage += '\n\nYou can review and adjust the planned sprint before starting it.\n\nContinue?';
 
   $q.dialog({
     title: 'Apply Sprint Plan',
@@ -1003,7 +1279,7 @@ async function onApplyPlan() {
       sprintGoal: sprintGoal.value,
       startDate: startDate.value,
       endDate: endDate.value,
-      closeActiveSprint: closeActiveSprint.value,
+      closeActiveSprint: false,
       tasks: taskIds,
       assignments,
     });
@@ -1083,9 +1359,50 @@ function getMemberStatusLabel(status: string): string {
   return labels[status] || status;
 }
 
+function onAssigneeChange(taskId: number, memberId: number | null) {
+  if (memberId == null) {
+    smartSprintStore.updateTaskAssignment(taskId, null);
+    return;
+  }
+  const member = projectTeamMembers.value.find((m) => m.id === memberId);
+  if (member) {
+    smartSprintStore.updateTaskAssignment(taskId, memberId, member.name);
+  }
+}
+
+function onRemoveTask(taskId: number) {
+  smartSprintStore.removeTaskFromPlan(taskId);
+}
+
+function taskToSprintTask(task: Task): SprintTask {
+  return {
+    id: task.id,
+    name: task.name,
+    title: task.title,
+    description: task.description || '',
+    status: task.status,
+    priority: task.priority,
+    type: task.type,
+    storyPoints: task.storyPoints || 0,
+    labels: task.labels || [],
+    complexity: task.complexity || 0,
+    dependencies: task.dependencies || [],
+    riskLevel: task.riskLevel || 'low',
+  };
+}
+
+function onAddTask(task: Task) {
+  const sprintTask = taskToSprintTask(task);
+  smartSprintStore.addTaskToPlan(sprintTask);
+  showAddTaskDialog.value = false;
+}
+
 // Lifecycle
 onMounted(async () => {
-  await projectStore.fetchProjects(true);
+  await Promise.all([
+    projectStore.fetchProjects(true),
+    teamStore.fetchTeamMembers(),
+  ]);
 
   // Auto-select first project if available
   if (projectStore.projects.length > 0 && projectStore.projects[0]) {

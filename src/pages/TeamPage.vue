@@ -691,8 +691,7 @@ const averageWorkload = computed(() => {
 
 const totalActiveProjects = computed(() => {
   // Count actual active projects from project store
-  return projectStore.projects.filter((p) => p.status === 'In Progress' || p.status === 'On Track')
-    .length;
+  return projectStore.projects.filter((p) => p.status === 'In progress').length;
 });
 
 const topSkills = computed(() => {

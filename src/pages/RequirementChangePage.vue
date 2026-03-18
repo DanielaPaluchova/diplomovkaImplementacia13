@@ -296,10 +296,10 @@
                     Measure of task estimation uncertainty (optimistic vs pessimistic).
                   </div>
                   <div class="text-caption text-grey-5">
-                    <div v-if="currentState.avgPertUncertainty! < 30">
+                    <div v-if="(currentState.avgPertUncertainty || 0) < 30">
                       ✓ Low uncertainty - Good estimates
                     </div>
-                    <div v-else-if="currentState.avgPertUncertainty! < 50" class="text-orange">
+                    <div v-else-if="(currentState.avgPertUncertainty || 0) < 50" class="text-orange">
                       ⚠ Medium uncertainty - Some risk
                     </div>
                     <div v-else class="text-red">
@@ -395,6 +395,16 @@
         >
           <q-tab name="backlog" icon="inventory_2" label="Backlog" />
           <q-tab
+            name="planned_sprint"
+            icon="event_available"
+            label="Planned Sprint"
+            :disable="!hasPlannedSprint"
+          >
+            <q-tooltip v-if="!hasPlannedSprint">
+              No planned sprint available
+            </q-tooltip>
+          </q-tab>
+          <q-tab
             name="current_sprint"
             icon="today"
             label="Current Sprint"
@@ -480,6 +490,93 @@
                           </div>
                         </div>
                       </div>
+          </q-tab-panel>
+
+          <!-- Planned Sprint Tab -->
+          <q-tab-panel name="planned_sprint">
+            <div class="q-pa-md">
+              <div class="row items-center justify-between q-mb-lg">
+                <div>
+                  <div class="text-h5 text-weight-bold">Planned Sprint Analysis</div>
+                  <div class="text-caption text-grey-7">
+                    Preview optimization before starting the sprint
+                  </div>
+                </div>
+                <div class="row q-gutter-sm">
+                  <q-btn
+                    color="secondary"
+                    icon="auto_fix_high"
+                    label="Analyze & Optimize"
+                    @click="analyzeTab('planned_sprint')"
+                    :loading="requirementChangeStore.loading"
+                    :disable="!selectedProjectId || initialLoading"
+                    size="lg"
+                    unelevated
+                  />
+                  <q-btn
+                    color="purple"
+                    icon="schedule"
+                    label="PERT+RACI Analysis"
+                    @click="analyzePertRaciTab('planned_sprint')"
+                    :loading="requirementChangeStore.loading"
+                    :disable="!selectedProjectId || initialLoading"
+                    size="lg"
+                    unelevated
+                  >
+                    <q-tooltip>Specialized analysis for PERT duration and RACI workload</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+
+              <!-- Planned Sprint Info Banner -->
+              <q-banner class="bg-blue-1 q-mb-lg" rounded>
+                <template v-slot:avatar>
+                  <q-icon name="event_available" color="blue" size="32px" />
+                </template>
+                <div class="text-weight-bold text-blue-9">
+                  Planned Sprint: "{{ plannedSprint?.name }}"
+                </div>
+                <div class="text-body2 q-mt-xs">
+                  This analysis helps you optimize the sprint before starting it. 
+                  Apply recommended changes, then start the sprint when ready.
+                </div>
+              </q-banner>
+
+              <!-- Loading State -->
+              <div v-if="requirementChangeStore.loading" class="text-center q-pa-xl">
+                <q-spinner-dots color="primary" size="48px" class="q-mb-md" />
+                <div class="text-h6 text-grey-7">Analyzing Planned Sprint...</div>
+                <div class="text-body2 text-grey-6">
+                  Searching for optimization opportunities
+                </div>
+              </div>
+
+              <OptimizationProposals
+                v-else-if="hasProposals"
+                :proposals="proposals"
+                :selected-proposals="requirementChangeStore.selectedProposals"
+                :scope="requirementChangeStore.analysisResult?.scope"
+                @toggle-selection="requirementChangeStore.toggleProposalSelection"
+                @select-all="requirementChangeStore.selectAllProposals"
+                @deselect-all="requirementChangeStore.deselectAllProposals"
+              />
+
+              <div v-else-if="hasAnalysis" class="text-center q-pa-xl">
+                <q-icon name="check_circle" size="64px" color="green" class="q-mb-md" />
+                <div class="text-h6">Planned Sprint is Optimized!</div>
+                <div class="text-body2 text-grey-7">
+                  No optimization opportunities found. Ready to start!
+                </div>
+              </div>
+
+              <div v-else-if="!requirementChangeStore.loading" class="text-center q-pa-xl">
+                <q-icon name="analytics" size="64px" color="grey-5" class="q-mb-md" />
+                <div class="text-h6 text-grey-6">Ready to Optimize</div>
+                <div class="text-body2 text-grey-7">
+                  Click "Analyze & Optimize" to find opportunities before starting the sprint
+                </div>
+              </div>
+            </div>
           </q-tab-panel>
 
           <!-- Current Sprint Tab -->
@@ -645,11 +742,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
-import { useRequirementChangeStore } from 'src/stores/requirement-change-store';
+import { useRequirementChangeStore, type OptimizationScope } from 'src/stores/requirement-change-store';
 import OptimizationProposals from 'src/components/OptimizationProposals.vue';
 
 const $q = useQuasar();
@@ -676,6 +773,11 @@ const selectedProjectId = ref<number | null>(null);
 const activeTab = ref('backlog'); // Default to backlog
 const showApplyDialog = ref(false);
 const applyingChanges = ref(false);
+
+// Clear analysis when switching tabs
+watch(activeTab, () => {
+  requirementChangeStore.clearAnalysis();
+});
 
 // Computed
 const projectOptions = computed(() => {
@@ -800,6 +902,16 @@ const currentState = computed(() => {
 const hasActiveSprint = computed(() => {
   if (!selectedProject.value?.sprints) return false;
   return selectedProject.value.sprints.some((sprint) => sprint.status === 'active');
+});
+
+const hasPlannedSprint = computed(() => {
+  if (!selectedProject.value?.sprints) return false;
+  return selectedProject.value.sprints.some((sprint) => sprint.status === 'planned');
+});
+
+const plannedSprint = computed(() => {
+  if (!selectedProject.value?.sprints) return null;
+  return selectedProject.value.sprints.find((s) => s.status === 'planned') || null;
 });
 
 const teamWorkloadDetails = computed(() => {
@@ -1073,7 +1185,7 @@ function getWorkloadColorClass(workload: number): string {
   return 'text-green';
 }
 
-async function analyzeTab(scope: 'current_sprint' | 'backlog') {
+async function analyzeTab(scope: OptimizationScope) {
   if (!selectedProjectId.value) return;
 
   const result = await requirementChangeStore.autoOptimizeProject(
@@ -1092,7 +1204,7 @@ async function analyzeTab(scope: 'current_sprint' | 'backlog') {
   }
 }
 
-async function analyzePertRaciTab(scope: 'current_sprint' | 'backlog') {
+async function analyzePertRaciTab(scope: OptimizationScope) {
   if (!selectedProjectId.value) return;
 
   const result = await requirementChangeStore.analyzePertRaci(
@@ -1128,17 +1240,26 @@ async function applyChanges() {
 
   try {
     const selectedProposals = requirementChangeStore.getSelectedProposals();
-    const success = await requirementChangeStore.applyChanges(
+    const result = await requirementChangeStore.applyChanges(
       selectedProjectId.value,
       selectedProposals
     );
 
-    if (success) {
-  $q.notify({
-        message: `Successfully applied ${selectedProposalCount.value} changes!`,
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
+    if (result.success) {
+      let message: string;
+      if (result.applied > 0 && result.skipped > 0) {
+        message = `Applied ${result.applied} changes. ${result.skipped} proposals require manual action.`;
+      } else if (result.applied > 0) {
+        message = `Successfully applied ${result.applied} changes!`;
+      } else {
+        const count = result.skipped || selectedProposals.length;
+        message = `${count} proposals require manual action. Edit tasks to add RACI assignments.`;
+      }
+      $q.notify({
+        message,
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top',
         timeout: 4000,
       });
 
@@ -1146,13 +1267,18 @@ async function applyChanges() {
       await projectStore.getProject(selectedProjectId.value);
       requirementChangeStore.clearAnalysis();
     } else {
-  $q.notify({
-        message: 'Some changes failed. Check console for details.',
+      const errMsg = requirementChangeStore.error;
+      $q.notify({
+        message:
+          result.failed > 0
+            ? errMsg || `${result.failed} changes failed. Check console for details.`
+            : 'Failed to apply changes.',
         color: 'negative',
         icon: 'error',
-    position: 'top',
-  });
-}
+        position: 'top',
+        timeout: 5000,
+      });
+    }
   } finally {
     applyingChanges.value = false;
   }

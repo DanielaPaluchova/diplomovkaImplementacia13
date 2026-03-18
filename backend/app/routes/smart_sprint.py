@@ -286,34 +286,41 @@ def apply_smart_sprint_plan(project_id):
         except ValueError:
             return jsonify({'error': 'Invalid date format'}), 400
         
+        # Check for existing planned sprint - only 1 planned sprint allowed per project
+        existing_planned = Sprint.query.filter_by(
+            project_id=project_id,
+            status='planned'
+        ).first()
+        
+        if existing_planned:
+            return jsonify({
+                'error': 'Cannot create new planned sprint',
+                'message': f'Project already has a planned sprint: "{existing_planned.name}". Please start or delete it before creating a new one.',
+                'existingPlannedSprint': existing_planned.to_dict()
+            }), 400
+        
         # Check for existing active sprint and handle it
+        # Note: Since we're creating a 'planned' sprint, we don't need to close the active sprint
+        # But we respect the closeActiveSprint flag if provided for backward compatibility
         closed_sprint = None
         active_sprint = Sprint.query.filter_by(
             project_id=project_id,
             status='active'
         ).first()
         
-        # If active sprint exists and closeActiveSprint is false, return error
-        if active_sprint and not close_active_sprint:
-            return jsonify({
-                'error': 'Cannot create new active sprint while another sprint is active',
-                'message': f'Sprint "{active_sprint.name}" is currently active. Please close it first or enable "Close Active Sprint" option.',
-                'activeSprint': active_sprint.to_dict()
-            }), 400
-        
         # Close active sprint if requested
         if close_active_sprint and active_sprint:
             active_sprint.status = 'completed'
             closed_sprint = active_sprint.to_dict()
         
-        # Create new sprint
+        # Create new sprint with 'planned' status (Jira-style workflow)
         new_sprint = Sprint(
             project_id=project_id,
             name=sprint_name,
             goal=sprint_goal,
             start_date=start_date,
             end_date=end_date,
-            status='active',
+            status='planned',
             capacity=sum(
                 TeamMember.query.get(member_id).max_story_points
                 for member_id in (project.team_member_ids or [])
@@ -322,8 +329,10 @@ def apply_smart_sprint_plan(project_id):
         )
         
         db.session.add(new_sprint)
+        # Clear last_planned_sprint_start_date when creating planned sprint (reset for next cycle)
+        project.last_planned_sprint_start_date = None
         db.session.flush()  # Get the sprint ID
-        
+
         # Update tasks
         tasks_updated = 0
         assignments_applied = 0

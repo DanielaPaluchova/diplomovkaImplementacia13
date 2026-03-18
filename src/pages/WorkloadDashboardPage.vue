@@ -910,14 +910,12 @@ function getWorkloadColor(workload: number): string {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'On Track':
-      return 'green';
-    case 'In Progress':
+    case 'Not started':
+      return 'grey';
+    case 'In progress':
       return 'blue';
-    case 'At Risk':
-      return 'orange';
-    case 'Delayed':
-      return 'red';
+    case 'Completed':
+      return 'green';
     default:
       return 'grey';
   }
