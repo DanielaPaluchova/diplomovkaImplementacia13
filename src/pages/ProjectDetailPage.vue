@@ -1746,28 +1746,13 @@
             <div class="col">
               <q-select
                 v-model="newTask.requiredSkills"
-                :options="[
-                  'Python',
-                  'JavaScript',
-                  'TypeScript',
-                  'Vue.js',
-                  'React',
-                  'Node.js',
-                  'PostgreSQL',
-                  'MongoDB',
-                  'Docker',
-                  'AWS',
-                  'DevOps',
-                  'UI/UX',
-                  'Testing',
-                  'Security',
-                ]"
+                :options="availableSkillsForTasks"
                 label="Required Skills"
                 filled
                 multiple
                 use-chips
                 use-input
-                hint="Skills needed for this task"
+                hint="Skills from your team members"
               />
             </div>
           </div>
@@ -1999,28 +1984,13 @@
             <div class="col">
               <q-select
                 v-model="editTask.requiredSkills"
-                :options="[
-                  'Python',
-                  'JavaScript',
-                  'TypeScript',
-                  'Vue.js',
-                  'React',
-                  'Node.js',
-                  'PostgreSQL',
-                  'MongoDB',
-                  'Docker',
-                  'AWS',
-                  'DevOps',
-                  'UI/UX',
-                  'Testing',
-                  'Security',
-                ]"
+                :options="availableSkillsForTasks"
                 label="Required Skills"
                 filled
                 multiple
                 use-chips
                 use-input
-                hint="Skills needed for this task"
+                hint="Skills from your team members"
               />
             </div>
           </div>
@@ -2592,6 +2562,26 @@ const epicOptions = computed(() => {
     label: epic.name,
     value: epic.id,
   }));
+});
+
+// Skills from team members (option A - single source of truth)
+// Also includes skills from existing tasks so we don't lose them when editing
+const FALLBACK_SKILLS = [
+  'JavaScript',
+  'Python',
+  'TypeScript',
+  'Vue.js',
+];
+const availableSkillsForTasks = computed(() => {
+  const skills = new Set<string>();
+  teamStore.teamMembers.forEach((member) => {
+    (member.skills || []).forEach((s: string) => skills.add(s));
+  });
+  (project.value.tasks || []).forEach((task) => {
+    (task.requiredSkills || []).forEach((s: string) => skills.add(s));
+  });
+  const list = [...skills].sort((a, b) => a.localeCompare(b));
+  return list.length > 0 ? list : FALLBACK_SKILLS;
 });
 
 // Available tasks for dependencies (existing tasks in the project)
