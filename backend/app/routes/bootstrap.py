@@ -1,6 +1,9 @@
 """
-One-time database seed via shared secret (no shell access required).
+Database seed via shared secret (no shell access required).
 Set BOOTSTRAP_SECRET on the server, then POST with header X-Bootstrap-Secret.
+
+- Empty users table: runs full seed_all().
+- Already has users: runs seed_users() only (adds demo accounts if those emails are missing).
 """
 import os
 import secrets as stdlib_secrets
@@ -25,24 +28,28 @@ def bootstrap_seed():
     if not stdlib_secrets.compare_digest(provided, configured):
         return jsonify({'error': 'Invalid or missing secret'}), 401
 
-    if User.query.count() > 0:
+    try:
+        from seed_database import seed_all, seed_users
+
+        if User.query.count() == 0:
+            seed_all()
+            return jsonify(
+                {
+                    'ok': True,
+                    'already_seeded': False,
+                    'message': 'Full seed completed. You can log in (e.g. admin@example.com / admin123).',
+                }
+            )
+
+        # DB už má nejakého používateľa (napr. z Sign up), ale demo účty môžu chýbať.
+        # seed_users() je idempotentné — doplní len chýbajúce emaily.
+        seed_users()
         return jsonify(
             {
                 'ok': True,
                 'already_seeded': True,
-                'message': 'Database already contains users; seed was skipped.',
-            }
-        )
-
-    try:
-        from seed_database import seed_all
-
-        seed_all()
-        return jsonify(
-            {
-                'ok': True,
-                'already_seeded': False,
-                'message': 'Seed completed. You can log in (e.g. admin@example.com / admin123).',
+                'demo_users_merged': True,
+                'message': 'Database had users; demo accounts (admin/manager/developer) were added if missing.',
             }
         )
     except Exception as e:
