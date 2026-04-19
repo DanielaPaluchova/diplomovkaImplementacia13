@@ -149,6 +149,196 @@ def seed_all_projects():
     seed_education(m)
 
 
+def seed_inline_demo_project():
+    """Jeden demo projekt (E-commerce). Vyžaduje už vytvorených seed_users + seed_team_members."""
+    if Project.query.filter_by(name='E-commerce Platform Redesign').first():
+        print('[SKIP] Demo project E-commerce Platform Redesign already exists')
+        return
+
+    m = get_member_ids()
+
+    project = Project(
+        name='E-commerce Platform Redesign',
+        description='Complete UI/UX overhaul with payment integration',
+        template='Agile Development',
+        icon='shopping_cart',
+        status='In Progress',
+        due_date=datetime(2026, 1, 15),
+        team_member_ids=[m['john'], m['sarah'], m['mike'], m['sophie'], m['lisa']],
+        estimated_duration=120,
+        max_story_points_per_person=20,
+    )
+    db.session.add(project)
+    db.session.flush()
+
+    sprint1 = Sprint(
+        project_id=project.id,
+        name='Sprint 1 - Foundation',
+        goal='Setup infrastructure',
+        start_date=datetime(2024, 6, 1),
+        end_date=datetime(2024, 6, 14),
+        status='completed',
+        capacity=100,
+        planned_story_points=34,
+        velocity=34,
+    )
+    db.session.add(sprint1)
+    db.session.flush()
+
+    for name, member, sp, skills in [
+        ('Project Setup', m['mike'], 8, ['Docker', 'CI/CD']),
+        ('Database Schema', m['sarah'], 13, ['PostgreSQL']),
+        ('UI Wireframes', m['sophie'], 13, ['Figma']),
+    ]:
+        task = Task(
+            project_id=project.id,
+            sprint_id=sprint1.id,
+            name=name,
+            title=name,
+            description=name,
+            status='Done',
+            priority='high',
+            type='task',
+            story_points=sp,
+            completed=True,
+            labels=['foundation'],
+            complexity=6,
+            pert_optimistic=sp * 3,
+            pert_most_likely=sp * 5,
+            pert_pessimistic=sp * 7,
+            pert_expected=sp * 5,
+            raci_responsible=[member],
+            raci_accountable=m['lisa'],
+            raci_consulted=[],
+            raci_informed=[],
+            required_skills=skills,
+            estimated_hours=sp * 5,
+            actual_hours=sp * 5,
+            risk_level='medium',
+        )
+        db.session.add(task)
+        db.session.flush()
+        db.session.add(create_task_history(task, member, sprint1.end_date))
+
+    sprint2 = Sprint(
+        project_id=project.id,
+        name='Sprint 2 - Core Features',
+        goal='Payment and analytics',
+        start_date=datetime(2024, 11, 1),
+        end_date=datetime(2024, 11, 15),
+        status='active',
+        capacity=100,
+        planned_story_points=72,
+        velocity=0,
+    )
+    db.session.add(sprint2)
+    db.session.flush()
+
+    tasks_data = [
+        ('Complete Payment Gateway', m['sarah'], 34, ['Python', 'Stripe'], 'To Do', 'high', 9, 'critical'),
+        ('Optimize PostgreSQL', m['john'], 8, ['PostgreSQL'], 'To Do', 'high', 7, 'medium'),
+        ('Analytics Dashboard', m['john'], 13, ['Vue.js'], 'In Progress', 'medium', 7, 'low'),
+        ('API Rate Limiting', m['sarah'], 3, ['Python'], 'To Do', 'medium', 5, 'low'),
+        ('Setup Monitoring', m['mike'], 8, ['Monitoring'], 'In Progress', 'high', 6, 'medium'),
+        ('Redesign Product Page', m['sophie'], 5, ['Figma'], 'Done', 'medium', 5, 'low'),
+        ('Fix typo', m['john'], 1, ['Vue.js'], 'To Do', 'low', 1, 'low'),
+    ]
+
+    for name, member, sp, skills, status, priority, complexity, risk in tasks_data:
+        db.session.add(
+            Task(
+                project_id=project.id,
+                sprint_id=sprint2.id,
+                name=name,
+                title=name,
+                description=f'{name} implementation',
+                status=status,
+                priority=priority,
+                type='feature' if sp > 5 else 'task',
+                story_points=sp,
+                completed=(status == 'Done'),
+                labels=['feature' if sp > 5 else 'task'],
+                complexity=complexity,
+                pert_optimistic=sp * 3,
+                pert_most_likely=sp * 5,
+                pert_pessimistic=sp * 7,
+                pert_expected=sp * 5,
+                raci_responsible=[member],
+                raci_accountable=m['lisa'],
+                raci_consulted=[],
+                raci_informed=[],
+                required_skills=skills,
+                estimated_hours=sp * 5,
+                actual_hours=0 if status != 'Done' else sp * 5,
+                risk_level=risk,
+            )
+        )
+
+    print('  Adding backlog tasks...')
+    for name, sp, member, skills in [
+        ('Product Reviews System', 13, m['alex'], ['Python', 'Vue.js']),
+        ('Advanced Search', 8, m['sarah'], ['PostgreSQL']),
+        ('Order Tracking', 13, m['david'], ['Node.js']),
+        ('Customer Chat', 21, m['alex'], ['WebSocket']),
+        ('Admin Dashboard', 13, m['john'], ['Vue.js']),
+        ('Email Integration', 8, m['sarah'], ['Python']),
+        ('Mobile API', 21, m['david'], ['REST API']),
+        ('Performance Optimization', 13, m['mike'], ['Caching']),
+    ]:
+        db.session.add(
+            Task(
+                project_id=project.id,
+                sprint_id=None,
+                name=name,
+                title=name,
+                description=f'{name} feature',
+                status='To Do',
+                priority='medium',
+                type='feature',
+                story_points=sp,
+                completed=False,
+                labels=['backlog'],
+                complexity=7,
+                pert_optimistic=sp * 3,
+                pert_most_likely=sp * 5,
+                pert_pessimistic=sp * 7,
+                pert_expected=sp * 5,
+                raci_responsible=[member],
+                raci_accountable=m['lisa'],
+                raci_consulted=[],
+                raci_informed=[],
+                required_skills=skills,
+                estimated_hours=sp * 5,
+                actual_hours=0,
+                risk_level='low',
+            )
+        )
+
+    for member_key in ['lisa', 'john', 'sarah', 'mike', 'sophie']:
+        role_type = 'owner' if member_key == 'lisa' else 'developer'
+        db.session.add(
+            ProjectRole(
+                project_id=project.id,
+                member_id=m[member_key],
+                role=role_type,
+                can_edit=True,
+                can_delete=(role_type == 'owner'),
+                can_manage_team=(role_type == 'owner'),
+                can_manage_sprints=(role_type == 'owner'),
+            )
+        )
+
+    db.session.commit()
+    print('[OK] E-commerce project created (demonstration)')
+
+
+def seed_bootstrap_light():
+    """Používateľia + team + jeden demo projekt — krátke pre HTTP (bez 8 veľkých projektov)."""
+    seed_users()
+    seed_team_members()
+    seed_inline_demo_project()
+
+
 def seed_all():
     """Seed all data"""
     print("\n" + "=" * 70)
@@ -167,141 +357,12 @@ def seed_all():
         seed_all_projects()
     except ImportError:
         print("\nWARNING: seed_projects.py not found - creating inline version")
-        print("Creating single demo project for now...")
-        
-        # Inline simplified version for demonstration
-        m = get_member_ids()
-        
-        # PROJECT 1: E-commerce (demonstration)
-        project = Project(
-            name='E-commerce Platform Redesign',
-            description='Complete UI/UX overhaul with payment integration',
-            template='Agile Development',
-            icon='shopping_cart',
-            status='In Progress',
-            due_date=datetime(2026, 1, 15),
-            team_member_ids=[m['john'], m['sarah'], m['mike'], m['sophie'], m['lisa']],
-            estimated_duration=120,
-            max_story_points_per_person=20
-        )
-        db.session.add(project)
-        db.session.flush()
-        
-        # Sprint 1 - Completed
-        sprint1 = Sprint(
-            project_id=project.id,
-            name='Sprint 1 - Foundation',
-            goal='Setup infrastructure',
-            start_date=datetime(2024, 6, 1),
-            end_date=datetime(2024, 6, 14),
-            status='completed',
-            capacity=100,
-            planned_story_points=34,
-            velocity=34
-        )
-        db.session.add(sprint1)
-        db.session.flush()
-        
-        # Completed tasks with history
-        for name, member, sp, skills in [
-            ('Project Setup', m['mike'], 8, ['Docker', 'CI/CD']),
-            ('Database Schema', m['sarah'], 13, ['PostgreSQL']),
-            ('UI Wireframes', m['sophie'], 13, ['Figma'])
-        ]:
-            task = Task(
-                project_id=project.id, sprint_id=sprint1.id,
-                name=name, title=name, description=name,
-                status='Done', priority='high', type='task',
-                story_points=sp, completed=True,
-                labels=['foundation'], complexity=6,
-                pert_optimistic=sp*3, pert_most_likely=sp*5, pert_pessimistic=sp*7, pert_expected=sp*5,
-                raci_responsible=[member], raci_accountable=m['lisa'], raci_consulted=[], raci_informed=[],
-                required_skills=skills, estimated_hours=sp*5, actual_hours=sp*5, risk_level='medium'
-            )
-            db.session.add(task)
-            db.session.flush()
-            db.session.add(create_task_history(task, member, sprint1.end_date))
-        
-        # Sprint 2 - Active with issues
-        sprint2 = Sprint(
-            project_id=project.id,
-            name='Sprint 2 - Core Features',
-            goal='Payment and analytics',
-            start_date=datetime(2024, 11, 1),
-            end_date=datetime(2024, 11, 15),
-            status='active',
-            capacity=100,
-            planned_story_points=72,
-            velocity=0
-        )
-        db.session.add(sprint2)
-        db.session.flush()
-        
-        # Active sprint tasks with intentional issues
-        tasks_data = [
-            # Giant Task
-            ('Complete Payment Gateway', m['sarah'], 34, ['Python', 'Stripe'], 'To Do', 'high', 9, 'critical'),
-            # Skill Mismatch
-            ('Optimize PostgreSQL', m['john'], 8, ['PostgreSQL'], 'To Do', 'high', 7, 'medium'),
-            # John's legit task
-            ('Analytics Dashboard', m['john'], 13, ['Vue.js'], 'In Progress', 'medium', 7, 'low'),
-            # Sarah underutilized
-            ('API Rate Limiting', m['sarah'], 3, ['Python'], 'To Do', 'medium', 5, 'low'),
-            # Others
-            ('Setup Monitoring', m['mike'], 8, ['Monitoring'], 'In Progress', 'high', 6, 'medium'),
-            ('Redesign Product Page', m['sophie'], 5, ['Figma'], 'Done', 'medium', 5, 'low'),
-            # Tiny tasks for merge
-            ('Fix typo', m['john'], 1, ['Vue.js'], 'To Do', 'low', 1, 'low'),
-        ]
-        
-        for name, member, sp, skills, status, priority, complexity, risk in tasks_data:
-            db.session.add(Task(
-                project_id=project.id, sprint_id=sprint2.id,
-                name=name, title=name, description=f'{name} implementation',
-                status=status, priority=priority, type='feature' if sp > 5 else 'task',
-                story_points=sp, completed=(status=='Done'),
-                labels=['feature' if sp > 5 else 'task'], complexity=complexity,
-                pert_optimistic=sp*3, pert_most_likely=sp*5, pert_pessimistic=sp*7, pert_expected=sp*5,
-                raci_responsible=[member], raci_accountable=m['lisa'], raci_consulted=[], raci_informed=[],
-                required_skills=skills, estimated_hours=sp*5, actual_hours=0 if status!='Done' else sp*5,
-                risk_level=risk
-            ))
-        
-        # Backlog tasks
-        print("  Adding backlog tasks...")
-        for name, sp, member, skills in [
-            ('Product Reviews System', 13, m['alex'], ['Python', 'Vue.js']),
-            ('Advanced Search', 8, m['sarah'], ['PostgreSQL']),
-            ('Order Tracking', 13, m['david'], ['Node.js']),
-            ('Customer Chat', 21, m['alex'], ['WebSocket']),
-            ('Admin Dashboard', 13, m['john'], ['Vue.js']),
-            ('Email Integration', 8, m['sarah'], ['Python']),
-            ('Mobile API', 21, m['david'], ['REST API']),
-            ('Performance Optimization', 13, m['mike'], ['Caching'])
-        ]:
-            db.session.add(Task(
-                project_id=project.id, sprint_id=None,  # BACKLOG
-                name=name, title=name, description=f'{name} feature',
-                status='To Do', priority='medium', type='feature',
-                story_points=sp, completed=False, labels=['backlog'], complexity=7,
-                pert_optimistic=sp*3, pert_most_likely=sp*5, pert_pessimistic=sp*7, pert_expected=sp*5,
-                raci_responsible=[member], raci_accountable=m['lisa'], raci_consulted=[], raci_informed=[],
-                required_skills=skills, estimated_hours=sp*5, actual_hours=0, risk_level='low'
-            ))
-        
-        # Project roles
-        for member_key in ['lisa', 'john', 'sarah', 'mike', 'sophie']:
-            role_type = 'owner' if member_key == 'lisa' else 'developer'
-            db.session.add(ProjectRole(
-                project_id=project.id, member_id=m[member_key], role=role_type,
-                can_edit=True, can_delete=(role_type=='owner'),
-                can_manage_team=(role_type=='owner'), can_manage_sprints=(role_type=='owner')
-            ))
-        
-        db.session.commit()
-        print("[OK] E-commerce project created (demonstration)")
-        print("\nFor full 8-project seed, create seed_projects.py with all project functions")
-    
+        seed_inline_demo_project()
+    except Exception as e:
+        print(f"\nWARNING: Full project seed failed ({e!r}) — falling back to inline demo")
+        db.session.rollback()
+        seed_inline_demo_project()
+
     print("\n" + "=" * 70)
     print("SEED COMPLETED")
     print("=" * 70)

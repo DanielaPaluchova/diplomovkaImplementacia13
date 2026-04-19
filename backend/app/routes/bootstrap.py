@@ -1,9 +1,8 @@
 """
-Database seed via shared secret (no shell access required).
-Set BOOTSTRAP_SECRET on the server, then POST with header X-Bootstrap-Secret.
+Bootstrap seed cez HTTP (BOOTSTRAP_SECRET).
 
-- Empty users table: runs full seed_all().
-- Already has users: runs seed_users() only (adds demo accounts if those emails are missing).
+- GET  /api/bootstrap/seed/status  — prehľad krokov 1–9 (čo už je v DB)
+- POST /api/bootstrap/seed/step/<1-9> — spustí jednu fázu (veľká DB rozdelená na viac requestov)
 """
 import os
 import secrets as stdlib_secrets
@@ -11,47 +10,63 @@ import secrets as stdlib_secrets
 from flask import Blueprint, jsonify, request
 
 from app import db
-from app.models.user import User
+from seed_phases import build_status_payload, run_seed_step
 
 bootstrap_bp = Blueprint('bootstrap', __name__)
 
 
-@bootstrap_bp.route('/seed', methods=['POST'])
-def bootstrap_seed():
+def _bootstrap_secret_ok() -> bool:
     configured = os.getenv('BOOTSTRAP_SECRET', '').strip()
     if not configured:
-        return jsonify({'error': 'Bootstrap is not configured'}), 404
-
+        return False
     provided = (request.headers.get('X-Bootstrap-Secret') or '').strip()
     if not provided or len(provided) != len(configured):
-        return jsonify({'error': 'Invalid or missing secret'}), 401
-    if not stdlib_secrets.compare_digest(provided, configured):
-        return jsonify({'error': 'Invalid or missing secret'}), 401
+        return False
+    return stdlib_secrets.compare_digest(provided, configured)
 
+
+def _require_secret():
+    if not os.getenv('BOOTSTRAP_SECRET', '').strip():
+        return jsonify({'error': 'Bootstrap is not configured'}), 404
+    if not _bootstrap_secret_ok():
+        return jsonify({'error': 'Invalid or missing secret'}), 401
+    return None
+
+
+@bootstrap_bp.route('/seed', methods=['POST'])
+def bootstrap_seed_legacy():
+    err = _require_secret()
+    if err:
+        return err
+    return jsonify(
+        {
+            'message': 'Starý jednorazový POST /seed je nahradený viacerými krokmi.',
+            'get_status': 'GET /api/bootstrap/seed/status',
+            'run_steps': 'POST /api/bootstrap/seed/step/1 … /step/9 (1 = users+team, 2–9 = 8 projektov)',
+        }
+    )
+
+
+@bootstrap_bp.route('/seed/status', methods=['GET'])
+def bootstrap_seed_status():
+    err = _require_secret()
+    if err:
+        return err
+    return jsonify(build_status_payload())
+
+
+@bootstrap_bp.route('/seed/step/<int:step>', methods=['POST'])
+def bootstrap_seed_step(step: int):
+    err = _require_secret()
+    if err:
+        return err
     try:
-        from seed_database import seed_all, seed_users
-
-        if User.query.count() == 0:
-            seed_all()
-            return jsonify(
-                {
-                    'ok': True,
-                    'already_seeded': False,
-                    'message': 'Full seed completed. You can log in (e.g. admin@example.com / admin123).',
-                }
-            )
-
-        # DB už má nejakého používateľa (napr. z Sign up), ale demo účty môžu chýbať.
-        # seed_users() je idempotentné — doplní len chýbajúce emaily.
-        seed_users()
-        return jsonify(
-            {
-                'ok': True,
-                'already_seeded': True,
-                'demo_users_merged': True,
-                'message': 'Database had users; demo accounts (admin/manager/developer) were added if missing.',
-            }
-        )
+        result = run_seed_step(step)
+        if result.get('ok') is False:
+            return jsonify(result), 400
+        return jsonify(result)
+    except ValueError as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'ok': False, 'error': str(e)}), 500
