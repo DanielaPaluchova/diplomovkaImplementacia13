@@ -64,6 +64,7 @@ def create_app():
     from app.routes.smart_sprint import smart_sprint_bp
     from app.routes.raci_weights import raci_weights_bp
     from app.routes.activity_logs import activity_logs_bp
+    from app.routes.bootstrap import bootstrap_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(projects_bp, url_prefix='/api/projects')
@@ -75,6 +76,7 @@ def create_app():
     app.register_blueprint(smart_sprint_bp, url_prefix='/api/projects')
     app.register_blueprint(raci_weights_bp, url_prefix='/api/raci-weights')
     app.register_blueprint(activity_logs_bp, url_prefix='/api')
+    app.register_blueprint(bootstrap_bp, url_prefix='/api/bootstrap')
 
     # Health check endpoint
     @app.route('/api/health')
