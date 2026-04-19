@@ -10,39 +10,23 @@
       </div>
 
       <!-- Project Selection -->
-      <div class="row q-col-gutter-md q-mt-md items-center">
-        <div class="col-12 col-md-6">
-          <q-select
-            v-model="selectedProjectId"
-            :options="projectOptions"
-            label="Select Project"
-            filled
-            emit-value
-            map-options
-          >
-            <template v-slot:prepend>
-              <q-icon name="folder" />
-            </template>
-          </q-select>
-        </div>
-        <div class="col-12 col-md-6">
-          <q-btn-toggle
-            v-model="viewMode"
-            :options="[
-              { label: 'Task View', value: 'tasks', icon: 'task' },
-              { label: 'Epic View', value: 'epics', icon: 'star' },
-            ]"
-            color="primary"
-            toggle-color="primary"
-            unelevated
-          />
-        </div>
-      </div>
+      <q-select
+        v-model="selectedProjectId"
+        :options="projectOptions"
+        label="Select Project"
+        filled
+        emit-value
+        map-options
+        class="q-mt-md"
+        style="max-width: 400px"
+      >
+        <template v-slot:prepend>
+          <q-icon name="folder" />
+        </template>
+      </q-select>
     </div>
 
     <div v-if="selectedProject" class="q-pa-lg">
-      <!-- Task View -->
-      <div v-if="viewMode === 'tasks'">
         <!-- PERT Summary Cards -->
         <div class="row q-gutter-md q-mb-lg">
           <div class="col-12 col-md-3">
@@ -316,25 +300,6 @@
           </q-card>
         </div>
       </div>
-      </div>
-
-      <!-- Epic View -->
-      <div v-else-if="viewMode === 'epics'">
-        <div class="text-center q-pa-xl">
-          <q-icon name="star" size="80px" color="primary" class="q-mb-md" />
-          <div class="text-h5 text-weight-bold q-mb-sm">Epic PERT Analysis</div>
-          <div class="text-body1 text-grey-7 q-mb-lg">
-            For Epic PERT diagram, please use the dedicated Epic Planning tab in your project
-          </div>
-          <q-btn
-            unelevated
-            color="primary"
-            label="Go to Epic Planning"
-            icon="star"
-            @click="goToEpicPlanning"
-          />
-        </div>
-      </div>
     </div>
 
     <div v-else class="q-pa-xl text-center text-grey-5">
@@ -346,16 +311,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
-const router = useRouter();
 const $q = useQuasar();
 const projectStore = useProjectStore();
+const { log } = useActivityLog();
 
 const selectedProjectId = ref<number | null>(null);
-const viewMode = ref<'tasks' | 'epics'>('tasks');
 
 // Project options
 const projectOptions = computed(() => {
@@ -760,13 +724,6 @@ function resetZoom() {
   panY.value = 0;
 }
 
-function goToEpicPlanning() {
-  if (selectedProjectId.value) {
-    router.push(`/projects/${selectedProjectId.value}`);
-    // User can then switch to Epic Planning tab
-  }
-}
-
 function handleWheel(event: WheelEvent) {
   const delta = event.deltaY > 0 ? -0.05 : 0.05;
   zoomLevel.value = Math.max(0.3, Math.min(2, zoomLevel.value + delta));
@@ -810,8 +767,9 @@ onMounted(async () => {
 });
 
 // Watch for project changes
-watch(selectedProjectId, async () => {
-  if (selectedProjectId.value) {
+watch(selectedProjectId, async (newVal) => {
+  if (newVal) {
+    log('project_select', 'pert_analysis', { projectId: newVal });
     await initializeCustomNodesFromProject();
   }
 });

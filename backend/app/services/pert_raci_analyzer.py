@@ -926,16 +926,26 @@ class PertRaciAnalyzerService:
         self,
         task: Task,
         team_members: List[TeamMember],
-        member_workloads: Dict[int, Dict]
+        member_workloads: Dict[int, Dict],
+        duration_weights: Dict[str, float] = None
     ) -> float:
         """
         Calculate RACI-adjusted duration for a single task
-        Uses the formula from PertRaciOptimizationPage.vue
+        Uses the formula from PertRaciOptimizationPage.vue:
+        T_adjusted = T × (1 + (w_R×L_R) + (w_A×L_A) + (w_C×L_C) + (w_I×L_I))
+        L_R, L_A, L_C, L_I = excess overload for each RACI role (over 100% capacity)
         """
         if not task.pert_expected or task.pert_expected == 0:
             return 0
         
         pert_duration = task.pert_expected
+        
+        # Duration weights (from RaciWeightsConfig or defaults)
+        w = duration_weights or self.RACI_WEIGHTS
+        w_R = w.get('responsible', 1.0)
+        w_A = w.get('accountable', 0.1)
+        w_C = w.get('consulted', 0.05)
+        w_I = w.get('informed', 0.01)
         
         # Calculate average EXCESS overload for each RACI role
         LR = LA = LC = LI = 0
@@ -984,8 +994,8 @@ class PertRaciAnalyzerService:
                     excess_sum += excess
             LI = excess_sum / len(task.raci_informed) if task.raci_informed else 0
         
-        # Apply formula: T_adjusted = T_pert × (1 + (1×LR) + (0.1×LA) + (0.05×LC) + (0.01×LI))
-        raci_adjustment = (1.0 * LR) + (0.1 * LA) + (0.05 * LC) + (0.01 * LI)
+        # Apply formula: T_adjusted = T_pert × (1 + (w_R×LR) + (w_A×LA) + (w_C×LC) + (w_I×LI))
+        raci_adjustment = (w_R * LR) + (w_A * LA) + (w_C * LC) + (w_I * LI)
         adjusted_duration = pert_duration * (1 + raci_adjustment)
         
         return adjusted_duration

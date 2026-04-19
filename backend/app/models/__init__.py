@@ -10,6 +10,7 @@ from app.models.sprint import Sprint
 from app.models.project_role import ProjectRole
 from app.models.optimization_log import OptimizationLog
 from app.models.raci_weights_config import RaciWeightsConfig
+from app.models.activity_log import ActivityLog
 
 __all__ = [
     'User',
@@ -20,6 +21,7 @@ __all__ = [
     'Sprint',
     'ProjectRole',
     'OptimizationLog',
-    'RaciWeightsConfig'
+    'RaciWeightsConfig',
+    'ActivityLog',
 ]
 

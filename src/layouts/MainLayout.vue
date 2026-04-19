@@ -170,6 +170,32 @@
 
             <q-separator class="q-my-md" />
           </template>
+
+          <!-- Admin (Admin only) -->
+          <template v-if="authStore.isAdmin">
+            <q-item-label header class="text-weight-bold text-red text-uppercase">
+              Admin
+            </q-item-label>
+
+            <q-item
+              clickable
+              v-ripple
+              to="/admin/activity-logs"
+              class="navigation-item q-mb-xs"
+              active-class="bg-primary text-white"
+            >
+              <q-item-section avatar>
+                <q-icon name="history" size="24px" />
+              </q-item-section>
+
+              <q-item-section>
+                <q-item-label class="text-weight-medium">Activity Logs</q-item-label>
+                <q-item-label caption>User activity monitoring</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-separator class="q-my-md" />
+          </template>
         </q-list>
       </q-scroll-area>
     </q-drawer>

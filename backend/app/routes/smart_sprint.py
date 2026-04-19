@@ -9,6 +9,7 @@ from app.models.task import Task
 from app.models.team_member import TeamMember
 from app.models.sprint import Sprint
 from app.models.optimization_log import OptimizationLog
+from app.models.raci_weights_config import RaciWeightsConfig
 from app.services.smart_sprint_planner import SmartSprintPlannerService
 from app.utils.auth import token_required
 from datetime import datetime
@@ -41,8 +42,7 @@ def generate_smart_sprint_plan(project_id):
                 "priority": 0.25,
                 "workload": 0.20,
                 "skills": 0.25,
-                "dependency": 0.15,
-                "velocity": 0.15
+                "dependency": 0.15
             }
         }
     }
@@ -182,6 +182,20 @@ def generate_smart_sprint_plan(project_id):
             'crossProjectWorkload': cross_project_workload,
             'crossProjectPriorities': cross_project_priorities
         }
+        
+        # RACI duration weights for pert-raci-integration* and hybrid with pert-raci (from global config)
+        needs_raci_weights = (
+            (strategy and strategy.startswith('pert-raci-integration')) or
+            (strategy == 'hybrid' and (data.get('parameters') or {}).get('weights', {}).get('pertMode') == 'pert-raci')
+        )
+        if needs_raci_weights:
+            raci_config = RaciWeightsConfig.get_or_create()
+            sprint_config['raciDurationWeights'] = {
+                'responsible': raci_config.responsible_duration,
+                'accountable': raci_config.accountable_duration,
+                'consulted': raci_config.consulted_duration,
+                'informed': raci_config.informed_duration
+            }
         
         # Generate sprint plan
         result = sprint_planner.plan_sprint(
@@ -533,6 +547,102 @@ def get_sprint_strategies(project_id):
             'recommended': 'When you want to maximize delivered business value'
         },
         {
+            'id': 'pert',
+            'name': 'CV based (PERT)',
+            'description': 'Predictable tasks first (lower CV), then larger. Assign by workload. 60h per member.',
+            'parameters': [],
+            'icon': 'schedule',
+            'recommended': 'When you want predictable sprints with low uncertainty'
+        },
+        {
+            'id': 'pert-workload',
+            'name': 'PERT',
+            'description': 'Larger tasks first, then smaller. Assign by workload. 60h per member.',
+            'parameters': [],
+            'icon': 'balance',
+            'recommended': 'When you want to tackle big items first'
+        },
+        {
+            'id': 'pert-raci-integration',
+            'name': 'PERT + RACI Integration',
+            'description': 'Like PERT workload, but uses adjusted duration (RACI overload formula). 60h per member.',
+            'parameters': [],
+            'icon': 'group_work',
+            'recommended': 'When you want to account for RACI overload in duration estimates'
+        },
+        {
+            'id': 'pert-raci-integration-skills',
+            'name': 'PERT + RACI Integration + Skills',
+            'description': 'Adjusted duration order. Assign to best skill match.',
+            'parameters': [],
+            'icon': 'psychology',
+            'recommended': 'RACI-adjusted planning with skill-based assignment'
+        },
+        {
+            'id': 'pert-raci-integration-priority',
+            'name': 'PERT + RACI Integration + Priority',
+            'description': 'Adjusted duration then priority. Assign by workload.',
+            'parameters': [],
+            'icon': 'priority_high',
+            'recommended': 'RACI-adjusted planning with priority awareness'
+        },
+        {
+            'id': 'pert-raci-integration-value',
+            'name': 'PERT + RACI Integration + Value',
+            'description': 'Order by value (SP×priority). Assign by workload.',
+            'parameters': [],
+            'icon': 'trending_up',
+            'recommended': 'RACI-adjusted planning maximizing value'
+        },
+        {
+            'id': 'pert-skills',
+            'name': 'CV based (PERT) + Skills',
+            'description': 'Predictable tasks first. Assign to best skill match.',
+            'parameters': [],
+            'icon': 'psychology',
+            'recommended': 'CV-based order with skill-based assignment'
+        },
+        {
+            'id': 'pert-priority',
+            'name': 'CV based (PERT) + Priority',
+            'description': 'Predictable tasks first, then by priority. Assign by workload.',
+            'parameters': [],
+            'icon': 'priority_high',
+            'recommended': 'CV-based order with priority awareness'
+        },
+        {
+            'id': 'pert-value',
+            'name': 'CV based (PERT) + Value',
+            'description': 'Task order by business value (SP×priority). Assign by workload.',
+            'parameters': [],
+            'icon': 'trending_up',
+            'recommended': 'Maximize value with CV-based planning'
+        },
+        {
+            'id': 'pert-workload-skills',
+            'name': 'PERT + Skills',
+            'description': 'Larger tasks first. Assign to best skill match.',
+            'parameters': [],
+            'icon': 'psychology',
+            'recommended': 'PERT order with skill-based assignment'
+        },
+        {
+            'id': 'pert-workload-priority',
+            'name': 'PERT + Priority',
+            'description': 'Larger tasks first, then by priority. Assign by workload.',
+            'parameters': [],
+            'icon': 'priority_high',
+            'recommended': 'PERT order with priority awareness'
+        },
+        {
+            'id': 'pert-workload-value',
+            'name': 'PERT + Value',
+            'description': 'Task order by business value. Assign by workload.',
+            'parameters': [],
+            'icon': 'trending_up',
+            'recommended': 'PERT order maximizing value'
+        },
+        {
             'id': 'hybrid',
             'name': 'Hybrid (Recommended)',
             'description': 'Combine all factors with configurable weights for optimal results',
@@ -574,17 +684,28 @@ def get_sprint_strategies(project_id):
                     'default': 0.15
                 },
                 {
-                    'name': 'velocity',
-                    'label': 'Velocity Weight',
+                    'name': 'pertMode',
+                    'label': 'PERT Mode',
+                    'type': 'select',
+                    'default': 'none',
+                    'options': [
+                        {'label': 'None (SP-based)', 'value': 'none'},
+                        {'label': 'PERT (raw hours)', 'value': 'pert'},
+                        {'label': 'PERT + RACI Integration (adjusted duration)', 'value': 'pert-raci'}
+                    ]
+                },
+                {
+                    'name': 'pertPredictability',
+                    'label': 'PERT Predictability (CV) Weight',
                     'type': 'slider',
                     'min': 0,
-                    'max': 1,
+                    'max': 0.3,
                     'step': 0.05,
-                    'default': 0.15
+                    'default': 0.1
                 }
             ],
             'icon': 'auto_awesome',
-            'recommended': 'Best overall strategy that considers all factors'
+            'recommended': 'Best overall strategy. Add PERT/PERT+RACI for time-based capacity, CV for predictability.'
         }
     ]
     

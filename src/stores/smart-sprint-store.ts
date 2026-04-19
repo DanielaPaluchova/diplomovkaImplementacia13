@@ -52,6 +52,7 @@ export interface TaskAssignment {
   memberName: string;
   role: 'responsible' | 'accountable';
   storyPoints: number;
+  pertHours?: number; // PERT strategies: expected hours
 }
 
 // Task reasoning
@@ -100,6 +101,8 @@ export interface SprintMetrics {
   balanceScore: number;
   riskScore: number;
   taskCount: number;
+  totalHours?: number;
+  pertMode?: boolean;
   priorityDistribution?: {
     high: number;
     medium: number;
@@ -249,6 +252,8 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
     }
     const task = editableTasks.value.find((t) => t.id === taskId);
     if (!task) return;
+    const existing = editableAssignments.value[key];
+    const pertHours = existing?.pertHours;
     editableAssignments.value = {
       ...editableAssignments.value,
       [key]: {
@@ -258,6 +263,7 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
         memberName,
         role: 'responsible',
         storyPoints: task.storyPoints || 0,
+        ...(pertHours != null ? { pertHours } : {}),
       },
     };
   }
@@ -314,14 +320,19 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
       }
     }
 
-    // Member workloads from assignments (SP per member in this sprint)
+    // Member workloads from assignments (SP or hours per member in this sprint)
+    const pertMode = plan.metrics.pertMode ?? false;
     const memberWorkloads: Record<number, number> = {};
     for (const a of Object.values(editableAssignments.value)) {
-      memberWorkloads[a.memberId] = (memberWorkloads[a.memberId] || 0) + a.storyPoints;
+      const workload = pertMode ? (a.pertHours ?? 0) : a.storyPoints;
+      memberWorkloads[a.memberId] = (memberWorkloads[a.memberId] || 0) + workload;
     }
 
+    const totalWorkload = pertMode
+      ? Object.values(memberWorkloads).reduce((s, w) => s + w, 0)
+      : totalStoryPoints;
     const utilization =
-      teamCapacity > 0 ? (totalStoryPoints / teamCapacity) * 100 : 0;
+      teamCapacity > 0 ? (totalWorkload / teamCapacity) * 100 : 0;
 
     // Balance score: lower variance in workload % = higher score
     const members = plan.teamAnalysis?.members ?? [];
@@ -347,6 +358,7 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
     return {
       ...plan.metrics,
       totalStoryPoints,
+      ...(pertMode ? { totalHours: Math.round(totalWorkload * 10) / 10 } : {}),
       taskCount,
       utilization: Math.round(utilization * 10) / 10,
       balanceScore: Math.round(balanceScore * 10) / 10,
@@ -359,14 +371,15 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
     const analysis = plan?.teamAnalysis;
     if (!analysis) return null;
 
-    const memberSprintSp: Record<number, number> = {};
+    const pertMode = plan.metrics.pertMode ?? false;
+    const memberSprintWorkload: Record<number, number> = {};
     for (const a of Object.values(editableAssignments.value)) {
-      memberSprintSp[a.memberId] =
-        (memberSprintSp[a.memberId] || 0) + a.storyPoints;
+      const w = pertMode ? (a.pertHours ?? 0) : a.storyPoints;
+      memberSprintWorkload[a.memberId] = (memberSprintWorkload[a.memberId] || 0) + w;
     }
 
     const members: TeamMemberAnalysis[] = analysis.members.map((m) => {
-      const sprintSp = memberSprintSp[m.memberId] || 0;
+      const sprintSp = memberSprintWorkload[m.memberId] || 0;
       const crossSp = m.crossProjectWorkload || 0;
       const totalSp = crossSp + sprintSp;
       const availableSp = Math.max(0, m.maxCapacity - totalSp);
@@ -380,7 +393,9 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
 
       let reason: string;
       if (sprintSp === 0) {
-        if (analysis.considerCrossProject && crossSp > 0) {
+        if (pertMode) {
+          reason = 'Not assigned - tasks matched better with other team members';
+        } else if (analysis.considerCrossProject && crossSp > 0) {
           reason = `Not assigned - has ${crossSp} SP in other projects`;
         } else if (totalSp >= m.maxCapacity) {
           reason = 'Not assigned - at maximum capacity';
@@ -388,7 +403,9 @@ export const useSmartSprintStore = defineStore('smartSprint', () => {
           reason = 'Not assigned - tasks matched better with other team members';
         }
       } else {
-        if (analysis.considerCrossProject && crossSp > 0) {
+        if (pertMode) {
+          reason = `Assigned ${sprintSp.toFixed(1)}h`;
+        } else if (analysis.considerCrossProject && crossSp > 0) {
           reason = `Assigned ${sprintSp} SP (considering ${crossSp} SP from other projects)`;
         } else {
           reason = `Assigned ${sprintSp} SP`;

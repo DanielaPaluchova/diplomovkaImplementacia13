@@ -338,19 +338,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useProjectStore, type Task } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
+const { log } = useActivityLog();
+
+const selectedProjectId = ref<number | null>(null);
+
+watch(() => selectedProjectId.value, (newVal) => {
+  if (newVal) log('project_select', 'raci_matrix', { projectId: newVal });
+});
 
 // Fetch data from API
 onMounted(async () => {
   await Promise.all([projectStore.fetchProjects(true), teamStore.fetchTeamMembers()]);
-});
 
-const selectedProjectId = ref<number | null>(null);
+  // Set default project if available (same as PERT, Critical Path, etc.)
+  if (projectStore.projects.length > 0 && !selectedProjectId.value) {
+    const firstProject = projectStore.projects[0];
+    if (firstProject) {
+      selectedProjectId.value = firstProject.id;
+    }
+  }
+});
 
 // Project options
 const projectOptions = computed(() => {

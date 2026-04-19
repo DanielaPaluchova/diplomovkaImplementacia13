@@ -1813,7 +1813,7 @@
           </div>
 
           <q-separator class="q-my-md" />
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (days)</div>
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (hours)</div>
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
               <q-input
@@ -1821,7 +1821,7 @@
                 label="Optimistic"
                 type="number"
                 filled
-                hint="Best case scenario (days)"
+                hint="Best case scenario (hours)"
               />
             </div>
             <div class="col">
@@ -1830,7 +1830,7 @@
                 label="Most Likely"
                 type="number"
                 filled
-                hint="Expected time (days)"
+                hint="Expected time (hours)"
               />
             </div>
             <div class="col">
@@ -1839,7 +1839,7 @@
                 label="Pessimistic"
                 type="number"
                 filled
-                hint="Worst case scenario (days)"
+                hint="Worst case scenario (hours)"
               />
             </div>
           </div>
@@ -2051,7 +2051,7 @@
           </div>
 
           <q-separator class="q-my-md" />
-          <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (days)</div>
+          <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Estimates (hours)</div>
           <div class="row q-gutter-md q-mb-md">
             <div class="col">
               <q-input
@@ -2059,7 +2059,7 @@
                 label="Optimistic"
                 type="number"
                 filled
-                hint="Best case scenario (days)"
+                hint="Best case scenario (hours)"
               />
             </div>
             <div class="col">
@@ -2068,7 +2068,7 @@
                 label="Most Likely"
                 type="number"
                 filled
-                hint="Expected time (days)"
+                hint="Expected time (hours)"
               />
             </div>
             <div class="col">
@@ -2077,7 +2077,7 @@
                 label="Pessimistic"
                 type="number"
                 filled
-                hint="Worst case scenario (days)"
+                hint="Worst case scenario (hours)"
               />
             </div>
           </div>

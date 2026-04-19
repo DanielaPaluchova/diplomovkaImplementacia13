@@ -63,6 +63,12 @@ const routes: RouteRecordRaw[] = [
         path: 'profile',
         component: () => import('pages/auth/ProfilePage.vue'),
       },
+      // Admin - Activity Logs (Admin only)
+      {
+        path: 'admin/activity-logs',
+        component: () => import('pages/admin/ActivityLogsPage.vue'),
+        meta: { requiresAdmin: true },
+      },
     ],
   },
 

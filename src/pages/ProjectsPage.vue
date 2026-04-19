@@ -16,7 +16,7 @@
             label="New Project"
             unelevated
             class="q-px-lg"
-            @click="showNewProjectDialog = true"
+            @click="openNewProjectDialog"
           />
         </div>
       </div>
@@ -150,7 +150,7 @@
               icon="add"
               label="Create Project"
               unelevated
-              @click="showNewProjectDialog = true"
+              @click="openNewProjectDialog"
             />
           </q-card>
         </div>
@@ -302,11 +302,13 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const router = useRouter();
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
+const { log } = useActivityLog();
 
 // Reactive data
 const showNewProjectDialog = ref(false);
@@ -459,11 +461,18 @@ function formatDate(date: Date): string {
   return format(date, 'MMM dd, yyyy');
 }
 
+function openNewProjectDialog() {
+  log('project_create', 'projects');
+  showNewProjectDialog.value = true;
+}
+
 function navigateToProject(projectId: number) {
+  log('project_select', 'projects', { projectId });
   router.push(`/projects/${projectId}`);
 }
 
 function editProject(project: Project) {
+  log('project_edit', 'projects', { projectId: project.id });
   editingProject.value = project;
   const p = project as Project & { sprintStartDate?: string };
   projectForm.value = {
@@ -479,6 +488,7 @@ function editProject(project: Project) {
 }
 
 function confirmDeleteProject(project: Project) {
+  log('project_delete', 'projects', { projectId: project.id });
   projectToDelete.value = project;
   showDeleteDialog.value = true;
 }

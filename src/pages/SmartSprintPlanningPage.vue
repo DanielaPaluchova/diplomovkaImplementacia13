@@ -79,12 +79,16 @@
           </div>
         </q-card-section>
 
-        <!-- Cross-Project Workload Consideration -->
-        <q-card-section v-if="selectedProject" class="q-pt-none">
+        <!-- Cross-Project Workload Consideration (not for PERT) -->
+        <q-card-section
+          v-if="selectedProject && !selectedStrategy.startsWith('pert') && !(selectedStrategy === 'hybrid' && hybridWeights.pertMode !== 'none')"
+          class="q-pt-none"
+        >
           <q-checkbox
             v-model="considerCrossProject"
             color="primary"
             label="Consider workload from other projects"
+            @update:model-value="onConsiderCrossProjectToggle"
           >
             <q-tooltip max-width="400px">
               When enabled, the planner will take into account team members' existing workload from
@@ -319,7 +323,7 @@
                 bordered
                 class="strategy-card cursor-pointer"
                 :class="{ 'strategy-card-selected': selectedStrategy === strategy.id }"
-                @click="selectedStrategy = strategy.id"
+                @click="onStrategySelect(strategy.id)"
               >
                 <q-card-section>
                   <div class="row items-center q-mb-sm">
@@ -358,14 +362,16 @@
                 <div class="text-body2 text-grey-7 q-mb-md">
                   Customize how different factors influence task selection in the hybrid strategy
                 </div>
-                <div v-for="(value, key) in hybridWeights" :key="key" class="q-mb-md">
+                <div v-for="key in hybridSliderKeys" :key="key" class="q-mb-md">
                   <div class="text-subtitle2 q-mb-sm">
-                    {{ formatWeightLabel(key) }}: {{ value.toFixed(2) }}
+                    {{ formatWeightLabel(key) }}:
+                    {{ (typeof hybridWeights[key] === 'number' ? hybridWeights[key] : 0).toFixed(2) }}
                   </div>
                   <q-slider
-                    v-model="hybridWeights[key]"
-                    :min="0"
-                    :max="1"
+                    :model-value="Number(hybridWeights[key]) || 0"
+                    @update:model-value="(v) => { hybridWeights[key] = v ?? 0 }"
+                    :min="key === 'pertPredictability' ? 0 : 0"
+                    :max="key === 'pertPredictability' ? 0.3 : 1"
                     :step="0.05"
                     label
                     label-always
@@ -373,12 +379,46 @@
                     markers
                   />
                 </div>
+                <div class="q-mb-md">
+                  <div class="text-subtitle2 q-mb-sm">PERT Mode</div>
+                  <q-select
+                    v-model="hybridWeights.pertMode"
+                    :options="[
+                      { label: 'None (SP-based)', value: 'none' },
+                      { label: 'PERT (raw hours)', value: 'pert' },
+                      { label: 'PERT + RACI Integration (adjusted duration)', value: 'pert-raci' },
+                    ]"
+                    emit-value
+                    map-options
+                    outlined
+                    dense
+                  />
+                  <div class="text-caption text-grey-7">
+                    Choose capacity model. PERT/RACI require tasks with PERT estimates.
+                  </div>
+                </div>
               </q-card-section>
             </q-card>
           </q-expansion-item>
         </q-card-section>
 
         <q-separator />
+
+        <!-- PERT Strategy Note -->
+        <q-banner
+          v-if="selectedStrategy.startsWith('pert') || (selectedStrategy === 'hybrid' && hybridWeights.pertMode !== 'none')"
+          class="bg-blue-1 q-ma-md"
+          rounded
+        >
+          <template v-slot:avatar>
+            <q-icon name="schedule" color="blue" size="24px" />
+          </template>
+          <div class="text-body2">
+            <strong>PERT strategies:</strong> Only tasks with PERT estimates (hours) are included.
+            Capacity: 60h per member. <strong>CV based (PERT)</strong> = predictable tasks first; <strong>PERT</strong> = larger tasks first.
+            Cross-project workload is not considered.
+          </div>
+        </q-banner>
 
         <!-- Warning Banner -->
         <q-banner class="bg-orange-1 q-ma-md" rounded>
@@ -434,14 +474,19 @@
 
           <q-card-section>
             <div class="row q-col-gutter-md">
-              <!-- Total Story Points -->
+              <!-- Total Story Points / Total Hours (PERT) -->
               <div class="col-6 col-md-3">
                 <div class="metric-card">
                   <q-icon name="format_list_numbered" size="32px" color="blue" class="q-mb-sm" />
                   <div class="text-h4 text-weight-bold">
-                    {{ displayMetrics?.totalStoryPoints }}
+                    {{ displayMetrics?.pertMode ? displayMetrics?.totalHours : displayMetrics?.totalStoryPoints }}
                   </div>
-                  <div class="text-caption text-grey-7">Total Story Points</div>
+                  <div class="text-caption text-grey-7">
+                    {{ displayMetrics?.pertMode ? 'Total Hours' : 'Total Story Points' }}
+                  </div>
+                  <div v-if="displayMetrics?.pertMode && displayMetrics?.totalStoryPoints" class="text-caption text-grey-6">
+                    ({{ displayMetrics.totalStoryPoints }} SP)
+                  </div>
                 </div>
               </div>
 
@@ -476,11 +521,15 @@
                       Percentage of total team capacity being utilized by the selected tasks.
                     </div>
                     <div class="q-mb-xs">
-                      <strong>Formula:</strong> (Total SP / Team Capacity) × 100
+                      <strong>Formula:</strong>
+                      {{ displayMetrics?.pertMode ? '(Total Hours / Team Capacity) × 100' : '(Total SP / Team Capacity) × 100' }}
                     </div>
                     <div class="q-mb-xs">
-                      <strong>This Sprint:</strong> {{ displayMetrics?.totalStoryPoints }} SP
-                      / {{ displayMetrics?.teamCapacity }} SP capacity
+                      <strong>This Sprint:</strong>
+                      {{ displayMetrics?.pertMode
+                        ? `${displayMetrics?.totalHours ?? 0}h / ${displayMetrics?.teamCapacity ?? 0}h capacity`
+                        : `${displayMetrics?.totalStoryPoints ?? 0} SP / ${displayMetrics?.teamCapacity ?? 0} SP capacity`
+                      }}
                     </div>
                     <div class="q-mt-sm text-caption">
                       <div>
@@ -627,7 +676,7 @@
                 </div>
                 <div class="text-right">
                   <div class="text-subtitle2">
-                    {{ member.totalWorkload }} / {{ member.maxCapacity }} SP
+                    {{ member.totalWorkload }}{{ displayMetrics?.pertMode ? 'h' : '' }} / {{ member.maxCapacity }}{{ displayMetrics?.pertMode ? 'h' : ' SP' }}
                   </div>
                   <div class="text-caption text-grey-7">
                     {{ member.utilizationPercentage.toFixed(0) }}% utilized
@@ -639,7 +688,7 @@
               <div class="relative-position" style="height: 24px">
                 <!-- Cross-project workload (background) -->
                 <q-linear-progress
-                  v-if="member.crossProjectWorkload > 0"
+                  v-if="!displayMetrics?.pertMode && member.crossProjectWorkload > 0"
                   :value="Math.min(1, member.crossProjectWorkload / member.maxCapacity)"
                   color="orange"
                   size="24px"
@@ -669,8 +718,10 @@
                 >
                   <div class="absolute-full flex flex-center">
                     <div class="text-caption text-white text-weight-bold">
-                      +{{ member.assignedInThisSprint }} SP (this sprint) =
-                      {{ member.totalWorkload }} SP total
+                      {{ displayMetrics?.pertMode
+                        ? `${member.assignedInThisSprint}h (this sprint)`
+                        : `+${member.assignedInThisSprint} SP (this sprint) = ${member.totalWorkload} SP total`
+                      }}
                     </div>
                   </div>
                 </q-linear-progress>
@@ -687,7 +738,7 @@
               <!-- Available capacity indicator -->
               <div v-if="member.availableCapacity > 0" class="text-caption text-positive q-mt-xs">
                 <q-icon name="check_circle" size="14px" />
-                {{ member.availableCapacity }} SP available
+                {{ member.availableCapacity }}{{ displayMetrics?.pertMode ? 'h' : ' SP' }} available
               </div>
               <div v-else class="text-caption text-negative q-mt-xs">
                 <q-icon name="warning" size="14px" />
@@ -896,11 +947,13 @@ import { useSmartSprintStore } from 'src/stores/smart-sprint-store';
 import { useTeamStore } from 'src/stores/team-store';
 import type { SprintPlanConfig, SprintTask } from 'src/stores/smart-sprint-store';
 import type { Task } from 'src/stores/project-store';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const smartSprintStore = useSmartSprintStore();
 const teamStore = useTeamStore();
+const { log } = useActivityLog();
 
 // State
 const selectedProjectId = ref<number | null>(null);
@@ -912,11 +965,13 @@ const startDate = ref<string>('');
 const endDate = ref<string>('');
 const targetUtilization = ref(85);
 const considerCrossProject = ref(true); // Default: consider workload from other projects
-const hybridWeights = ref({
+const hybridWeights = ref<Record<string, number | string>>({
   priority: 0.30,
   workload: 0.25,
   skills: 0.30,
   dependency: 0.15,
+  pertMode: 'none',
+  pertPredictability: 0.1,
 });
 const showAddTaskDialog = ref(false);
 
@@ -968,6 +1023,10 @@ const canGeneratePlan = computed(() => {
 const hasGeneratedPlan = computed(() => {
   return !!smartSprintStore.planningResult;
 });
+
+const hybridSliderKeys = computed(() =>
+  Object.keys(hybridWeights.value).filter((k) => k !== 'pertMode')
+);
 
 // Note: canApplyPlan check removed - AI now creates PLANNED sprints which don't conflict with active sprints
 
@@ -1083,7 +1142,25 @@ watch(startDate, (newStartDate) => {
 });
 
 // Methods
+function onConsiderCrossProjectToggle() {
+  log('consider_cross_project_toggle', 'smart_sprint_planning', {
+    ...(selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {}),
+    details: { enabled: considerCrossProject.value },
+  });
+}
+
+function onStrategySelect(strategyId: string) {
+  selectedStrategy.value = strategyId;
+  log('strategy_select', 'smart_sprint_planning', {
+    ...(selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {}),
+    details: { strategy: strategyId },
+  });
+}
+
 async function onProjectChange() {
+  if (selectedProjectId.value) {
+    log('project_select', 'smart_sprint_planning', { projectId: selectedProjectId.value });
+  }
   smartSprintStore.clearPlan();
 
   if (selectedProjectId.value) {
@@ -1116,6 +1193,10 @@ async function onProjectChange() {
 
 async function onGeneratePlan() {
   if (!selectedProjectId.value) return;
+  log('generate_plan', 'smart_sprint_planning', {
+    projectId: selectedProjectId.value,
+    details: { strategy: selectedStrategy.value },
+  });
 
   const config: SprintPlanConfig = {
     strategy: selectedStrategy.value,
@@ -1154,6 +1235,7 @@ async function onGeneratePlan() {
 }
 
 function onRegenerate() {
+  log('regenerate_plan', 'smart_sprint_planning', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
   smartSprintStore.clearPlan();
 }
 
@@ -1248,6 +1330,10 @@ async function deleteExistingPlannedSprint() {
 
 async function onApplyPlan() {
   if (!selectedProjectId.value || smartSprintStore.editableTasks.length === 0) return;
+  log('apply_plan', 'smart_sprint_planning', {
+    projectId: selectedProjectId.value,
+    details: { taskCount: smartSprintStore.editableTasks.length },
+  });
 
   const taskIds = smartSprintStore.editableTasks.map((t) => t.id);
   const assignments: Record<string, { memberId: number; role: string }> = {};
@@ -1333,7 +1419,7 @@ function formatWeightLabel(key: string): string {
     workload: 'Workload Balance',
     skills: 'Skills Match',
     dependency: 'Dependency',
-    velocity: 'Velocity',
+    pertPredictability: 'PERT Predictability (CV)',
     risk: 'Risk',
   };
   return labels[key] || key;

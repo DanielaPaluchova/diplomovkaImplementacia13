@@ -469,7 +469,7 @@
                 :proposals="proposals"
                 :selected-proposals="requirementChangeStore.selectedProposals"
                 :scope="requirementChangeStore.analysisResult?.scope"
-                @toggle-selection="requirementChangeStore.toggleProposalSelection"
+                @toggle-selection="onToggleProposal"
                 @select-all="requirementChangeStore.selectAllProposals"
                 @deselect-all="requirementChangeStore.deselectAllProposals"
               />
@@ -556,7 +556,7 @@
                 :proposals="proposals"
                 :selected-proposals="requirementChangeStore.selectedProposals"
                 :scope="requirementChangeStore.analysisResult?.scope"
-                @toggle-selection="requirementChangeStore.toggleProposalSelection"
+                @toggle-selection="onToggleProposal"
                 @select-all="requirementChangeStore.selectAllProposals"
                 @deselect-all="requirementChangeStore.deselectAllProposals"
               />
@@ -629,7 +629,7 @@
                 :proposals="proposals"
                 :selected-proposals="requirementChangeStore.selectedProposals"
                 :scope="requirementChangeStore.analysisResult?.scope"
-                @toggle-selection="requirementChangeStore.toggleProposalSelection"
+                @toggle-selection="onToggleProposal"
                 @select-all="requirementChangeStore.selectAllProposals"
                 @deselect-all="requirementChangeStore.deselectAllProposals"
               />
@@ -748,14 +748,19 @@ import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
 import { useRequirementChangeStore, type OptimizationScope } from 'src/stores/requirement-change-store';
 import OptimizationProposals from 'src/components/OptimizationProposals.vue';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
 const requirementChangeStore = useRequirementChangeStore();
+const { log } = useActivityLog();
 
 // Load data on mount
 const initialLoading = ref(true);
+
+// State
+const selectedProjectId = ref<number | null>(null);
 
 onMounted(async () => {
   try {
@@ -763,21 +768,43 @@ onMounted(async () => {
       projectStore.fetchProjects(true),
       teamStore.fetchTeamMembers()
     ]);
+
+    // Set default project if available (same as RACI, PERT, etc.)
+    if (projectStore.projects.length > 0 && !selectedProjectId.value) {
+      const firstProject = projectStore.projects[0];
+      if (firstProject) {
+        selectedProjectId.value = firstProject.id;
+      }
+    }
   } finally {
     initialLoading.value = false;
   }
 });
-
-// State
-const selectedProjectId = ref<number | null>(null);
 const activeTab = ref('backlog'); // Default to backlog
 const showApplyDialog = ref(false);
 const applyingChanges = ref(false);
 
 // Clear analysis when switching tabs
-watch(activeTab, () => {
+watch(activeTab, (newVal) => {
+  log('tab_switch', 'requirement_changes', {
+    ...(selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {}),
+    details: { scope: newVal },
+  });
   requirementChangeStore.clearAnalysis();
 });
+
+watch(selectedProjectId, (newVal) => {
+  if (newVal) log('project_select', 'requirement_changes', { projectId: newVal });
+});
+
+function onToggleProposal(proposalId: string) {
+  const wasSelected = requirementChangeStore.selectedProposals.includes(proposalId);
+  requirementChangeStore.toggleProposalSelection(proposalId);
+  log(wasSelected ? 'proposal_deselect' : 'proposal_select', 'requirement_changes', {
+    ...(selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {}),
+    details: { proposalId },
+  });
+}
 
 // Computed
 const projectOptions = computed(() => {
@@ -1187,6 +1214,10 @@ function getWorkloadColorClass(workload: number): string {
 
 async function analyzeTab(scope: OptimizationScope) {
   if (!selectedProjectId.value) return;
+  log('analysis_run', 'requirement_changes', {
+    projectId: selectedProjectId.value,
+    details: { scope },
+  });
 
   const result = await requirementChangeStore.autoOptimizeProject(
     selectedProjectId.value,
@@ -1206,6 +1237,10 @@ async function analyzeTab(scope: OptimizationScope) {
 
 async function analyzePertRaciTab(scope: OptimizationScope) {
   if (!selectedProjectId.value) return;
+  log('pert_raci_analysis_run', 'requirement_changes', {
+    projectId: selectedProjectId.value,
+    details: { scope },
+  });
 
   const result = await requirementChangeStore.analyzePertRaci(
     selectedProjectId.value,
@@ -1235,6 +1270,10 @@ function clearAnalysis() {
 
 async function applyChanges() {
   if (!selectedProjectId.value) return;
+  log('apply_changes', 'requirement_changes', {
+    projectId: selectedProjectId.value,
+    details: { count: requirementChangeStore.getSelectedProposals().length },
+  });
 
   applyingChanges.value = true;
 

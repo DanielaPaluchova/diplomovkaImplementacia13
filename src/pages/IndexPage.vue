@@ -220,6 +220,7 @@ import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const router = useRouter();
 const route = useRoute();
@@ -227,6 +228,7 @@ const $q = useQuasar();
 const authStore = useAuthStore();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
+const { log } = useActivityLog();
 
 // Check for access denied message and fetch data
 onMounted(async () => {
@@ -314,6 +316,8 @@ function getProjectColor(status: string): string {
 
 // Helper functions
 function navigateTo(path: string) {
+  if (path === '/projects') log('navigate_to_projects', 'dashboard');
+  else log('quick_action_click', 'dashboard', { details: { path } });
   router.push(path);
 }
 

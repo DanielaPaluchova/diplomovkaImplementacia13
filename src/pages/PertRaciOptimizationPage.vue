@@ -2540,15 +2540,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
 import { raciWeightsApi } from 'src/services/api';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const teamStore = useTeamStore();
+const { log } = useActivityLog();
 
 // Project Selection
 const selectedProjectId = ref<number | null>(null);
@@ -3826,6 +3828,7 @@ function calculateAdjustedDuration(
 // Tasks are now computed, so recalculation happens automatically when dependencies change
 
 async function applyWeights() {
+  log('weights_apply', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
   // Validate weights
   const weights = raciWeights.value;
   if (
@@ -3857,6 +3860,7 @@ async function applyWeights() {
 }
 
 async function resetWeights() {
+  log('weights_reset', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
   raciWeights.value = {
     responsible: 1.0,
     accountable: 0.1,
@@ -4281,6 +4285,22 @@ onMounted(async () => {
       selectedProjectId.value = firstProject.id;
     }
   }
+});
+
+const TAB_ACTION_MAP: Record<string, string> = {
+  active: 'view_aktívny_šprint',
+  planned: 'view_plánovaný_šprint',
+  past: 'view_minulé_šprinty',
+  future: 'view_budúce_tasky',
+};
+
+watch(selectedProjectId, (newVal) => {
+  if (newVal) log('project_select', 'pert_raci_optimization', { projectId: newVal });
+});
+
+watch(activeTab, (newVal) => {
+  const action = TAB_ACTION_MAP[newVal];
+  if (action) log(action, 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
 });
 </script>
 

@@ -63,7 +63,8 @@ def create_app():
     from app.routes.requirement_changes import requirement_changes_bp
     from app.routes.smart_sprint import smart_sprint_bp
     from app.routes.raci_weights import raci_weights_bp
-    
+    from app.routes.activity_logs import activity_logs_bp
+
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(projects_bp, url_prefix='/api/projects')
     app.register_blueprint(teams_bp, url_prefix='/api/teams')
@@ -73,7 +74,8 @@ def create_app():
     app.register_blueprint(requirement_changes_bp, url_prefix='/api/projects')
     app.register_blueprint(smart_sprint_bp, url_prefix='/api/projects')
     app.register_blueprint(raci_weights_bp, url_prefix='/api/raci-weights')
-    
+    app.register_blueprint(activity_logs_bp, url_prefix='/api')
+
     # Health check endpoint
     @app.route('/api/health')
     def health_check():
@@ -150,6 +152,20 @@ def _run_auto_migrations():
                     migrations_applied.append('epics.target_date')
                 except:
                     pass
+            
+            # Fix: owner_id must reference team_members, not users (legacy migration)
+            try:
+                db.session.execute(text(
+                    "ALTER TABLE epics DROP CONSTRAINT IF EXISTS epics_owner_id_fkey"
+                ))
+                db.session.execute(text(
+                    "ALTER TABLE epics ADD CONSTRAINT epics_owner_id_fkey "
+                    "FOREIGN KEY (owner_id) REFERENCES team_members(id) ON DELETE SET NULL"
+                ))
+                db.session.commit()
+                migrations_applied.append('epics.owner_id_fk_to_team_members')
+            except Exception:
+                db.session.rollback()
         
         if migrations_applied:
             db.session.commit()

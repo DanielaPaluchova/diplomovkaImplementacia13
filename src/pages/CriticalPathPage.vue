@@ -479,10 +479,12 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useEpicStore, type Epic, type EpicCriticalPathResponse } from 'src/stores/epic-store';
+import { useActivityLog } from 'src/composables/useActivityLog';
 
 const $q = useQuasar();
 const projectStore = useProjectStore();
 const epicStore = useEpicStore();
+const { log } = useActivityLog();
 
 const selectedProjectId = ref<number | null>(null);
 const loading = ref(false);
@@ -862,7 +864,8 @@ async function loadEpics() {
 
 async function calculateCriticalPath() {
   if (!selectedProjectId.value) return;
-  
+  log('calculate_critical_path', 'critical_path', { projectId: selectedProjectId.value });
+
   loadingCriticalPath.value = true;
   try {
     const data = await epicStore.getCriticalPath(selectedProjectId.value);
@@ -1003,9 +1006,19 @@ function endPan() {
 }
 
 // Watch for project changes
-watch(selectedProjectId, async () => {
-  if (selectedProjectId.value) {
+watch(selectedProjectId, async (newVal) => {
+  if (newVal) {
+    log('project_select', 'critical_path', { projectId: newVal });
     await loadEpics();
+  }
+});
+
+watch(targetDateStr, (newVal) => {
+  if (newVal && selectedProjectId.value) {
+    log('probability_completion_by_deadline', 'critical_path', {
+      projectId: selectedProjectId.value,
+      details: { targetDate: newVal },
+    });
   }
 });
 
