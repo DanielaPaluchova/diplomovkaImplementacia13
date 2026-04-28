@@ -1,0 +1,231 @@
+﻿\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[slovak]{babel}
+\usepackage{geometry}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+
+\geometry{margin=2.5cm}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue
+}
+\setlist[itemize]{noitemsep, topsep=0.3em}
+\renewcommand{\arraystretch}{1.2}
+
+\lstdefinestyle{commandstyle}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  keepspaces=true
+}
+\lstset{style=commandstyle}
+
+\title{Technická dokumentácia projektu}
+\author{Daniela Paluchová}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Úvod}
+
+Projekt je webová aplikácia pre projektové riadenie, plánovanie sprintov a analytickú podporu tímovej práce. Podporuje správu projektov, tímov, úloh, epikov, PERT analýzu, RACI maticu, optimalizáciu plánovania a evidenciu používateľskej aktivity.
+
+Riešenie je postavené ako klient-server systém. Frontend tvorí jednostránková aplikácia vo frameworku Quasar/Vue, backend je REST API vo Flasku a dáta sú uložené v PostgreSQL databáze.
+
+\section{Architektúra systému}
+
+Aplikácia je rozdelená na tri vrstvy:
+
+\begin{itemize}
+  \item \textbf{Frontend} -- používateľské rozhranie, routing, lokálny stav a volania API.
+  \item \textbf{Backend} -- autentifikácia, autorizácia, doménová logika, plánovanie a REST endpointy.
+  \item \textbf{Databáza} -- perzistencia používateľov, projektov, úloh, sprintov, epikov a logov.
+\end{itemize}
+
+Frontend komunikuje s backendom cez JSON REST API. Chránené požiadavky používajú JWT token v hlavičke \texttt{Authorization}. API má predvolenú adresu \texttt{http://localhost:5000/api}, ktorú možno zmeniť cez premennú \texttt{VITE\_API\_BASE\_URL}.
+
+\section{Technologický stack}
+
+\begin{longtable}{|p{4cm}|p{9.5cm}|}
+\hline
+\textbf{Oblasť} & \textbf{Použité technológie} \\
+\hline
+Frontend & Quasar 2, Vue 3, TypeScript, Vue Router, Pinia, Axios, Chart.js, date-fns. \\
+\hline
+Backend & Flask 3, Flask-SQLAlchemy, SQLAlchemy 2, Flask-JWT-Extended, Flask-CORS, Flask-Migrate. \\
+\hline
+Databáza & PostgreSQL cez ovládač \texttt{psycopg2-binary}. \\
+\hline
+Bezpečnosť & JWT tokeny a bcrypt hashovanie hesiel. \\
+\hline
+Kvalita kódu & ESLint, Prettier, TypeScript strict režim, vite-plugin-checker. \\
+\hline
+\end{longtable}
+
+\section{Frontend}
+
+Frontendová časť sa nachádza v adresári \texttt{src/}. Konfiguráciu zabezpečuje \texttt{quasar.config.ts}, kde sú nastavené boot súbory \texttt{auth} a \texttt{axios}, globálne štýly, Quasar pluginy \texttt{Notify} a \texttt{Dialog}, router mód \texttt{hash} a TypeScript strict režim.
+
+\subsection{Štruktúra}
+
+\begin{longtable}{|p{4.5cm}|p{9cm}|}
+\hline
+\textbf{Cesta} & \textbf{Účel} \\
+\hline
+\texttt{src/pages/} & Stránky aplikácie: projekty, epiky, tím, workload, PERT/RACI, smart sprint planning, profil a admin logy. \\
+\hline
+\texttt{src/components/} & Znovupoužiteľné komponenty, napríklad epic board, dialógy a optimalizačné návrhy. \\
+\hline
+\texttt{src/stores/} & Pinia stores pre autentifikáciu, projekty, epiky, tím a plánovanie. \\
+\hline
+\texttt{src/router/} & Definícia rout a navigačných guardov. \\
+\hline
+\texttt{src/services/} & API klienti pre komunikáciu s backendom. \\
+\hline
+\end{longtable}
+
+\subsection{Routing a stav}
+
+Routy sú definované v \texttt{src/router/routes.ts}. Verejné routy sú \texttt{/login} a \texttt{/register}; hlavná časť aplikácie používa layout \texttt{MainLayout.vue}. Vybrané routy sú chránené meta atribútmi \texttt{requiresAuth}, \texttt{requiresManager} a \texttt{requiresAdmin}.
+
+Autentifikačný store \texttt{src/stores/auth-store.ts} drží aktuálneho používateľa, token, stav načítania a chyby. Token a používateľ sú uložené v \texttt{localStorage}. Store poskytuje akcie pre prihlásenie, registráciu, odhlásenie, úpravu profilu a zmenu hesla.
+
+\subsection{API klient}
+
+Hlavný klient je v \texttt{src/services/api.ts}. Je založený na Axios inštancii s timeoutom 10 sekúnd. Request interceptor pridáva Bearer token mimo verejných endpointov \texttt{/auth/login} a \texttt{/auth/register}. Response interceptor spracúva najmä chyby 401, 403 a 500; pri neautorizovanom prístupe vyčistí lokálnu autentifikáciu.
+
+\section{Backend}
+
+Backendová časť je v adresári \texttt{backend/}. Vstupným súborom je \texttt{backend/run.py}, ktorý vytvára aplikáciu cez \texttt{create\_app()} zo súboru \texttt{backend/app/\_\_init\_\_.py}. Predvolené spustenie používa host \texttt{0.0.0.0}, port \texttt{5000} a debug režim podľa \texttt{FLASK\_ENV}.
+
+Aplikačná továreň inicializuje SQLAlchemy, migrácie, JWT, CORS pravidlá, REST blueprinty a endpoint \texttt{/api/health}. Pri štarte sa volá \texttt{db.create\_all()} a doplnkové automatické migrácie pre vybrané stĺpce epikov.
+
+\subsection{Konfigurácia}
+
+Backend používa environment premenné načítané cez \texttt{python-dotenv}. Dôležité premenné sú \texttt{DATABASE\_URL}, \texttt{SECRET\_KEY}, \texttt{JWT\_SECRET\_KEY}, \texttt{JWT\_ACCESS\_TOKEN\_EXPIRES}, \texttt{CORS\_ORIGINS}, \texttt{HOST}, \texttt{PORT} a \texttt{FLASK\_ENV}. Dokumentácia neuvádza lokálne tajné hodnoty ani obsah súboru \texttt{.env}.
+
+\subsection{API prehľad}
+
+\begin{longtable}{|p{4.5cm}|p{9cm}|}
+\hline
+\textbf{Prefix} & \textbf{Účel} \\
+\hline
+\texttt{/api/auth} & Registrácia, prihlásenie, profil, zmena hesla a odhlásenie. \\
+\hline
+\texttt{/api/projects} & Projekty, sprinty, členovia projektu, kritická cesta, konfigurácia a optimalizačné logy. \\
+\hline
+\texttt{/api/tasks} & CRUD úloh a hromadné aktualizácie. \\
+\hline
+\texttt{/api/teams} & Správa členov tímu. \\
+\hline
+\texttt{/api/projects/\{id\}/epics} & Správa epikov projektu a kritická cesta epikov. \\
+\hline
+\texttt{/api/projects/\{id\}/smart-sprint-planning} & Návrh inteligentného sprint plánu. \\
+\hline
+\texttt{/api/projects/\{id\}/analyze-pert-raci} & Kombinovaná PERT/RACI analýza. \\
+\hline
+\texttt{/api/raci-weights} & Konfigurácia váh RACI výpočtov. \\
+\hline
+\texttt{/api/activity-logs} & Zápis aktivity používateľov a admin prehľady. \\
+\hline
+\end{longtable}
+
+\subsection{Autentifikácia}
+
+Backend používa JWT access tokeny. Heslá sú ukladané ako bcrypt hash. Autorizácia pracuje s rolami \texttt{admin}, \texttt{manager}, \texttt{developer} a \texttt{viewer}; pomocné autorizačné funkcie sú v \texttt{backend/app/utils/auth.py}.
+
+\section{Dátový model}
+
+Modely sú definované v \texttt{backend/app/models/}. Najdôležitejšie entity:
+
+\begin{itemize}
+  \item \texttt{User} -- používateľský účet s emailom, heslom a rolou.
+  \item \texttt{Project} -- projekt s nastaveniami, stavom, termínmi, PERT/RACI konfiguráciou a sprint parametrami.
+  \item \texttt{Task} -- úloha s prioritou, stavom, story pointmi, PERT odhadmi, RACI rolami, závislosťami a rizikom.
+  \item \texttt{Epic} -- väčší projektový celok s vlastníkom, prioritou, termínmi, PERT odhadmi a závislosťami.
+  \item \texttt{Sprint} -- časovo ohraničený plán s kapacitou, story pointmi a velocity.
+  \item \texttt{TeamMember} -- člen tímu so zručnosťami, kapacitou, vyťaženosťou a dostupnosťou.
+  \item \texttt{ActivityLog}, \texttt{OptimizationLog}, \texttt{TaskHistory} -- audit, optimalizácie a história práce.
+\end{itemize}
+
+Projekt má väzby na sprinty, úlohy, epiky a projektové roly. Úloha môže patriť projektu, sprintu aj epiku. Epic môže obsahovať viac úloh a môže mať vlastníka z členov tímu.
+
+\section{Doménové služby}
+
+Služby v \texttt{backend/app/services/} oddeľujú plánovaciu a analytickú logiku od rout. Patria sem najmä:
+
+\begin{itemize}
+  \item \texttt{smart\_sprint\_planner.py} -- návrh sprint plánu,
+  \item \texttt{pert\_raci\_analyzer.py} -- PERT/RACI analýza,
+  \item \texttt{risk\_analyzer.py} -- vyhodnotenie rizík,
+  \item \texttt{dependency\_optimizer.py} -- optimalizácia závislostí,
+  \item \texttt{bottleneck\_analyzer.py} -- hľadanie úzkych miest,
+  \item \texttt{task\_splitter.py} a \texttt{task\_merger.py} -- rozdelenie a spájanie úloh.
+\end{itemize}
+
+\section{Lokálne spustenie}
+
+Lokálne sa aplikácia spúšťa ako dve samostatné časti: Quasar frontend a Flask backend. Frontendová časť je Quasar aplikácia, preto sa vo vývoji spúšťa cez Quasar CLI. V súbore \texttt{package.json} je príkaz \texttt{npm run dev} namapovaný na \texttt{quasar dev}.
+
+\begin{lstlisting}
+npm install
+quasar dev
+\end{lstlisting}
+
+Alternatívne je možné použiť npm skript:
+
+\begin{lstlisting}
+npm run dev
+\end{lstlisting}
+
+Príkaz \texttt{quasar dev} spustí vývojový server Quasar/Vite a otvorí aplikáciu v prehliadači podľa nastavenia v \texttt{quasar.config.ts}. Produkčný build frontendu sa vytvorí príkazom:
+
+\begin{lstlisting}
+npm run build
+npm run lint
+\end{lstlisting}
+
+Backend sa spúšťa zo samostatného adresára \texttt{backend/}. Pred spustením je potrebné mať nastavené environment premenné, najmä \texttt{DATABASE\_URL}, \texttt{SECRET\_KEY} a \texttt{JWT\_SECRET\_KEY}.
+
+\begin{lstlisting}
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python run.py
+\end{lstlisting}
+
+Lokálna databáza je PostgreSQL databáza dostupná cez premennú \texttt{DATABASE\_URL}. Po štarte backend vytvorí tabuľky podľa SQLAlchemy modelov.
+
+\section{Nasadenie}
+
+Frontend je nasadený na platforme Vercel. Konfigurácia je v súbore \texttt{vercel.json}: build príkaz je \texttt{npm run build}, výstupný adresár je \texttt{dist/spa} a všetky SPA routy sú prepísané na \texttt{/index.html}. Verejná adresa aplikácie je:
+
+\begin{lstlisting}
+https://diplomovka-implementacia13.vercel.app/
+\end{lstlisting}
+
+Backendová časť je nasadená na platforme Render ako Flask REST API. Frontend sa na backend pripája cez premennú \texttt{VITE\_API\_BASE\_URL}, ktorá v produkcii obsahuje URL Render služby. Databázová vrstva používa PostgreSQL databázu hostovanú na platforme Neon a backend sa na ňu pripája cez premennú \texttt{DATABASE\_URL}. Citlivé hodnoty, ako databázové heslá a JWT tajné kľúče, sa ukladajú iba v environment premenných nasadzovacieho prostredia.
+
+\section{Kvalita, testovanie a bezpečnosť}
+
+Frontend používa ESLint, Prettier a TypeScript strict režim. Backend deklaruje \texttt{pytest} a \texttt{pytest-flask}, no projekt zatiaľ nemá plnohodnotnú testovaciu konfiguráciu; \texttt{npm test} je iba placeholder.
+
+Bezpečnosť je založená na JWT a bcrypt. Token sa na klientovi ukladá v \texttt{localStorage}, čo je jednoduché riešenie vhodné pre prototyp, ale pri produkcii treba zohľadniť riziká XSS. CORS je vo vývojovej konfigurácii voľnejší, preto je vhodné v produkcii obmedziť povolené originy.
+
+\section{Zhrnutie}
+
+Projekt kombinuje Quasar/Vue frontend, Flask REST API a PostgreSQL databázu. Hlavnou funkcionalitou je projektové plánovanie podporené PERT odhadmi, RACI zodpovednosťami, kapacitami členov tímu a optimalizáciou sprintov.
+
+\end{document}
