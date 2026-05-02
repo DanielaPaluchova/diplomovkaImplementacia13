@@ -282,26 +282,31 @@
           </q-card-section>
 
           <q-card-section>
-            <div class="row items-center q-gutter-md q-mb-md">
-              <div>
-                <div class="text-caption text-grey-7">Critical Path Duration</div>
-                <div class="text-h5 text-orange text-weight-bold">
-                  {{ criticalPathData.projectDuration.toFixed(1) }} days
-                </div>
-              </div>
-              <div v-if="independentEpicsDuration > 0">
-                <div class="text-caption text-grey-7">+ Independent Epics</div>
-                <div class="text-h5 text-purple text-weight-bold">
-                  +{{ independentEpicsDuration.toFixed(1) }} days
-                </div>
-              </div>
-              <q-separator vertical inset />
-              <div>
-                <div class="text-caption text-grey-7">Total Estimated Duration</div>
-                <div class="text-h5 text-primary text-weight-bold">
-                  = {{ (criticalPathData.projectDuration + independentEpicsDuration).toFixed(1) }} days
-                </div>
-              </div>
+            <div class="critical-path-kpi-grid q-mb-md">
+              <q-card flat bordered class="critical-path-kpi-card">
+                <q-card-section class="q-pa-md">
+                  <div class="text-caption text-grey-7">Critical Path Duration</div>
+                  <div class="text-h5 text-orange text-weight-bold">
+                    {{ criticalPathData.projectDuration.toFixed(1) }} days
+                  </div>
+                </q-card-section>
+              </q-card>
+              <q-card flat bordered class="critical-path-kpi-card" v-if="independentEpicsDuration > 0">
+                <q-card-section class="q-pa-md">
+                  <div class="text-caption text-grey-7">Independent Epics (parallel)</div>
+                  <div class="text-h5 text-purple text-weight-bold">
+                    +{{ independentEpicsDuration.toFixed(1) }} days
+                  </div>
+                </q-card-section>
+              </q-card>
+              <q-card flat bordered class="critical-path-kpi-card">
+                <q-card-section class="q-pa-md">
+                  <div class="text-caption text-grey-7">Total Estimated Duration</div>
+                  <div class="text-h5 text-primary text-weight-bold">
+                    {{ (criticalPathData.projectDuration + independentEpicsDuration).toFixed(1) }} days
+                  </div>
+                </q-card-section>
+              </q-card>
             </div>
 
             <q-banner v-if="independentEpics.length > 0" class="bg-purple-1 text-purple-9 q-mb-md" rounded>
@@ -320,20 +325,20 @@
                 <q-icon name="analytics" class="q-mr-xs" />
                 PERT Statistics (Critical Path)
               </div>
-              <div v-if="hasPertStats" class="row q-gutter-md">
-                <q-card flat bordered class="col" style="min-width: 120px">
+              <div v-if="hasPertStats" class="critical-path-stats-grid">
+                <q-card flat bordered class="critical-path-stat-card">
                   <q-card-section class="q-pa-sm">
                     <div class="text-caption text-grey-7">Variance (σ²)</div>
                     <div class="text-h6 text-weight-bold">{{ pertStats.projectVariance.toFixed(3) }}</div>
                   </q-card-section>
                 </q-card>
-                <q-card flat bordered class="col" style="min-width: 120px">
+                <q-card flat bordered class="critical-path-stat-card">
                   <q-card-section class="q-pa-sm">
                     <div class="text-caption text-grey-7">Std Dev (σ)</div>
                     <div class="text-h6 text-weight-bold">{{ pertStats.projectStdDev.toFixed(2) }} days</div>
                   </q-card-section>
                 </q-card>
-                <q-card flat bordered class="col" style="min-width: 200px">
+                <q-card flat bordered class="critical-path-stat-card">
                   <q-card-section class="q-pa-sm">
                     <div class="text-caption text-grey-7">68% Confidence</div>
                     <div class="text-body2 text-weight-medium">
@@ -341,7 +346,7 @@
                     </div>
                   </q-card-section>
                 </q-card>
-                <q-card flat bordered class="col" style="min-width: 200px">
+                <q-card flat bordered class="critical-path-stat-card">
                   <q-card-section class="q-pa-sm">
                     <div class="text-caption text-grey-7">95% Confidence</div>
                     <div class="text-body2 text-weight-medium">
@@ -361,21 +366,25 @@
                 <q-icon name="event_available" class="q-mr-xs" />
                 Probability of Completion by Deadline
               </div>
-              <div class="row items-center q-gutter-md">
-                <q-input
-                  v-model="targetDateStr"
-                  type="date"
-                  label="Target deadline"
-                  outlined
-                  dense
-                  style="max-width: 200px"
-                  :min="todayStr"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="event" />
-                  </template>
-                </q-input>
-                <div v-if="targetDateStr" class="row items-center q-gutter-sm">
+              <div class="deadline-probability-grid">
+                <q-card flat bordered class="critical-path-stat-card deadline-input-card">
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-caption text-grey-7">Target deadline</div>
+                    <q-input
+                      v-model="targetDateStr"
+                      type="date"
+                      borderless
+                      dense
+                      class="deadline-input"
+                      :min="todayStr"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="event" />
+                      </template>
+                    </q-input>
+                  </q-card-section>
+                </q-card>
+                <div v-if="targetDateStr" class="deadline-probability-result">
                   <q-chip
                     :color="completionProbabilityColor"
                     text-color="white"
@@ -395,7 +404,7 @@
             </div>
 
             <div class="text-subtitle2 q-mb-sm">Critical Path Sequence:</div>
-            <div class="row q-gutter-xs q-mb-lg">
+            <div class="critical-sequence-chips q-mb-lg">
               <q-chip
                 v-for="epicId in criticalPathData.criticalPath"
                 :key="epicId"
@@ -1094,5 +1103,92 @@ onMounted(async () => {
   transition:
     stroke 0.3s ease,
     stroke-width 0.3s ease;
+}
+
+.critical-path-kpi-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.critical-path-kpi-card,
+.critical-path-stat-card {
+  height: 100%;
+}
+
+.critical-path-stat-card :deep(.q-card__section) {
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.critical-path-stats-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.deadline-probability-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+}
+
+.deadline-input {
+  width: 100%;
+}
+
+.deadline-input-card :deep(.q-card__section) {
+  min-height: 72px;
+}
+
+.deadline-input :deep(.q-field__control),
+.deadline-input :deep(.q-field__native) {
+  min-height: 32px;
+}
+
+.deadline-probability-result {
+  grid-column: span 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.critical-sequence-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 1240px) {
+  .critical-path-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .critical-path-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deadline-probability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deadline-probability-result {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .critical-path-kpi-grid,
+  .critical-path-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .deadline-probability-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

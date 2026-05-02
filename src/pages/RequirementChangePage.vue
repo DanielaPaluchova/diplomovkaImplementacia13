@@ -1,95 +1,63 @@
 <template>
   <q-page class="bg-grey-1">
     <!-- Header -->
-    <div class="bg-gradient-primary q-pa-lg shadow-2">
-      <div class="row items-center justify-between">
+    <div class="bg-white q-pa-lg shadow-1">
+      <div class="row items-center justify-between q-mb-md">
         <div>
-          <h4 class="text-h4 text-weight-bold text-white q-ma-none">
-            <q-icon name="auto_fix_high" size="36px" class="q-mr-sm" />
-            Project Optimization
-          </h4>
-          <p class="text-white q-ma-none q-mt-sm opacity-90">
-            Analysis with 10+ optimization types
-          </p>
+          <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Project Optimization</h4>
+          <p class="text-grey-7 q-ma-none q-mt-sm">Analysis with 10+ optimization types</p>
+        </div>
+      </div>
+
+      <!-- Project Selection -->
+      <div class="row items-center q-gutter-md">
+        <div class="col-12 col-md-5">
+          <q-select
+            v-model="selectedProjectId"
+            :options="projectOptions"
+            label="Select Project"
+            filled
+            emit-value
+            map-options
+            @update:model-value="onProjectChange"
+            :loading="initialLoading"
+            :disable="initialLoading"
+          >
+            <template v-slot:prepend>
+              <q-icon name="folder" />
+            </template>
+          </q-select>
+        </div>
+
+        <div class="col-12 col-md">
+          <div class="row q-gutter-sm items-center">
+            <q-chip v-if="selectedProject && !initialLoading" icon="task" color="primary" text-color="white">
+              {{ selectedProject.tasks?.length || 0 }} Tasks
+            </q-chip>
+            <q-chip v-if="selectedProject && !initialLoading" icon="group" color="green" text-color="white">
+              {{ selectedProject.teamMemberIds?.length || 0 }} Members
+            </q-chip>
+            <q-chip v-if="selectedProject && !initialLoading" icon="event" color="orange" text-color="white">
+              {{ selectedProject.sprints?.length || 0 }} Sprints
+            </q-chip>
+            <q-btn
+              color="orange"
+              icon="refresh"
+              label="Clear"
+              @click="clearAnalysis"
+              :disable="!hasAnalysis || initialLoading"
+              flat
+            />
+          </div>
         </div>
       </div>
     </div>
 
     <div class="q-pa-lg">
       <!-- Loading Skeleton -->
-      <div v-if="initialLoading">
-        <q-card class="q-mb-lg shadow-3">
-          <q-card-section>
-            <div class="row items-center q-gutter-md">
-              <div class="col-auto">
-                <q-skeleton type="QAvatar" size="48px" />
-              </div>
-              <div class="col">
-                <q-skeleton type="text" width="100px" class="q-mb-xs" />
-                <q-skeleton type="rect" height="40px" />
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
+      <div v-if="initialLoading" class="q-mb-lg">
+        <q-skeleton type="rect" height="40px" />
       </div>
-
-      <!-- Project Selection & Actions -->
-      <q-card v-else class="q-mb-lg shadow-3">
-            <q-card-section>
-          <div class="row items-center q-gutter-md">
-            <div class="col-auto">
-              <q-icon name="folder_open" size="48px" color="primary" />
-            </div>
-            <div class="col">
-              <div class="text-overline text-grey-7">SELECT PROJECT</div>
-                <q-select
-                  v-model="selectedProjectId"
-                  :options="projectOptions"
-                  emit-value
-                  map-options
-                outlined
-                  dense
-                @update:model-value="onProjectChange"
-                style="min-width: 350px; max-width: 500px"
-                class="text-h6"
-                  :loading="initialLoading"
-                  :disable="initialLoading"
-                >
-                  <template v-slot:prepend>
-                  <q-icon name="folder" color="primary" />
-                  </template>
-                </q-select>
-              </div>
-
-            <div class="col-auto" v-if="selectedProject && !initialLoading">
-              <div class="row q-gutter-sm">
-                <q-chip icon="task" color="primary" text-color="white" size="md">
-                  {{ selectedProject.tasks?.length || 0 }} Tasks
-                </q-chip>
-                <q-chip icon="group" color="green" text-color="white" size="md">
-                  {{ selectedProject.teamMemberIds?.length || 0 }} Members
-                </q-chip>
-                <q-chip icon="event" color="orange" text-color="white" size="md">
-                  {{ selectedProject.sprints?.length || 0 }} Sprints
-                </q-chip>
-              </div>
-              </div>
-              </div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-actions class="q-pa-md">
-          <q-btn
-            color="orange"
-            icon="refresh"
-            label="Clear"
-            @click="clearAnalysis"
-            :disable="!hasAnalysis || initialLoading"
-            flat
-          />
-        </q-card-actions>
-          </q-card>
 
       <!-- Empty State - No Project Selected -->
       <q-card v-if="!selectedProject && !initialLoading" class="q-mb-lg shadow-2 text-center q-pa-xl">
@@ -1359,9 +1327,6 @@ function getDurationOverheadColor(overhead: number): string {
 </script>
 
 <style scoped>
-.bg-gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
 
 .stat-card {
   text-align: center;
@@ -1391,7 +1356,4 @@ function getDurationOverheadColor(overhead: number): string {
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.15);
 }
 
-.opacity-90 {
-  opacity: 0.9;
-}
 </style>

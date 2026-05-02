@@ -113,13 +113,13 @@
       </q-banner>
 
       <!-- Team Overview Chart -->
-      <div class="row q-gutter-lg q-mb-lg">
-        <div class="col-12 col-md-8">
+      <div class="team-overview-grid q-mb-lg">
+        <div class="team-overview-main">
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">Team Workload Distribution</div>
-              <div class="row q-gutter-sm">
-                <div v-for="member in teamMembers" :key="member.id" class="col">
+              <div class="workload-chart-grid">
+                <div v-for="member in teamMembers" :key="member.id" class="workload-chart-col">
                   <div class="workload-chart-item">
                     <div class="workload-bar-container">
                       <div
@@ -133,7 +133,10 @@
                       <q-avatar size="24px" class="q-mb-xs">
                         <img :src="member.avatar" />
                       </q-avatar>
-                      <div class="text-caption">{{ member.name.split(' ')[0] }}</div>
+                      <div class="text-caption workload-name">
+                        {{ member.name.split(' ')[0] }}
+                        <q-tooltip>{{ member.name }}</q-tooltip>
+                      </div>
                       <div
                         class="text-caption text-weight-bold"
                         :class="getWorkloadTextClass(member.workload)"
@@ -148,7 +151,7 @@
           </q-card>
         </div>
 
-        <div class="col-12 col-md-4">
+        <div class="team-overview-side">
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">Skills Distribution</div>
@@ -173,8 +176,8 @@
       </div>
 
       <!-- Team Members Grid -->
-      <div class="row q-gutter-lg">
-        <div class="col-12 col-md-6 col-lg-4" v-for="member in teamMembers" :key="member.id">
+      <div class="team-members-grid">
+        <div v-for="member in teamMembers" :key="member.id">
           <q-card class="team-member-card">
             <q-card-section class="text-center">
               <q-avatar size="64px" class="q-mb-md">
@@ -1065,6 +1068,18 @@ async function deleteMember(memberId: number) {
   height: 250px;
 }
 
+.workload-chart-grid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+}
+
+.workload-chart-col {
+  flex: 0 0 46px;
+}
+
 .workload-bar-container {
   height: 150px;
   width: 100%;
@@ -1093,7 +1108,55 @@ async function deleteMember(memberId: number) {
   border-bottom: 10px solid #f44336;
 }
 
+.workload-name {
+  width: 100%;
+  max-width: 46px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .skill-item {
   min-height: 24px;
+}
+
+.team-members-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+.team-overview-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 2fr 1fr;
+  align-items: stretch;
+}
+
+.team-overview-main,
+.team-overview-side {
+  min-width: 0;
+  height: 100%;
+}
+
+.team-overview-main :deep(.q-card),
+.team-overview-side :deep(.q-card) {
+  height: 100%;
+}
+
+@media (max-width: 1240px) {
+  .team-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-members-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .team-members-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

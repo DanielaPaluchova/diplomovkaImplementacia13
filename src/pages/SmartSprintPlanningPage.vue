@@ -1,22 +1,18 @@
 <template>
   <q-page class="bg-grey-1">
     <!-- Header -->
-    <div class="bg-gradient-primary q-pa-lg shadow-2">
-      <div class="row items-center justify-between">
+    <div class="bg-white q-pa-lg shadow-1">
+      <div class="row items-center justify-between q-mb-md">
         <div>
-          <h4 class="text-h4 text-weight-bold text-white q-ma-none">
-            <q-icon name="auto_awesome" size="36px" class="q-mr-sm" />
-            Smart Sprint Planning
-          </h4>
-          <p class="text-white q-ma-none q-mt-sm opacity-90">
+          <h4 class="text-h4 text-weight-bold text-primary q-ma-none">Smart Sprint Planning</h4>
+          <p class="text-grey-7 q-ma-none q-mt-sm">
             Sprint planning with multiple optimization strategies
           </p>
         </div>
         <div class="row q-gutter-md">
           <q-btn
             v-if="hasGeneratedPlan"
-            color="white"
-            text-color="primary"
+            color="primary"
             icon="refresh"
             label="Regenerate"
             @click="onRegenerate"
@@ -38,70 +34,61 @@
           </q-btn>
         </div>
       </div>
+
+      <!-- Project Selection -->
+      <div class="row items-center q-gutter-md">
+        <div class="col-12 col-md-5">
+          <q-select
+            v-model="selectedProjectId"
+            :options="projectOptions"
+            label="Select Project"
+            filled
+            emit-value
+            map-options
+            @update:model-value="onProjectChange"
+          >
+            <template v-slot:prepend>
+              <q-icon name="folder" />
+            </template>
+          </q-select>
+        </div>
+        <div class="col-12 col-md">
+          <div class="row q-gutter-sm items-center">
+            <q-chip v-if="selectedProject" icon="task" color="primary" text-color="white">
+              {{ eligibleTasksCount }} Available Tasks
+            </q-chip>
+            <q-chip v-if="selectedProject" icon="group" color="green" text-color="white">
+              {{ selectedProject.teamMemberIds?.length || 0 }} Members
+            </q-chip>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cross-Project Workload Consideration (not for PERT) -->
+      <div
+        v-if="selectedProject && !selectedStrategy.startsWith('pert') && !(selectedStrategy === 'hybrid' && hybridWeights.pertMode !== 'none')"
+        class="q-mt-md"
+      >
+        <q-checkbox
+          v-model="considerCrossProject"
+          color="primary"
+          label="Consider workload from other projects"
+          @update:model-value="onConsiderCrossProjectToggle"
+        >
+          <q-tooltip max-width="400px">
+            When enabled, the planner will take into account team members' existing workload from
+            active sprints in other projects. This helps prevent overloading team members who work
+            on multiple projects simultaneously.
+          </q-tooltip>
+        </q-checkbox>
+        <div class="text-caption text-grey-7 q-ml-lg">
+          <q-icon name="info" size="14px" />
+          Recommended: Keep enabled to ensure realistic workload distribution across all projects
+        </div>
+      </div>
     </div>
 
     <div class="q-pa-lg">
-      <!-- Project Selection -->
-      <q-card class="q-mb-lg shadow-3">
-        <q-card-section>
-          <div class="row items-center q-gutter-md">
-            <div class="col-auto">
-              <q-icon name="folder_open" size="48px" color="primary" />
-            </div>
-            <div class="col">
-              <div class="text-overline text-grey-7">SELECT PROJECT</div>
-              <q-select
-                v-model="selectedProjectId"
-                :options="projectOptions"
-                emit-value
-                map-options
-                outlined
-                dense
-                @update:model-value="onProjectChange"
-                style="min-width: 350px; max-width: 500px"
-                class="text-h6"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="folder" color="primary" />
-                </template>
-              </q-select>
-            </div>
-            <div class="col-auto" v-if="selectedProject">
-              <div class="row q-gutter-sm">
-                <q-chip icon="task" color="primary" text-color="white" size="md">
-                  {{ eligibleTasksCount }} Available Tasks
-                </q-chip>
-                <q-chip icon="group" color="green" text-color="white" size="md">
-                  {{ selectedProject.teamMemberIds?.length || 0 }} Members
-                </q-chip>
-              </div>
-            </div>
-          </div>
-        </q-card-section>
-
-        <!-- Cross-Project Workload Consideration (not for PERT) -->
-        <q-card-section
-          v-if="selectedProject && !selectedStrategy.startsWith('pert') && !(selectedStrategy === 'hybrid' && hybridWeights.pertMode !== 'none')"
-          class="q-pt-none"
-        >
-          <q-checkbox
-            v-model="considerCrossProject"
-            color="primary"
-            label="Consider workload from other projects"
-            @update:model-value="onConsiderCrossProjectToggle"
-          >
-            <q-tooltip max-width="400px">
-              When enabled, the planner will take into account team members' existing workload from
-              active sprints in other projects. This helps prevent overloading team members who work
-              on multiple projects simultaneously.
-            </q-tooltip>
-          </q-checkbox>
-          <div class="text-caption text-grey-7 q-ml-lg">
-            <q-icon name="info" size="14px" />
-            Recommended: Keep enabled to ensure realistic workload distribution across all projects
-          </div>
-        </q-card-section>
-      </q-card>
 
       <!-- No Project Selected -->
       <q-card v-if="!selectedProject" class="q-mb-lg shadow-2 text-center q-pa-xl">
@@ -415,8 +402,7 @@
           </template>
           <div class="text-body2">
             <strong>PERT strategies:</strong> Only tasks with PERT estimates (hours) are included.
-            Capacity: 60h per member. <strong>CV based (PERT)</strong> = predictable tasks first; <strong>PERT</strong> = larger tasks first.
-            Cross-project workload is not considered.
+            Capacity: 60h per member. Priority variants order tasks by duration and priority.
           </div>
         </q-banner>
 
@@ -1499,9 +1485,6 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.bg-gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
 
 .strategy-card {
   transition: all 0.3s ease;

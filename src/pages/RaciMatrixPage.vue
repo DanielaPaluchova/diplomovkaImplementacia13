@@ -211,8 +211,8 @@
       </q-card>
 
       <!-- RACI Statistics -->
-      <div class="row q-gutter-lg q-mt-lg">
-        <div class="col-12 col-md-6">
+      <div class="raci-stats-grid q-mt-lg">
+        <div>
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">Team Member Workload</div>
@@ -254,7 +254,7 @@
           </q-card>
         </div>
 
-        <div class="col-12 col-md-6">
+        <div>
           <q-card class="q-mb-md">
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">RACI Distribution</div>
@@ -550,5 +550,22 @@ const raciStats = computed(() => {
 .member-tooltip .text-caption {
   margin-bottom: 2px;
   line-height: 1.2;
+}
+
+.raci-stats-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  align-items: stretch;
+}
+
+.raci-stats-grid :deep(.q-card) {
+  height: 100%;
+}
+
+@media (max-width: 1023px) {
+  .raci-stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

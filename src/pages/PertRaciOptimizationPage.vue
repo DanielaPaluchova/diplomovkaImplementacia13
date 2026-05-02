@@ -29,15 +29,16 @@
     </div>
 
     <div v-if="selectedProject" class="q-pa-lg">
-      <div class="row q-gutter-lg">
+      <div class="pert-raci-sections">
         <!-- Configuration Panel -->
-        <div class="col-12 col-lg-4">
-          <!-- RACI Weights Configuration (for Adjusted Duration Formula) -->
-          <q-card class="q-mb-lg">
-            <q-card-section>
-              <div class="text-h6 text-weight-bold q-mb-md">
-                RACI Weights (Adjusted Duration Formula)
-              </div>
+        <div>
+          <div class="raci-weights-grid q-mb-lg">
+            <!-- RACI Weights Configuration (for Adjusted Duration Formula) -->
+            <q-card>
+              <q-card-section>
+                <div class="text-h6 text-weight-bold q-mb-md">
+                  RACI Weights - Overload Impact on Task Duration
+                </div>
 
               <div class="q-mb-md">
                 <div class="text-subtitle2 q-mb-sm">Responsible (R) Weight</div>
@@ -95,24 +96,107 @@
                 <div class="text-caption text-grey-7">Default: 0.01</div>
               </div>
 
-              <div class="row q-gutter-sm">
-                <q-btn
-                  color="primary"
-                  icon="check"
-                  label="Apply"
-                  @click="applyWeights"
-                  class="col"
+                <div class="row q-gutter-sm">
+                  <q-btn
+                    color="primary"
+                    icon="check"
+                    label="Apply"
+                    @click="applyDurationWeights"
+                    class="col"
+                  />
+                  <q-btn
+                    color="secondary"
+                    icon="restore"
+                    label="Reset"
+                    @click="resetDurationWeights"
+                    class="col"
+                  />
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <!-- RACI Weights Configuration (for Workload Calculation) -->
+            <q-card>
+              <q-card-section>
+                <div class="text-h6 text-weight-bold q-mb-md">
+                  RACI Weights - Work Share by Role
+                </div>
+
+              <div class="q-mb-md">
+                <div class="text-subtitle2 q-mb-sm">Responsible (R) Weight</div>
+                <q-input
+                  v-model.number="raciWorkloadWeights.responsible"
+                  type="number"
+                  :min="0"
+                  :max="10"
+                  :step="0.01"
+                  filled
+                  dense
                 />
-                <q-btn
-                  color="secondary"
-                  icon="restore"
-                  label="Reset"
-                  @click="resetWeights"
-                  class="col"
-                />
+                <div class="text-caption text-grey-7">Default: 1.0</div>
               </div>
-            </q-card-section>
-          </q-card>
+
+              <div class="q-mb-md">
+                <div class="text-subtitle2 q-mb-sm">Accountable (A) Weight</div>
+                <q-input
+                  v-model.number="raciWorkloadWeights.accountable"
+                  type="number"
+                  :min="0"
+                  :max="10"
+                  :step="0.01"
+                  filled
+                  dense
+                />
+                <div class="text-caption text-grey-7">Default: 0.1</div>
+              </div>
+
+              <div class="q-mb-md">
+                <div class="text-subtitle2 q-mb-sm">Consulted (C) Weight</div>
+                <q-input
+                  v-model.number="raciWorkloadWeights.consulted"
+                  type="number"
+                  :min="0"
+                  :max="10"
+                  :step="0.01"
+                  filled
+                  dense
+                />
+                <div class="text-caption text-grey-7">Default: 0.05</div>
+              </div>
+
+              <div class="q-mb-md">
+                <div class="text-subtitle2 q-mb-sm">Informed (I) Weight</div>
+                <q-input
+                  v-model.number="raciWorkloadWeights.informed"
+                  type="number"
+                  :min="0"
+                  :max="10"
+                  :step="0.01"
+                  filled
+                  dense
+                />
+                <div class="text-caption text-grey-7">Default: 0.01</div>
+              </div>
+
+                <div class="row q-gutter-sm">
+                  <q-btn
+                    color="primary"
+                    icon="check"
+                    label="Apply"
+                    @click="applyWorkloadWeights"
+                    class="col"
+                  />
+                  <q-btn
+                    color="secondary"
+                    icon="restore"
+                    label="Reset"
+                    @click="resetWorkloadWeights"
+                    class="col"
+                  />
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
 
           <!-- Formula Display -->
           <q-card>
@@ -125,27 +209,30 @@
                 <div class="formula-section q-mb-md">
                   <div class="text-subtitle2 text-weight-medium q-mb-sm">PERT Duration</div>
                   <div class="formula-box">
-                    <div class="formula">T = (O + 4M + P) / 6</div>
+                    <div class="formula">
+                      E<sub>t</sub> = (O<sub>t</sub> + 4M<sub>t</sub> + P<sub>t</sub>) / 6
+                    </div>
                     <div class="formula-description">
-                      kde: O = optimistic time, M = most likely time, P = pessimistic time
+                      where O<sub>t</sub> = optimistic, M<sub>t</sub> = most likely, P<sub>t</sub> =
+                      pessimistic estimate for task t
                     </div>
                   </div>
                 </div>
 
                 <div class="formula-section q-mb-md">
                   <div class="text-subtitle2 text-weight-medium q-mb-sm">
-                    RACI Adjusted Duration
+                    Task Duration Extension from Role Overload
                   </div>
                   <div class="formula-box">
                     <div class="formula">
-                      T<sub>new</sub> = T × (1 + ({{ raciWeights.responsible }}×L<sub>R</sub>) + ({{
-                        raciWeights.accountable
-                      }}×L<sub>A</sub>) + ({{ raciWeights.consulted }}×L<sub>C</sub>) + ({{
-                        raciWeights.informed
-                      }}×L<sub>I</sub>))
+                      T<sub>adjusted,t</sub> = E<sub>t</sub> × (1 +
+                      {{ raciWeights.responsible }}·L<sub>R,t</sub> +
+                      {{ raciWeights.accountable }}·L<sub>A,t</sub> +
+                      {{ raciWeights.consulted }}·L<sub>C,t</sub> +
+                      {{ raciWeights.informed }}·L<sub>I,t</sub>)
                     </div>
                     <div class="formula-description">
-                      kde: L<sub>R,A,C,I</sub> = preťaženie pre danú RACI rolu
+                      where L<sub>X,t</sub> denotes role overload contribution for task t
                     </div>
                   </div>
                 </div>
@@ -153,88 +240,76 @@
                 <!-- Expandable Detailed Formula Section -->
                 <q-expansion-item
                   icon="help_outline"
-                  label="Podrobné vysvetlenie vzorcov"
+                  label="Detailed Formula Explanation"
                   header-class="text-secondary"
                 >
                   <div class="q-pa-md">
                     <div class="formula-section q-mb-md">
                       <div class="text-subtitle2 text-weight-medium q-mb-sm">
-                        Vysvetlivky premenných
+                        Variable Definitions
                       </div>
                       <div class="variables-list">
                         <div class="variable-item">
-                          <strong>T</strong> = PERT duration (vypočítané z optimistic, most likely,
-                          pessimistic času)
+                          <strong>E<sub>t</sub></strong> = expected PERT duration for task t
                         </div>
                         <div class="variable-item">
-                          <strong>T<sub>new</sub></strong> = Finálne upravené trvanie úlohy po
-                          aplikovaní RACI korekcie
-                        </div>
-                        <div class="variable-item">
-                          <strong>L<sub>R</sub></strong> = Preťaženie z Responsible roly<br />
+                          <strong>Workload<sub>m</sub></strong> = workload of member m calculated
+                          from task story points according to assigned RACI roles:
+                          Σ<sub>t∈T</sub>(w<sub>role(m,t)</sub> · SP<sub>t</sub>)<br />
                           <span class="text-caption text-grey-7">
-                            Výpočet: max(0, (priemer weighted SP všetkých Responsible členov / 20) -
-                            1.0)<br />
-                            <em>Ak je viac členov, berie sa ich priemer</em>
+                            where w<sub>R</sub>={{ raciWorkloadWeights.responsible }},
+                            w<sub>A</sub>={{ raciWorkloadWeights.accountable }},
+                            w<sub>C</sub>={{ raciWorkloadWeights.consulted }},
+                            w<sub>I</sub>={{ raciWorkloadWeights.informed }}
                           </span>
                         </div>
                         <div class="variable-item">
-                          <strong>L<sub>A</sub></strong> = Preťaženie z Accountable roly<br />
+                          <strong>Capacity<sub>m</sub> = {{ maxStoryPointsPerPerson }}</strong> =
+                          maximum weighted story points per person per sprint
+                        </div>
+                        <div class="variable-item">
+                          <strong>Utilization<sub>m</sub></strong> = capacity utilization of member m:
+                          (Workload<sub>m</sub> / Capacity<sub>m</sub>) × 100%
+                        </div>
+                        <div class="variable-item">
+                          <strong>L<sub>X,t</sub></strong> = overload factor for role
+                          X ∈ {R, A, C, I} for task t<br />
                           <span class="text-caption text-grey-7">
-                            Výpočet: max(0, (weighted SP Accountable člena / 20) - 1.0)<br />
-                            <em>Accountable je vždy 1 osoba</em>
+                            For a role with one member:
+                            max(0, Utilization<sub>x</sub> - 1.0)<br />
+                            For a role with multiple members:
+                            (1 / |X<sub>t</sub>|) Σ<sub>x∈X<sub>t</sub></sub> max(0,
+                            Utilization<sub>x</sub> - 1.0)
                           </span>
                         </div>
                         <div class="variable-item">
-                          <strong>L<sub>C</sub></strong> = Preťaženie z Consulted roly<br />
-                          <span class="text-caption text-grey-7">
-                            Výpočet: max(0, (priemer weighted SP všetkých Consulted členov / 20) -
-                            1.0)<br />
-                            <em>Ak je viac členov, berie sa ich priemer</em>
-                          </span>
-                        </div>
-                        <div class="variable-item">
-                          <strong>L<sub>I</sub></strong> = Preťaženie z Informed roly<br />
-                          <span class="text-caption text-grey-7">
-                            Výpočet: max(0, (priemer weighted SP všetkých Informed členov / 20) -
-                            1.0)<br />
-                            <em>Ak je viac členov, berie sa ich priemer</em>
-                          </span>
-                        </div>
-                        <div class="variable-item">
-                          <strong>{{ maxStoryPointsPerPerson }}</strong> = maximum weighted story
-                          points na jedného človeka za sprint
-                        </div>
-                        <div class="variable-item">
-                          <strong
-                            >{{ raciWeights.responsible }}, {{ raciWeights.accountable }},
-                            {{ raciWeights.consulted }}, {{ raciWeights.informed }}</strong
-                          >
-                          = Váhy pre adjusted duration vzorec (konfigurovateľné)
+                          <strong>T<sub>adjusted,t</sub></strong> = final adjusted duration for task
+                          t after applying RACI overload correction
                         </div>
                       </div>
                     </div>
 
                     <div class="formula-section">
                       <div class="text-subtitle2 text-weight-medium q-mb-sm text-orange-8">
-                        ⚠️ Dôležité pravidlá
+                        ⚠️ Important Rules
                       </div>
                       <div class="variables-list">
                         <div class="variable-item">
-                          <strong>1.</strong> Čas sa zvyšuje LEN ak je RACI rola preťažená (weighted
+                          <strong>1.</strong> Duration increases ONLY when a RACI role is overloaded
+                          (weighted
                           SP > {{ maxStoryPointsPerPerson }})
                         </div>
                         <div class="variable-item">
-                          <strong>2.</strong> Do vzorca vstupuje len EXCESS overload (nad 100%
-                          kapacity)
+                          <strong>2.</strong> The formula uses only EXCESS overload (above 100%
+                          capacity)
                         </div>
                         <div class="variable-item">
-                          <strong>3.</strong> Ak weighted SP = 21.4, overload = 21.4/20 = 1.07,
-                          excess = 1.07 - 1.0 = 0.07 (7% nárast času)
+                          <strong>3.</strong> If weighted SP = 21.4, overload = 21.4/20 = 1.07,
+                          excess = 1.07 - 1.0 = 0.07 (7% duration increase)
                         </div>
                         <div class="variable-item">
-                          <strong>4.</strong> Ak weighted SP = 15, overload = 15/20 = 0.75, excess =
-                          0 (bez vplyvu na čas)
+                          <strong>4.</strong> If weighted SP = 15, overload = 15/20 = 0.75, excess =
+                          0 (no impact on duration)
                         </div>
                       </div>
                     </div>
@@ -246,7 +321,7 @@
         </div>
 
         <!-- Tasks Table with Tab Navigation -->
-        <div class="col-12">
+        <div>
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold q-mb-md">Project Tasks</div>
@@ -273,7 +348,7 @@
                       RACI Weighted Workload (Aktívny Šprit naprieč projektami)
                     </div>
                     <div class="text-caption text-grey-7 q-mb-md">
-                      Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
+                      Work-share weights: R={{ raciWorkloadWeights.responsible }}, A={{
                         raciWorkloadWeights.accountable
                       }}, C={{ raciWorkloadWeights.consulted }}, I={{
                         raciWorkloadWeights.informed
@@ -977,7 +1052,7 @@
                         RACI Weighted Workload (Plánovaný Šprit naprieč projektami)
                       </div>
                       <div class="text-caption text-grey-7 q-mb-md">
-                        Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
+                        Work-share weights: R={{ raciWorkloadWeights.responsible }}, A={{
                           raciWorkloadWeights.accountable
                         }}, C={{ raciWorkloadWeights.consulted }}, I={{
                           raciWorkloadWeights.informed
@@ -1268,7 +1343,7 @@
                         Priemerné RACI Weighted Workload
                       </div>
                       <div class="text-caption text-grey-7 q-mb-md">
-                        Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
+                        Work-share weights: R={{ raciWorkloadWeights.responsible }}, A={{
                           raciWorkloadWeights.accountable
                         }}, C={{ raciWorkloadWeights.consulted }}, I={{
                           raciWorkloadWeights.informed
@@ -1457,7 +1532,7 @@
                           RACI Weighted Workload (Tento Šprit naprieč projektami)
                         </div>
                         <div class="text-caption text-grey-7 q-mb-md">
-                          Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
+                          Work-share weights: R={{ raciWorkloadWeights.responsible }}, A={{
                             raciWorkloadWeights.accountable
                           }}, C={{ raciWorkloadWeights.consulted }}, I={{
                             raciWorkloadWeights.informed
@@ -1867,7 +1942,7 @@
                       Priemerné RACI Weighted Workload (Minulé Šprinty v tomto projekte)
                     </div>
                     <div class="text-caption text-grey-7 q-mb-md">
-                      Váhy: R={{ raciWorkloadWeights.responsible }}, A={{
+                      Work-share weights: R={{ raciWorkloadWeights.responsible }}, A={{
                         raciWorkloadWeights.accountable
                       }}, C={{ raciWorkloadWeights.consulted }}, I={{
                         raciWorkloadWeights.informed
@@ -3827,10 +3902,7 @@ function calculateAdjustedDuration(
 
 // Tasks are now computed, so recalculation happens automatically when dependencies change
 
-async function applyWeights() {
-  log('weights_apply', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
-  // Validate weights
-  const weights = raciWeights.value;
+function validateWeights(weights: RaciWeights | RaciWorkloadWeights): boolean {
   if (
     weights.responsible < 0 ||
     weights.responsible > 10 ||
@@ -3847,8 +3919,14 @@ async function applyWeights() {
       icon: 'warning',
       position: 'top',
     });
-    return;
+    return false;
   }
+  return true;
+}
+
+async function applyDurationWeights() {
+  log('weights_apply_duration', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
+  if (!validateWeights(raciWeights.value)) return;
 
   // Save configuration to localStorage (for backwards compatibility)
   localStorage.setItem('max_story_points_per_person', maxStoryPointsPerPerson.value.toString());
@@ -3859,16 +3937,9 @@ async function applyWeights() {
   // Tasks are computed, so they will recalculate automatically with new weights
 }
 
-async function resetWeights() {
-  log('weights_reset', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
+async function resetDurationWeights() {
+  log('weights_reset_duration', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
   raciWeights.value = {
-    responsible: 1.0,
-    accountable: 0.1,
-    consulted: 0.05,
-    informed: 0.01,
-  };
-
-  raciWorkloadWeights.value = {
     responsible: 1.0,
     accountable: 0.1,
     consulted: 0.05,
@@ -3879,6 +3950,23 @@ async function resetWeights() {
   await saveRaciWeightsToApi();
 
   // Tasks are computed, so they will recalculate automatically with new weights
+}
+
+async function applyWorkloadWeights() {
+  log('weights_apply_workload', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
+  if (!validateWeights(raciWorkloadWeights.value)) return;
+  await saveRaciWeightsToApi();
+}
+
+async function resetWorkloadWeights() {
+  log('weights_reset_workload', 'pert_raci_optimization', selectedProjectId.value != null ? { projectId: selectedProjectId.value } : {});
+  raciWorkloadWeights.value = {
+    responsible: 1.0,
+    accountable: 0.1,
+    consulted: 0.05,
+    informed: 0.01,
+  };
+  await saveRaciWeightsToApi();
 }
 
 function getRaciColor(role: string): string {
@@ -4366,5 +4454,23 @@ watch(activeTab, (newVal) => {
 
 .member-detail-card:hover {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pert-raci-sections {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+
+.raci-weights-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1240px) {
+  .raci-weights-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -22,8 +22,8 @@
         <q-separator class="q-mb-md" />
       </div>
 
-      <div class="row q-gutter-md q-mb-lg">
-        <div class="col-12 col-md-3">
+      <div class="dashboard-kpi-grid q-mb-lg">
+        <div>
           <q-card class="kpi-card bg-purple-1">
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
@@ -46,7 +46,7 @@
           </q-card>
         </div>
 
-        <div class="col-12 col-md-3">
+        <div>
           <q-card class="kpi-card bg-cyan-1">
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
@@ -68,7 +68,7 @@
           </q-card>
         </div>
 
-        <div class="col-12 col-md-3">
+        <div>
           <q-card class="kpi-card bg-indigo-1">
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
@@ -91,7 +91,7 @@
           </q-card>
         </div>
 
-        <div class="col-12 col-md-3">
+        <div>
           <q-card class="kpi-card bg-teal-1">
             <q-card-section class="q-pb-none">
               <div class="row items-center no-wrap">
@@ -115,61 +115,57 @@
         </div>
       </div>
 
-      <div class="row q-gutter-lg q-mb-lg">
-        <!-- Active Projects -->
-        <div class="col-12">
-          <q-card>
-            <q-card-section>
-              <div class="row items-center q-mb-md">
-                <div class="text-h6 text-weight-bold">
-                  <q-icon name="work" class="q-mr-sm" />
-                  Active Projects
-                </div>
-                <q-space />
-                <q-btn flat dense icon="arrow_forward" @click="navigateTo('/projects')" />
-              </div>
+      <!-- Active Projects -->
+      <q-card class="dashboard-section-card q-mb-lg">
+        <q-card-section>
+          <div class="row items-center q-mb-md">
+            <div class="text-h6 text-weight-bold">
+              <q-icon name="work" class="q-mr-sm" />
+              Active Projects
+            </div>
+            <q-space />
+            <q-btn flat dense icon="arrow_forward" @click="navigateTo('/projects')" />
+          </div>
 
-              <div class="projects-list">
-                <div
-                  v-for="project in activeProjects"
-                  :key="project.id"
-                  class="project-item q-mb-md"
-                >
-                  <div class="row items-center q-mb-xs">
-                    <q-icon :name="project.icon" :color="project.color" size="sm" class="q-mr-sm" />
-                    <div class="text-body2 text-weight-medium">{{ project.name }}</div>
-                    <q-space />
-                    <q-chip :color="getStatusColor(project.status)" text-color="white" size="xs">
-                      {{ project.status }}
-                    </q-chip>
-                  </div>
-                  <div class="row items-center">
-                    <div class="col">
-                      <q-linear-progress
-                        :value="project.progress / 100"
-                        :color="project.color"
-                        size="6px"
-                      />
-                    </div>
-                    <div class="text-caption text-grey-7 q-ml-sm">{{ project.progress }}%</div>
-                  </div>
-                </div>
+          <div class="projects-list">
+            <div
+              v-for="project in activeProjects"
+              :key="project.id"
+              class="project-item q-mb-md"
+            >
+              <div class="row items-center q-mb-xs">
+                <q-icon :name="project.icon" :color="project.color" size="sm" class="q-mr-sm" />
+                <div class="text-body2 text-weight-medium">{{ project.name }}</div>
+                <q-space />
+                <q-chip :color="getStatusColor(project.status)" text-color="white" size="xs">
+                  {{ project.status }}
+                </q-chip>
               </div>
-            </q-card-section>
-          </q-card>
-        </div>
-      </div>
+              <div class="row items-center">
+                <div class="col">
+                  <q-linear-progress
+                    :value="project.progress / 100"
+                    :color="project.color"
+                    size="6px"
+                  />
+                </div>
+                <div class="text-caption text-grey-7 q-ml-sm">{{ project.progress }}%</div>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
 
       <!-- Quick Actions -->
-      <q-card>
+      <q-card class="dashboard-section-card">
         <q-card-section>
           <div class="text-h6 text-weight-bold q-mb-md">
             <q-icon name="bolt" class="q-mr-sm" />
             Quick Actions
           </div>
 
-          <div class="row q-gutter-md">
-            <div class="col-12 col-sm-6 col-md-4">
+          <div class="dashboard-actions-grid">
+            <div>
               <q-btn
                 flat
                 class="full-width q-pa-md action-btn"
@@ -183,7 +179,7 @@
               </q-btn>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-4">
+            <div>
               <q-btn flat class="full-width q-pa-md action-btn" @click="navigateTo('/raci-matrix')">
                 <div class="column items-center">
                   <q-icon name="assignment_ind" color="blue" size="48px" class="q-mb-sm" />
@@ -193,7 +189,7 @@
               </q-btn>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-4">
+            <div>
               <q-btn
                 flat
                 class="full-width q-pa-md action-btn"
@@ -348,6 +344,12 @@ function getStatusColor(status: string): string {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.dashboard-kpi-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .project-item {
   padding: 12px;
   background: rgba(0, 0, 0, 0.02);
@@ -370,5 +372,22 @@ function getStatusColor(status: string): string {
 .action-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-actions-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.dashboard-section-card {
+  width: 100%;
+}
+
+@media (max-width: 1023px) {
+  .dashboard-kpi-grid,
+  .dashboard-actions-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

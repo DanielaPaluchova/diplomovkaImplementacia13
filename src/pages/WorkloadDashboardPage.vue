@@ -16,8 +16,8 @@
 
     <div class="q-pa-lg">
       <!-- Summary Cards -->
-      <div class="row q-gutter-md q-mb-lg">
-        <div class="col-12 col-md-3">
+      <div class="summary-grid q-mb-lg">
+        <div>
           <q-card class="summary-card">
             <q-card-section>
               <div class="text-h6 text-weight-bold text-primary">{{ totalTeamMembers }}</div>
@@ -25,7 +25,7 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-md-3">
+        <div>
           <q-card class="summary-card">
             <q-card-section>
               <div class="text-h6 text-weight-bold text-orange">{{ overloadedMembers }}</div>
@@ -33,7 +33,7 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-md-3">
+        <div>
           <q-card class="summary-card">
             <q-card-section>
               <div class="text-h6 text-weight-bold text-blue">{{ averageWorkload }}%</div>
@@ -41,7 +41,7 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-md-3">
+        <div>
           <q-card class="summary-card" :class="{ 'cursor-pointer': membersWithoutProjects > 0 }" @click="showUnassignedMembers">
             <q-card-section>
               <div class="text-h6 text-weight-bold text-grey-7">{{ membersWithoutProjects }}</div>
@@ -83,11 +83,10 @@
             </q-chip>
           </div>
 
-          <div class="row q-gutter-md">
+          <div class="sprint-overview-grid">
             <div
               v-for="sprint in activeSprintsOverview"
               :key="sprint.id"
-              class="col-12 col-md-6 col-lg-4"
             >
               <q-card flat bordered class="sprint-overview-card">
                 <q-card-section class="bg-green-1">
@@ -173,7 +172,7 @@
               </q-card>
             </div>
 
-            <div v-if="activeSprintsOverview.length === 0" class="col-12">
+            <div v-if="activeSprintsOverview.length === 0" class="grid-empty">
               <div class="text-center text-grey-6 q-pa-lg">
                 <q-icon name="event_busy" size="48px" class="q-mb-sm" />
                 <div class="text-body1">No active sprints at the moment</div>
@@ -233,8 +232,8 @@
       </q-card>
 
       <!-- Team Member Workload Cards -->
-      <div class="row q-gutter-md">
-        <div v-for="member in filteredMembers" :key="member.id" class="col-12 col-md-6 col-lg-4">
+      <div class="workload-members-grid">
+        <div v-for="member in filteredMembers" :key="member.id">
           <q-card class="workload-card">
             <q-card-section>
               <!-- Member Header -->
@@ -350,7 +349,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-if="filteredMembers.length === 0" class="col-12">
+        <div v-if="filteredMembers.length === 0" class="grid-empty">
           <q-card class="text-center q-pa-xl">
             <q-icon name="people_off" size="64px" class="text-grey-5 q-mb-md" />
             <div class="text-h6 text-grey-7 q-mb-sm">No team members found</div>
@@ -963,6 +962,12 @@ function showUnassignedMembers() {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .cursor-pointer {
   cursor: pointer;
 }
@@ -983,6 +988,12 @@ function showUnassignedMembers() {
   border-radius: 8px;
 }
 
+.sprint-overview-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
 .sprint-overview-card {
   border-left: 4px solid #21ba45;
   transition:
@@ -993,5 +1004,30 @@ function showUnassignedMembers() {
 .sprint-overview-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.workload-members-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+.grid-empty {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1240px) {
+  .sprint-overview-grid,
+  .workload-members-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .summary-grid,
+  .sprint-overview-grid,
+  .workload-members-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

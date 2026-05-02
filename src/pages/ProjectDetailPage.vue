@@ -72,10 +72,10 @@
             <!-- Left Column - Project Info -->
             <div class="col-12 col-lg-8">
               <!-- Project Summary Cards -->
-              <div class="row q-col-gutter-md q-mb-lg">
-                <div class="col-6 col-md-3">
-                  <q-card>
-                    <q-card-section>
+              <div class="overview-summary-grid q-mb-lg">
+                <div>
+                  <q-card class="overview-stat-card">
+                    <q-card-section class="overview-stat-section">
                       <div class="text-caption text-grey-7">Progress</div>
                       <div class="text-h5 text-weight-bold text-primary">
                         {{ projectProgress }}%
@@ -88,9 +88,9 @@
                     </q-card-section>
                   </q-card>
                 </div>
-                <div class="col-6 col-md-3">
-                  <q-card>
-                    <q-card-section>
+                <div>
+                  <q-card class="overview-stat-card">
+                    <q-card-section class="overview-stat-section">
                       <div class="text-caption text-grey-7">Total Tasks</div>
                       <div class="text-h5 text-weight-bold text-blue">
                         {{ project.tasks?.length || 0 }}
@@ -101,9 +101,9 @@
                     </q-card-section>
                   </q-card>
                 </div>
-                <div class="col-6 col-md-3">
-                  <q-card>
-                    <q-card-section>
+                <div>
+                  <q-card class="overview-stat-card">
+                    <q-card-section class="overview-stat-section">
                       <div class="text-caption text-grey-7">Story Points</div>
                       <div class="text-h5 text-weight-bold text-orange">
                         {{ project.totalStoryPoints }}
@@ -112,9 +112,9 @@
                     </q-card-section>
                   </q-card>
                 </div>
-                <div class="col-6 col-md-3">
-                  <q-card>
-                    <q-card-section>
+                <div>
+                  <q-card class="overview-stat-card">
+                    <q-card-section class="overview-stat-section">
                       <div class="text-caption text-grey-7">Team Size</div>
                       <div class="text-h5 text-weight-bold text-green">
                         {{ projectTeamMembers.length }}
@@ -1168,9 +1168,9 @@
           </div>
 
           <!-- Sprint List -->
-          <div class="row q-gutter-md">
+          <div class="sprint-management-sections">
             <!-- Planned Sprints -->
-            <div class="col-12 col-md-6">
+            <div>
               <q-card>
                 <q-card-section class="bg-blue-1">
                   <div class="text-h6 text-weight-bold text-blue">
@@ -1227,7 +1227,7 @@
             </div>
 
             <!-- Completed Sprints Report -->
-            <div class="col-12">
+            <div>
               <q-card>
                 <q-card-section class="bg-grey-3">
                   <div class="row items-center">
@@ -1531,14 +1531,13 @@
             />
           </div>
 
-          <div class="row q-gutter-md">
+          <div class="project-team-grid">
             <div
               v-for="member in projectTeamMembers"
               :key="member.id"
-              class="col-12 col-md-6 col-lg-4"
             >
-              <q-card>
-                <q-card-section class="text-center">
+              <q-card class="project-team-card">
+                <q-card-section class="text-center project-team-card-content">
                   <q-avatar size="80px" class="q-mb-md">
                     <img :src="member.avatar" />
                   </q-avatar>
@@ -1618,77 +1617,77 @@
 
         <!-- Analytics Tab -->
         <q-tab-panel name="analytics">
-          <div class="row q-gutter-lg">
+          <div class="analytics-sections">
             <!-- Velocity Chart -->
-            <div class="col-12">
-              <q-card>
-                <q-card-section>
-                  <div class="text-h6 text-weight-bold q-mb-md">
-                    <q-icon name="trending_up" class="q-mr-sm" />
-                    Velocity Chart
-                  </div>
-                  <p class="text-caption text-grey-7 q-mb-md">
-                    Story points completed per sprint. Use this to predict team capacity for future sprints.
-                  </p>
-                  <div v-if="velocityChartData.labels.length > 0" style="height: 280px">
-                    <Bar :data="velocityChartData" :options="velocityChartOptions" />
-                  </div>
-                  <div v-else class="text-center text-grey-6 q-pa-xl">
-                    <q-icon name="bar_chart" size="48px" class="q-mb-sm" />
-                    <div class="text-body2">No completed sprints yet</div>
-                    <div class="text-caption">Complete sprints to see velocity data</div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
+            <q-card>
+              <q-card-section>
+                <div class="text-h6 text-weight-bold q-mb-md">
+                  <q-icon name="trending_up" class="q-mr-sm" />
+                  Velocity Chart
+                </div>
+                <p class="text-caption text-grey-7 q-mb-md">
+                  Story points completed per sprint. Use this to predict team capacity for future sprints.
+                </p>
+                <div v-if="velocityChartData.labels.length > 0" style="height: 280px">
+                  <Bar :data="velocityChartData" :options="velocityChartOptions" />
+                </div>
+                <div v-else class="text-center text-grey-6 q-pa-xl">
+                  <q-icon name="bar_chart" size="48px" class="q-mb-sm" />
+                  <div class="text-body2">No completed sprints yet</div>
+                  <div class="text-caption">Complete sprints to see velocity data</div>
+                </div>
+              </q-card-section>
+            </q-card>
 
             <!-- Charts and analytics -->
-            <div class="col-12 col-md-6">
-              <q-card>
-                <q-card-section>
-                  <div class="text-h6 text-weight-bold q-mb-md">Task Distribution</div>
-                  <div class="row q-gutter-md">
-                    <div class="col">
-                      <div class="text-h4 text-primary text-weight-bold">{{ taskStats.todo }}</div>
-                      <div class="text-caption text-grey-7">To Do</div>
-                    </div>
-                    <div class="col">
-                      <div class="text-h4 text-orange text-weight-bold">
-                        {{ taskStats.inProgress }}
+            <div class="analytics-cards-grid">
+              <div>
+                <q-card class="analytics-stat-card">
+                  <q-card-section>
+                    <div class="text-h6 text-weight-bold q-mb-md">Task Distribution</div>
+                    <div class="row q-gutter-md">
+                      <div class="col">
+                        <div class="text-h4 text-primary text-weight-bold">{{ taskStats.todo }}</div>
+                        <div class="text-caption text-grey-7">To Do</div>
                       </div>
-                      <div class="text-caption text-grey-7">In Progress</div>
+                      <div class="col">
+                        <div class="text-h4 text-orange text-weight-bold">
+                          {{ taskStats.inProgress }}
+                        </div>
+                        <div class="text-caption text-grey-7">In Progress</div>
+                      </div>
+                      <div class="col">
+                        <div class="text-h4 text-green text-weight-bold">{{ taskStats.done }}</div>
+                        <div class="text-caption text-grey-7">Done</div>
+                      </div>
                     </div>
-                    <div class="col">
-                      <div class="text-h4 text-green text-weight-bold">{{ taskStats.done }}</div>
-                      <div class="text-caption text-grey-7">Done</div>
-                    </div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
+                  </q-card-section>
+                </q-card>
+              </div>
 
-            <div class="col-12 col-md-6">
-              <q-card>
-                <q-card-section>
-                  <div class="text-h6 text-weight-bold q-mb-md">Priority Breakdown</div>
-                  <div class="row q-gutter-md">
-                    <div class="col">
-                      <div class="text-h4 text-red text-weight-bold">{{ priorityStats.high }}</div>
-                      <div class="text-caption text-grey-7">High</div>
-                    </div>
-                    <div class="col">
-                      <div class="text-h4 text-orange text-weight-bold">
-                        {{ priorityStats.medium }}
+              <div>
+                <q-card class="analytics-stat-card">
+                  <q-card-section>
+                    <div class="text-h6 text-weight-bold q-mb-md">Priority Breakdown</div>
+                    <div class="row q-gutter-md">
+                      <div class="col">
+                        <div class="text-h4 text-red text-weight-bold">{{ priorityStats.high }}</div>
+                        <div class="text-caption text-grey-7">High</div>
                       </div>
-                      <div class="text-caption text-grey-7">Medium</div>
+                      <div class="col">
+                        <div class="text-h4 text-orange text-weight-bold">
+                          {{ priorityStats.medium }}
+                        </div>
+                        <div class="text-caption text-grey-7">Medium</div>
+                      </div>
+                      <div class="col">
+                        <div class="text-h4 text-blue text-weight-bold">{{ priorityStats.low }}</div>
+                        <div class="text-caption text-grey-7">Low</div>
+                      </div>
                     </div>
-                    <div class="col">
-                      <div class="text-h4 text-blue text-weight-bold">{{ priorityStats.low }}</div>
-                      <div class="text-caption text-grey-7">Low</div>
-                    </div>
-                  </div>
-                </q-card-section>
-              </q-card>
+                  </q-card-section>
+                </q-card>
+              </div>
             </div>
           </div>
         </q-tab-panel>
@@ -3991,5 +3990,96 @@ function getResponsibleNames(responsibleIds: number[]): string {
 .kanban-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sprint-management-sections {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+.project-team-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+.project-team-grid > div {
+  display: flex;
+}
+
+.project-team-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-team-card-content {
+  flex: 1;
+}
+
+.overview-summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.overview-summary-grid > div {
+  display: flex;
+}
+
+.overview-stat-card {
+  width: 100%;
+  height: 100%;
+}
+
+.overview-stat-section {
+  min-height: 128px;
+}
+
+.analytics-sections {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+
+.analytics-cards-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analytics-cards-grid > div {
+  display: flex;
+}
+
+.analytics-stat-card {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 1240px) {
+  .overview-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .overview-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

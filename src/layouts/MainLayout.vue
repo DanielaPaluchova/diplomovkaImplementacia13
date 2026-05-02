@@ -108,6 +108,7 @@
             clickable
             v-ripple
             :to="item.route"
+            :exact="item.route === '/'"
             class="navigation-item q-mb-xs"
             active-class="bg-primary text-white"
           >
@@ -273,7 +274,7 @@ const projectNavigation: NavigationItemProps[] = [
   {
     title: 'PERT Analysis',
     caption: 'Time estimates',
-    icon: 'account_tree',
+    icon: 'calculate',
     route: '/pert-analysis',
   },
   {
@@ -291,7 +292,7 @@ const projectNavigation: NavigationItemProps[] = [
   {
     title: 'PERT + RACI Integration',
     caption: 'Combined project analysis',
-    icon: 'auto_awesome',
+    icon: 'integration_instructions',
     route: '/pert-raci-optimization',
   },
   {

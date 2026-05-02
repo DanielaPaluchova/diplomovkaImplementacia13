@@ -27,21 +27,21 @@
     </div>
 
     <div v-if="selectedProject" class="q-pa-lg">
-        <!-- PERT Summary Cards -->
-        <div class="row q-gutter-md q-mb-lg">
-          <div class="col-12 col-md-3">
-            <q-card class="text-center">
-              <q-card-section>
-                <div class="text-h4 text-green text-weight-bold">
-                  {{ totalTasks }}
-                </div>
-                <div class="text-grey-7">Total Tasks</div>
-              </q-card-section>
-            </q-card>
-          </div>
+      <!-- PERT Summary Cards -->
+      <div class="row q-gutter-md q-mb-lg">
+        <div class="col-12 col-md-3">
+          <q-card class="text-center">
+            <q-card-section>
+              <div class="text-h4 text-green text-weight-bold">
+                {{ totalTasks }}
+              </div>
+              <div class="text-grey-7">Total Tasks</div>
+            </q-card-section>
+          </q-card>
         </div>
+      </div>
 
-        <!-- PERT Network Diagram -->
+      <!-- PERT Network Diagram -->
       <q-card class="q-mb-lg">
         <q-card-section>
           <div class="row items-center justify-between q-mb-md">
@@ -71,8 +71,12 @@
           </div>
           <div class="row q-gutter-xs q-mb-sm items-center">
             <q-chip size="sm" color="blue" text-color="white" icon="circle">Dependent Tasks</q-chip>
-            <q-chip size="sm" color="blue" text-color="white" icon="arrow_forward">Dependencies</q-chip>
-            <q-chip size="sm" color="purple" text-color="white" icon="workspaces">Independent Tasks</q-chip>
+            <q-chip size="sm" color="blue" text-color="white" icon="arrow_forward"
+              >Dependencies</q-chip
+            >
+            <q-chip size="sm" color="purple" text-color="white" icon="workspaces"
+              >Independent Tasks</q-chip
+            >
           </div>
         </q-card-section>
         <q-separator />
@@ -100,7 +104,14 @@
                   refY="5"
                   orient="auto"
                 >
-                  <path d="M 2 2 L 8 5 L 2 8" fill="none" stroke="#2196f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path
+                    d="M 2 2 L 8 5 L 2 8"
+                    fill="none"
+                    stroke="#2196f3"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
                 </marker>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
@@ -183,9 +194,9 @@
         </q-card-section>
       </q-card>
 
-      <div class="row q-gutter-lg">
+      <div class="pert-analysis-sections">
         <!-- PERT Tasks Table -->
-        <div class="col-12 col-lg-8">
+        <div>
           <q-card>
             <q-card-section>
               <div class="text-h6 text-weight-bold">PERT Estimates by Task</div>
@@ -273,7 +284,7 @@
         </div>
 
         <!-- Task Details & Stats -->
-        <div class="col-12 col-lg-4">
+        <div>
           <!-- Status Breakdown -->
           <q-card>
             <q-card-section>
@@ -446,8 +457,8 @@ const taskEstimates = computed(() => {
   if (!selectedProject.value || !selectedProject.value.tasks) return [];
 
   return selectedProject.value.tasks.map((task) => {
-    const optimistic = Number((task.pert.optimistic ?? 0));
-    const pessimistic = Number((task.pert.pessimistic ?? 0));
+    const optimistic = Number(task.pert.optimistic ?? 0);
+    const pessimistic = Number(task.pert.pessimistic ?? 0);
     const expected = Number((task.pert.expected ?? 0).toFixed(2));
     const stats = calcPertStats(optimistic, pessimistic, expected);
 
@@ -658,8 +669,8 @@ function calculateAutoLayout(existingPositions: Record<number, { x: number; y: n
     layers.forEach((layerNodes, layerIndex) => {
       if (!layerNodes) return;
       layerNodes.forEach((nodeId, indexInLayer) => {
-        const x = 100 + layerIndex * horizontalSpacing;    // layers go right →
-        const y = 100 + indexInLayer * verticalSpacing;    // tasks stacked vertically
+        const x = 100 + layerIndex * horizontalSpacing; // layers go right →
+        const y = 100 + indexInLayer * verticalSpacing; // tasks stacked vertically
         existingPositions[nodeId] = { x, y };
 
         // Track the maximum Y position (including node height)
@@ -742,7 +753,7 @@ async function refreshDiagram() {
 
     $q.notify({
       type: 'positive',
-      message: 'Diagram refreshed from database'
+      message: 'Diagram refreshed from database',
     });
   }
 }
@@ -822,7 +833,6 @@ watch(selectedProjectId, async (newVal) => {
     stroke-width 0.3s ease;
 }
 
-
 .independent-node rect {
   filter: drop-shadow(0 2px 4px rgba(156, 39, 176, 0.3));
 }
@@ -830,5 +840,11 @@ watch(selectedProjectId, async (newVal) => {
 .section-label {
   user-select: none;
   pointer-events: none;
+}
+
+.pert-analysis-sections {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
 }
 </style>

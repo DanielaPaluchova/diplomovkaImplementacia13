@@ -26,15 +26,15 @@
       <!-- Filter and Search -->
       <q-card class="q-mb-lg">
         <q-card-section>
-          <div class="row q-gutter-md items-center">
-            <div class="col-12 col-md-4">
+          <div class="projects-filters-grid">
+            <div>
               <q-input v-model="searchQuery" placeholder="Search projects..." outlined dense>
                 <template v-slot:prepend>
                   <q-icon name="search" />
                 </template>
               </q-input>
             </div>
-            <div class="col-12 col-md-3">
+            <div>
               <q-select
                 v-model="statusFilter"
                 :options="statusOptions"
@@ -44,7 +44,7 @@
                 clearable
               />
             </div>
-            <div class="col-12 col-md-3">
+            <div>
               <q-select v-model="sortBy" :options="sortOptions" label="Sort by" outlined dense />
             </div>
           </div>
@@ -52,8 +52,8 @@
       </q-card>
 
       <!-- Projects Grid -->
-      <div class="row q-gutter-md">
-        <div v-for="project in filteredProjects" :key="project.id" class="col-12 col-md-6 col-lg-4">
+      <div class="projects-grid">
+        <div v-for="project in filteredProjects" :key="project.id">
           <q-card class="project-card" @click="navigateToProject(project.id)">
             <q-card-section class="bg-primary text-white">
               <div class="row items-center">
@@ -65,7 +65,7 @@
               </div>
             </q-card-section>
 
-            <q-card-section>
+            <q-card-section class="project-card-content">
               <div class="text-grey-8 q-mb-md" style="min-height: 40px">
                 {{ project.description }}
               </div>
@@ -133,7 +133,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-if="filteredProjects.length === 0" class="col-12">
+        <div v-if="filteredProjects.length === 0" class="projects-grid-empty">
           <q-card class="text-center q-pa-xl">
             <q-icon name="folder_off" size="64px" class="text-grey-5 q-mb-md" />
             <div class="text-h6 text-grey-7 q-mb-sm">No projects found</div>
@@ -610,10 +610,58 @@ function cancelProjectDialog() {
   transition:
     transform 0.2s,
     box-shadow 0.2s;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .project-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.projects-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+}
+
+.projects-filters-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.projects-grid > div {
+  display: flex;
+}
+
+.project-card-content {
+  flex: 1;
+}
+
+.projects-grid-empty {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1240px) {
+  .projects-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .projects-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .projects-filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .projects-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

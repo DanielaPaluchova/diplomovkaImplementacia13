@@ -547,38 +547,6 @@ def get_sprint_strategies(project_id):
             'recommended': 'When you want to maximize delivered business value'
         },
         {
-            'id': 'pert',
-            'name': 'CV based (PERT)',
-            'description': 'Predictable tasks first (lower CV), then larger. Assign by workload. 60h per member.',
-            'parameters': [],
-            'icon': 'schedule',
-            'recommended': 'When you want predictable sprints with low uncertainty'
-        },
-        {
-            'id': 'pert-workload',
-            'name': 'PERT',
-            'description': 'Larger tasks first, then smaller. Assign by workload. 60h per member.',
-            'parameters': [],
-            'icon': 'balance',
-            'recommended': 'When you want to tackle big items first'
-        },
-        {
-            'id': 'pert-raci-integration',
-            'name': 'PERT + RACI Integration',
-            'description': 'Like PERT workload, but uses adjusted duration (RACI overload formula). 60h per member.',
-            'parameters': [],
-            'icon': 'group_work',
-            'recommended': 'When you want to account for RACI overload in duration estimates'
-        },
-        {
-            'id': 'pert-raci-integration-skills',
-            'name': 'PERT + RACI Integration + Skills',
-            'description': 'Adjusted duration order. Assign to best skill match.',
-            'parameters': [],
-            'icon': 'psychology',
-            'recommended': 'RACI-adjusted planning with skill-based assignment'
-        },
-        {
             'id': 'pert-raci-integration-priority',
             'name': 'PERT + RACI Integration + Priority',
             'description': 'Adjusted duration then priority. Assign by workload.',
@@ -587,60 +555,12 @@ def get_sprint_strategies(project_id):
             'recommended': 'RACI-adjusted planning with priority awareness'
         },
         {
-            'id': 'pert-raci-integration-value',
-            'name': 'PERT + RACI Integration + Value',
-            'description': 'Order by value (SP×priority). Assign by workload.',
-            'parameters': [],
-            'icon': 'trending_up',
-            'recommended': 'RACI-adjusted planning maximizing value'
-        },
-        {
-            'id': 'pert-skills',
-            'name': 'CV based (PERT) + Skills',
-            'description': 'Predictable tasks first. Assign to best skill match.',
-            'parameters': [],
-            'icon': 'psychology',
-            'recommended': 'CV-based order with skill-based assignment'
-        },
-        {
-            'id': 'pert-priority',
-            'name': 'CV based (PERT) + Priority',
-            'description': 'Predictable tasks first, then by priority. Assign by workload.',
-            'parameters': [],
-            'icon': 'priority_high',
-            'recommended': 'CV-based order with priority awareness'
-        },
-        {
-            'id': 'pert-value',
-            'name': 'CV based (PERT) + Value',
-            'description': 'Task order by business value (SP×priority). Assign by workload.',
-            'parameters': [],
-            'icon': 'trending_up',
-            'recommended': 'Maximize value with CV-based planning'
-        },
-        {
-            'id': 'pert-workload-skills',
-            'name': 'PERT + Skills',
-            'description': 'Larger tasks first. Assign to best skill match.',
-            'parameters': [],
-            'icon': 'psychology',
-            'recommended': 'PERT order with skill-based assignment'
-        },
-        {
             'id': 'pert-workload-priority',
             'name': 'PERT + Priority',
             'description': 'Larger tasks first, then by priority. Assign by workload.',
             'parameters': [],
             'icon': 'priority_high',
             'recommended': 'PERT order with priority awareness'
-        },
-        {
-            'id': 'pert-workload-value',
-            'name': 'PERT + Value',
-            'description': 'Task order by business value. Assign by workload.',
-            'parameters': [],
-            'icon': 'trending_up',
-            'recommended': 'PERT order maximizing value'
         },
         {
             'id': 'hybrid',
