@@ -81,70 +81,6 @@
             </div>
           </q-card-section>
 
-          <q-card-section class="q-pt-none">
-            <q-expansion-item label="Demo Accounts" icon="info" header-class="text-grey-7" dense>
-              <q-card flat bordered class="q-mt-sm">
-                <q-list dense>
-                  <q-item>
-                    <q-item-section>
-                      <q-item-label caption>Admin</q-item-label>
-                      <q-item-label class="text-caption">
-                        admin@example.com / admin123
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-btn
-                        flat
-                        dense
-                        size="sm"
-                        color="primary"
-                        label="Use"
-                        @click="useDemoAccount('admin@example.com', 'admin123')"
-                      />
-                    </q-item-section>
-                  </q-item>
-                  <q-separator />
-                  <q-item>
-                    <q-item-section>
-                      <q-item-label caption>Manager</q-item-label>
-                      <q-item-label class="text-caption">
-                        manager@example.com / manager123
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-btn
-                        flat
-                        dense
-                        size="sm"
-                        color="primary"
-                        label="Use"
-                        @click="useDemoAccount('manager@example.com', 'manager123')"
-                      />
-                    </q-item-section>
-                  </q-item>
-                  <q-separator />
-                  <q-item>
-                    <q-item-section>
-                      <q-item-label caption>Developer</q-item-label>
-                      <q-item-label class="text-caption">
-                        developer@example.com / dev123
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-btn
-                        flat
-                        dense
-                        size="sm"
-                        color="primary"
-                        label="Use"
-                        @click="useDemoAccount('developer@example.com', 'dev123')"
-                      />
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </q-card>
-            </q-expansion-item>
-          </q-card-section>
         </q-card>
       </q-page>
     </q-page-container>
@@ -195,12 +131,6 @@ async function handleLogin() {
   }
 }
 
-function useDemoAccount(demoEmail: string, demoPassword: string) {
-  email.value = demoEmail;
-  password.value = demoPassword;
-  rememberMe.value = true;
-  handleLogin();
-}
 </script>
 
 <style scoped>
