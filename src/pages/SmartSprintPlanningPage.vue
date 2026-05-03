@@ -366,24 +366,6 @@
                     markers
                   />
                 </div>
-                <div class="q-mb-md">
-                  <div class="text-subtitle2 q-mb-sm">PERT Mode</div>
-                  <q-select
-                    v-model="hybridWeights.pertMode"
-                    :options="[
-                      { label: 'None (SP-based)', value: 'none' },
-                      { label: 'PERT (raw hours)', value: 'pert' },
-                      { label: 'PERT + RACI Integration (adjusted duration)', value: 'pert-raci' },
-                    ]"
-                    emit-value
-                    map-options
-                    outlined
-                    dense
-                  />
-                  <div class="text-caption text-grey-7">
-                    Choose capacity model. PERT/RACI require tasks with PERT estimates.
-                  </div>
-                </div>
               </q-card-section>
             </q-card>
           </q-expansion-item>
@@ -860,6 +842,7 @@
                           v-for="(score, key) in planningResult.reasoning[props.row.id]
                             ?.scoreBreakdown"
                           :key="key"
+                          v-show="key !== 'risk'"
                           class="text-caption"
                         >
                           {{ formatWeightLabel(key) }}: {{ score.toFixed(1) }}
@@ -957,7 +940,7 @@ const hybridWeights = ref<Record<string, number | string>>({
   skills: 0.30,
   dependency: 0.15,
   pertMode: 'none',
-  pertPredictability: 0.1,
+  pertPredictability: 0,
 });
 const showAddTaskDialog = ref(false);
 
@@ -1011,7 +994,7 @@ const hasGeneratedPlan = computed(() => {
 });
 
 const hybridSliderKeys = computed(() =>
-  Object.keys(hybridWeights.value).filter((k) => k !== 'pertMode')
+  Object.keys(hybridWeights.value).filter((k) => k !== 'pertMode' && k !== 'pertPredictability')
 );
 
 // Note: canApplyPlan check removed - AI now creates PLANNED sprints which don't conflict with active sprints
