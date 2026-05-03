@@ -171,41 +171,6 @@
                 </q-card-section>
               </q-card>
 
-              <!-- Recent Activity -->
-              <q-card>
-                <q-card-section>
-                  <div class="text-h6 text-weight-bold q-mb-md">Recent Tasks</div>
-                  <q-list separator>
-                    <q-item v-for="task in recentTasks" :key="task.id">
-                      <q-item-section avatar>
-                        <q-checkbox
-                          :model-value="task.status === 'Done'"
-                          @update:model-value="toggleTaskStatus(task)"
-                          color="primary"
-                        />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label :class="{ 'text-strike': task.status === 'Done' }">
-                          {{ task.title }}
-                        </q-item-label>
-                        <q-item-label caption>
-                          <q-chip
-                            :color="getPriorityColor(task.priority)"
-                            text-color="white"
-                            size="sm"
-                            dense
-                          >
-                            {{ task.priority }}
-                          </q-chip>
-                        </q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <q-chip size="sm" dense>{{ task.storyPoints }} SP</q-chip>
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-card-section>
-              </q-card>
             </div>
 
             <!-- Right Column - Team Workload -->
@@ -2739,14 +2704,6 @@ const doneTasks = computed(() => {
       t.sprintId === activeSprint.value!.id &&
       t.status === 'Done',
   );
-});
-
-// Recent tasks for overview - filter by current project ID to ensure correctness
-const recentTasks = computed(() => {
-  if (!project.value || !project.value.tasks) return [];
-  return project.value.tasks
-    .filter((t) => t.projectId === project.value.id) // Explicit filter by project ID
-    .slice(0, 5);
 });
 
 // Completed tasks - all tasks with status Done, sorted by most recent (by ID)

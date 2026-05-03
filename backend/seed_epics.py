@@ -1,61 +1,18 @@
 """
-Seed Epic data for strategic planning demonstration
-This script adds epics with realistic dependencies to an existing project
+Seed Epic data for strategic planning demonstration.
+This script adds epics with realistic dependencies to an existing project.
 """
+import random
 import sys
+
 from app import create_app, db
 from app.models.epic import Epic
 from app.models.project import Project
 from app.models.task import Task
 
-app = create_app()
 
-
-def seed_epics_for_project(project_id):
-    """
-    Seed epics for a specific project with realistic dependencies
-    
-    Example epic structure:
-    - Epic 1: User Authentication (no dependencies)
-    - Epic 2: User Profile Management (depends on Epic 1)
-    - Epic 3: Dashboard & Analytics (depends on Epic 1)
-    - Epic 4: Admin Panel (depends on Epic 1, 2)
-    - Epic 5: Notifications System (depends on Epic 1)
-    - Epic 6: Mobile App (depends on Epic 1, 2, 3)
-    """
-    with app.app_context():
-        print(f"\n{'='*60}")
-        print(f"SEEDING EPICS FOR PROJECT {project_id}")
-        print(f"{'='*60}\n")
-        
-        # Check if project exists
-        project = Project.query.get(project_id)
-        if not project:
-            print(f"❌ Error: Project with ID {project_id} not found")
-            return
-        
-        print(f"✓ Found project: {project.name}")
-        
-        # Check if epics already exist for this project
-        existing_epics = Epic.query.filter_by(project_id=project_id).all()
-        if existing_epics:
-            print(f"⚠ Warning: Project already has {len(existing_epics)} epics")
-            response = input("Do you want to delete existing epics and create new ones? (yes/no): ")
-            if response.lower() == 'yes':
-                for epic in existing_epics:
-                    # Set epic_id to null for all tasks in this epic
-                    tasks = Task.query.filter_by(epic_id=epic.id).all()
-                    for task in tasks:
-                        task.epic_id = None
-                    db.session.delete(epic)
-                db.session.commit()
-                print(f"✓ Deleted {len(existing_epics)} existing epics")
-            else:
-                print("Cancelled.")
-                return
-        
-        # Define epics
-        epics_data = [
+def _default_epics_data():
+    return [
             {
                 'name': 'User Authentication & Security',
                 'description': 'Implement complete user authentication system with login, registration, password reset, and OAuth integration. Include security features like 2FA and session management.',
@@ -168,77 +125,163 @@ def seed_epics_for_project(project_id):
                 'dependencies': [1, 3],  # Depends on Auth and Dashboard
                 'position': (100, 400)
             }
-        ]
-        
-        # Create epics
-        created_epics = []
-        for epic_data in epics_data:
-            # Calculate PERT expected
-            pert = epic_data['pert']
-            pert_expected = (pert['optimistic'] + 4 * pert['most_likely'] + pert['pessimistic']) / 6
-            
-            epic = Epic(
-                project_id=project_id,
-                name=epic_data['name'],
-                description=epic_data['description'],
-                status=epic_data['status'],
-                business_value=epic_data['business_value'],
-                target_release=epic_data['target_release'],
-                pert_optimistic=pert['optimistic'],
-                pert_most_likely=pert['most_likely'],
-                pert_pessimistic=pert['pessimistic'],
-                pert_expected=pert_expected,
-                dependencies=[],  # Will be set after all epics are created
-                diagram_position_x=epic_data['position'][0],
-                diagram_position_y=epic_data['position'][1]
-            )
-            
-            db.session.add(epic)
-            db.session.flush()  # Get ID
-            created_epics.append((epic, epic_data['dependencies']))
-            
-            print(f"✓ Created epic: {epic.name} (ID: {epic.id})")
-        
-        # Set dependencies (now that we have all IDs)
-        for epic, dep_indices in created_epics:
-            if dep_indices:
-                epic_dependencies = [created_epics[i-1][0].id for i in dep_indices]
-                epic.dependencies = epic_dependencies
-                print(f"  → Set dependencies for '{epic.name}': {epic_dependencies}")
-        
-        db.session.commit()
-        
-        print(f"\n✅ Successfully created {len(created_epics)} epics for project '{project.name}'")
-        print(f"\nEpic Summary:")
-        for epic, _ in created_epics:
-            deps = epic.dependencies or []
-            deps_str = f" (depends on: {deps})" if deps else " (no dependencies)"
-            print(f"  • {epic.name} - BV: {epic.business_value}, Duration: {epic.pert_expected:.1f} days{deps_str}")
-        
-        # Optional: Assign some existing tasks to epics
+    ]
+
+
+def _seed_epics_core(
+    project_id: int,
+    replace_existing: bool,
+    assign_tasks: bool,
+    interactive: bool,
+    verbose: bool,
+) -> dict:
+    if verbose:
         print(f"\n{'='*60}")
-        print(f"OPTIONAL: ASSIGN TASKS TO EPICS")
+        print(f"SEEDING EPICS FOR PROJECT {project_id}")
         print(f"{'='*60}\n")
-        
+
+    project = db.session.get(Project, project_id)
+    if not project:
+        msg = f"Error: Project with ID {project_id} not found"
+        if verbose:
+            print(msg)
+        return {'ok': False, 'error': msg, 'project_id': project_id}
+
+    if verbose:
+        print(f"[OK] Found project: {project.name}")
+
+    existing_epics = Epic.query.filter_by(project_id=project_id).all()
+    if existing_epics:
+        if not replace_existing and not interactive:
+            msg = f"Skipped: project already has {len(existing_epics)} epics"
+            if verbose:
+                print(f"[SKIP] {msg}")
+            return {
+                'ok': True,
+                'skipped': True,
+                'project_id': project_id,
+                'project_name': project.name,
+                'existing_epics': len(existing_epics),
+                'created_epics': 0,
+                'message': msg,
+            }
+
+        if interactive and not replace_existing:
+            print(f"[WARN] Project already has {len(existing_epics)} epics")
+            response = input("Do you want to delete existing epics and create new ones? (yes/no): ")
+            replace_existing = response.strip().lower() == 'yes'
+            if not replace_existing:
+                return {
+                    'ok': True,
+                    'skipped': True,
+                    'project_id': project_id,
+                    'project_name': project.name,
+                    'existing_epics': len(existing_epics),
+                    'created_epics': 0,
+                    'message': 'Cancelled by user.',
+                }
+
+        if replace_existing:
+            for epic in existing_epics:
+                tasks = Task.query.filter_by(epic_id=epic.id).all()
+                for task in tasks:
+                    task.epic_id = None
+                db.session.delete(epic)
+            db.session.commit()
+            if verbose:
+                print(f"[OK] Deleted {len(existing_epics)} existing epics")
+
+    epics_data = _default_epics_data()
+    created_epics = []
+    for epic_data in epics_data:
+        pert = epic_data['pert']
+        pert_expected = (pert['optimistic'] + 4 * pert['most_likely'] + pert['pessimistic']) / 6
+
+        epic = Epic(
+            project_id=project_id,
+            name=epic_data['name'],
+            description=epic_data['description'],
+            status=epic_data['status'],
+            business_value=epic_data['business_value'],
+            target_release=epic_data['target_release'],
+            pert_optimistic=pert['optimistic'],
+            pert_most_likely=pert['most_likely'],
+            pert_pessimistic=pert['pessimistic'],
+            pert_expected=pert_expected,
+            dependencies=[],
+            diagram_position_x=epic_data['position'][0],
+            diagram_position_y=epic_data['position'][1],
+        )
+
+        db.session.add(epic)
+        db.session.flush()
+        created_epics.append((epic, epic_data['dependencies']))
+        if verbose:
+            print(f"[OK] Created epic: {epic.name} (ID: {epic.id})")
+
+    for epic, dep_indices in created_epics:
+        if dep_indices:
+            epic.dependencies = [created_epics[i - 1][0].id for i in dep_indices]
+            if verbose:
+                print(f"  -> Set dependencies for '{epic.name}': {epic.dependencies}")
+
+    db.session.commit()
+
+    assigned_count = 0
+    if interactive:
         tasks = Task.query.filter_by(project_id=project_id).limit(20).all()
         if tasks:
             print(f"Found {len(tasks)} tasks in project")
-            response = input(f"Do you want to randomly assign some tasks to epics? (yes/no): ")
-            if response.lower() == 'yes':
-                import random
-                assigned_count = 0
-                for task in tasks:
-                    if random.random() < 0.6:  # 60% chance to assign to an epic
-                        epic = random.choice([e for e, _ in created_epics])
-                        task.epic_id = epic.id
-                        assigned_count += 1
-                
-                db.session.commit()
-                print(f"✓ Assigned {assigned_count} tasks to epics")
-        
+            response = input("Do you want to randomly assign some tasks to epics? (yes/no): ")
+            assign_tasks = response.strip().lower() == 'yes'
+
+    if assign_tasks:
+        tasks = Task.query.filter_by(project_id=project_id).limit(20).all()
+        for task in tasks:
+            if random.random() < 0.6:
+                epic = random.choice([e for e, _ in created_epics])
+                task.epic_id = epic.id
+                assigned_count += 1
+        db.session.commit()
+        if verbose:
+            print(f"[OK] Assigned {assigned_count} tasks to epics")
+
+    if verbose:
+        print(f"\n[OK] Successfully created {len(created_epics)} epics for project '{project.name}'")
         print(f"\n{'='*60}")
-        print(f"EPIC SEEDING COMPLETED!")
+        print("EPIC SEEDING COMPLETED")
         print(f"{'='*60}\n")
+
+    return {
+        'ok': True,
+        'skipped': False,
+        'project_id': project_id,
+        'project_name': project.name,
+        'existing_epics': len(existing_epics),
+        'created_epics': len(created_epics),
+        'assigned_tasks': assigned_count,
+    }
+
+
+def seed_epics_for_project(
+    project_id: int,
+    replace_existing: bool = False,
+    assign_tasks: bool = False,
+    interactive: bool = True,
+    use_app_context: bool = True,
+    verbose: bool = True,
+) -> dict:
+    """
+    Seed epics for one project.
+
+    - CLI default: interactive flow with optional replacement/task assignment.
+    - Programmatic use: set interactive=False for non-blocking automatic seed.
+    """
+    if use_app_context:
+        app = create_app()
+        with app.app_context():
+            return _seed_epics_core(project_id, replace_existing, assign_tasks, interactive, verbose)
+    return _seed_epics_core(project_id, replace_existing, assign_tasks, interactive, verbose)
 
 
 if __name__ == '__main__':
@@ -250,7 +293,7 @@ if __name__ == '__main__':
     
     try:
         project_id = int(sys.argv[1])
-        seed_epics_for_project(project_id)
+        seed_epics_for_project(project_id, interactive=True, use_app_context=True, verbose=True)
     except ValueError:
         print("Error: project_id must be an integer")
         sys.exit(1)

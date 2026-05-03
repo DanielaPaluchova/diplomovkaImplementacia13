@@ -31,13 +31,28 @@
 
         <div class="col-12 col-md">
           <div class="row q-gutter-sm items-center">
-            <q-chip v-if="selectedProject && !initialLoading" icon="task" color="primary" text-color="white">
+            <q-chip
+              v-if="selectedProject && !initialLoading"
+              icon="task"
+              color="primary"
+              text-color="white"
+            >
               {{ selectedProject.tasks?.length || 0 }} Tasks
             </q-chip>
-            <q-chip v-if="selectedProject && !initialLoading" icon="group" color="green" text-color="white">
+            <q-chip
+              v-if="selectedProject && !initialLoading"
+              icon="group"
+              color="green"
+              text-color="white"
+            >
               {{ selectedProject.teamMemberIds?.length || 0 }} Members
             </q-chip>
-            <q-chip v-if="selectedProject && !initialLoading" icon="event" color="orange" text-color="white">
+            <q-chip
+              v-if="selectedProject && !initialLoading"
+              icon="event"
+              color="orange"
+              text-color="white"
+            >
               {{ selectedProject.sprints?.length || 0 }} Sprints
             </q-chip>
             <q-btn
@@ -60,7 +75,10 @@
       </div>
 
       <!-- Empty State - No Project Selected -->
-      <q-card v-if="!selectedProject && !initialLoading" class="q-mb-lg shadow-2 text-center q-pa-xl">
+      <q-card
+        v-if="!selectedProject && !initialLoading"
+        class="q-mb-lg shadow-2 text-center q-pa-xl"
+      >
         <q-icon name="folder_open" size="64px" color="grey-5" class="q-mb-md" />
         <div class="text-h6 text-grey-6 q-mb-sm">Select a Project to Begin</div>
         <div class="text-body2 text-grey-7">
@@ -73,7 +91,7 @@
         <q-card-section class="bg-blue-1">
           <div class="text-h6 text-weight-bold">Current Project State</div>
         </q-card-section>
-            <q-card-section>
+        <q-card-section>
           <div class="row q-col-gutter-md">
             <!-- Workload Card (Current Project) -->
             <div class="col-12 col-sm-6 col-md-3">
@@ -88,7 +106,10 @@
                     <div v-for="member in teamWorkloadDetails" :key="member.id" class="q-mb-xs">
                       <div class="row items-center justify-between">
                         <span>{{ member.name }}:</span>
-                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                        <span
+                          class="text-weight-bold"
+                          :class="getWorkloadColorClass(member.workload)"
+                        >
                           {{ member.workload }}%
                         </span>
                       </div>
@@ -100,9 +121,7 @@
                       />
                     </div>
                   </div>
-                  <div v-else class="text-caption text-grey-5">
-                    No team members assigned
-                  </div>
+                  <div v-else class="text-caption text-grey-5">No team members assigned</div>
                 </q-tooltip>
               </div>
             </div>
@@ -117,10 +136,17 @@
                   <div class="text-weight-bold q-mb-sm">Workload Across All Projects</div>
                   <div class="text-caption text-grey-6 q-mb-sm">All active sprints</div>
                   <div v-if="crossProjectWorkload.details.length > 0">
-                    <div v-for="member in crossProjectWorkload.details" :key="member.id" class="q-mb-xs">
+                    <div
+                      v-for="member in crossProjectWorkload.details"
+                      :key="member.id"
+                      class="q-mb-xs"
+                    >
                       <div class="row items-center justify-between">
                         <span>{{ member.name }}:</span>
-                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                        <span
+                          class="text-weight-bold"
+                          :class="getWorkloadColorClass(member.workload)"
+                        >
                           {{ member.workload }}%
                         </span>
                       </div>
@@ -132,9 +158,7 @@
                       />
                     </div>
                   </div>
-                  <div v-else class="text-caption text-grey-5">
-                    No workload data available
-                  </div>
+                  <div v-else class="text-caption text-grey-5">No workload data available</div>
                 </q-tooltip>
               </div>
             </div>
@@ -151,33 +175,33 @@
                     <div class="row justify-between">
                       <span>Deadline Risks:</span>
                       <span class="text-weight-bold">{{ riskBreakdown.deadlineRisks }}</span>
-                </div>
                     </div>
+                  </div>
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>Overloaded Members:</span>
                       <span class="text-weight-bold">{{ riskBreakdown.overloadedMembers }}</span>
+                    </div>
                   </div>
-                        </div>
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>Blocked Tasks:</span>
                       <span class="text-weight-bold">{{ riskBreakdown.blockedTasks }}</span>
-                      </div>
                     </div>
+                  </div>
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>Large Tasks (21+ SP):</span>
                       <span class="text-weight-bold">{{ riskBreakdown.largeTasks }}</span>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
                   <q-separator class="q-my-sm" />
                   <div class="text-caption text-grey-5">
                     Higher score = Higher risk. Scale: 0-10
-                    </div>
+                  </div>
                 </q-tooltip>
-                        </div>
-                      </div>
+              </div>
+            </div>
 
             <!-- Balance Card -->
             <div class="col-12 col-sm-6 col-md-3">
@@ -189,13 +213,13 @@
                   <div class="text-weight-bold q-mb-sm">Team Balance Score</div>
                   <div class="q-mb-sm">
                     Measures how evenly work is distributed across the team.
-                    </div>
+                  </div>
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>Min Workload:</span>
                       <span class="text-weight-bold">{{ balanceDetails.minWorkload }}%</span>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>Max Workload:</span>
@@ -206,18 +230,21 @@
                     <div class="row justify-between">
                       <span>Difference:</span>
                       <span class="text-weight-bold">{{ balanceDetails.difference }}%</span>
-                </div>
-              </div>
+                    </div>
+                  </div>
                   <q-separator class="q-my-sm" />
                   <div class="text-caption text-grey-5">
                     100% = Perfect balance, 0% = Highly imbalanced
                   </div>
                 </q-tooltip>
-                  </div>
-                    </div>
+              </div>
+            </div>
 
             <!-- PERT Duration Card -->
-            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.totalPertDuration !== undefined">
+            <div
+              class="col-12 col-sm-6 col-md-3"
+              v-if="currentState.totalPertDuration !== undefined"
+            >
               <div class="stat-card clickable">
                 <q-icon name="schedule" size="32px" color="blue" class="q-mb-sm" />
                 <div class="text-h4 text-weight-bold">{{ currentState.totalPertDuration }}d</div>
@@ -233,13 +260,18 @@
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>RACI Adjusted:</span>
-                      <span class="text-weight-bold">{{ currentState.totalAdjustedDuration }}d</span>
+                      <span class="text-weight-bold"
+                        >{{ currentState.totalAdjustedDuration }}d</span
+                      >
                     </div>
                   </div>
                   <div class="q-mb-xs">
                     <div class="row justify-between">
                       <span>Overhead:</span>
-                      <span class="text-weight-bold" :class="getDurationOverheadColor(currentState.durationOverhead || 0)">
+                      <span
+                        class="text-weight-bold"
+                        :class="getDurationOverheadColor(currentState.durationOverhead || 0)"
+                      >
                         +{{ currentState.durationOverhead }}%
                       </span>
                     </div>
@@ -253,7 +285,10 @@
             </div>
 
             <!-- PERT Uncertainty Card -->
-            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.avgPertUncertainty !== undefined">
+            <div
+              class="col-12 col-sm-6 col-md-3"
+              v-if="currentState.avgPertUncertainty !== undefined"
+            >
               <div class="stat-card clickable">
                 <q-icon name="warning_amber" size="32px" color="orange" class="q-mb-sm" />
                 <div class="text-h4 text-weight-bold">{{ currentState.avgPertUncertainty }}%</div>
@@ -267,7 +302,10 @@
                     <div v-if="(currentState.avgPertUncertainty || 0) < 30">
                       ✓ Low uncertainty - Good estimates
                     </div>
-                    <div v-else-if="(currentState.avgPertUncertainty || 0) < 50" class="text-orange">
+                    <div
+                      v-else-if="(currentState.avgPertUncertainty || 0) < 50"
+                      class="text-orange"
+                    >
                       ⚠ Medium uncertainty - Some risk
                     </div>
                     <div v-else class="text-red">
@@ -279,19 +317,31 @@
             </div>
 
             <!-- RACI Workload Card (Current Project Only) -->
-            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.raciProjectWorkload !== undefined">
+            <div
+              class="col-12 col-sm-6 col-md-3"
+              v-if="currentState.raciProjectWorkload !== undefined"
+            >
               <div class="stat-card clickable">
                 <q-icon name="people" size="32px" color="teal" class="q-mb-sm" />
                 <div class="text-h4 text-weight-bold">{{ currentState.raciProjectWorkload }}%</div>
                 <div class="text-caption text-grey-7">RACI Workload</div>
                 <q-tooltip max-width="350px" class="bg-dark text-body2">
                   <div class="text-weight-bold q-mb-sm">RACI-Weighted Workload</div>
-                  <div class="text-caption text-grey-6 q-mb-sm">Active sprint - current project only</div>
+                  <div class="text-caption text-grey-6 q-mb-sm">
+                    Active sprint - current project only
+                  </div>
                   <div v-if="raciProjectWorkloadDetails.length > 0">
-                    <div v-for="member in raciProjectWorkloadDetails" :key="member.id" class="q-mb-xs">
+                    <div
+                      v-for="member in raciProjectWorkloadDetails"
+                      :key="member.id"
+                      class="q-mb-xs"
+                    >
                       <div class="row items-center justify-between">
                         <span>{{ member.name }}:</span>
-                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                        <span
+                          class="text-weight-bold"
+                          :class="getWorkloadColorClass(member.workload)"
+                        >
                           {{ member.workload }}%
                         </span>
                       </div>
@@ -314,19 +364,35 @@
             </div>
 
             <!-- RACI Cross-Project Workload Card -->
-            <div class="col-12 col-sm-6 col-md-3" v-if="currentState.raciCrossProjectWorkload !== undefined">
+            <div
+              class="col-12 col-sm-6 col-md-3"
+              v-if="currentState.raciCrossProjectWorkload !== undefined"
+            >
               <div class="stat-card clickable">
                 <q-icon name="groups" size="32px" color="deep-purple" class="q-mb-sm" />
-                <div class="text-h4 text-weight-bold">{{ currentState.raciCrossProjectWorkload }}%</div>
+                <div class="text-h4 text-weight-bold">
+                  {{ currentState.raciCrossProjectWorkload }}%
+                </div>
                 <div class="text-caption text-grey-7">RACI Cross-Project Workload</div>
                 <q-tooltip max-width="350px" class="bg-dark text-body2">
-                  <div class="text-weight-bold q-mb-sm">RACI-Weighted Workload Across All Projects</div>
-                  <div class="text-caption text-grey-6 q-mb-sm">Active sprint across all projects</div>
+                  <div class="text-weight-bold q-mb-sm">
+                    RACI-Weighted Workload Across All Projects
+                  </div>
+                  <div class="text-caption text-grey-6 q-mb-sm">
+                    Active sprint across all projects
+                  </div>
                   <div v-if="raciCrossProjectWorkloadDetails.length > 0">
-                    <div v-for="member in raciCrossProjectWorkloadDetails" :key="member.id" class="q-mb-xs">
+                    <div
+                      v-for="member in raciCrossProjectWorkloadDetails"
+                      :key="member.id"
+                      class="q-mb-xs"
+                    >
                       <div class="row items-center justify-between">
                         <span>{{ member.name }}:</span>
-                        <span class="text-weight-bold" :class="getWorkloadColorClass(member.workload)">
+                        <span
+                          class="text-weight-bold"
+                          :class="getWorkloadColorClass(member.workload)"
+                        >
                           {{ member.workload }}%
                         </span>
                       </div>
@@ -347,9 +413,9 @@
                 </q-tooltip>
               </div>
             </div>
-                  </div>
+          </div>
         </q-card-section>
-              </q-card>
+      </q-card>
 
       <!-- Tabs for Backlog vs Current Sprint -->
       <q-card v-if="selectedProject && !initialLoading" class="shadow-3">
@@ -368,9 +434,7 @@
             label="Planned Sprint"
             :disable="!hasPlannedSprint"
           >
-            <q-tooltip v-if="!hasPlannedSprint">
-              No planned sprint available
-            </q-tooltip>
+            <q-tooltip v-if="!hasPlannedSprint"> No planned sprint available </q-tooltip>
           </q-tab>
           <q-tab
             name="current_sprint"
@@ -378,9 +442,7 @@
             label="Current Sprint"
             :disable="!hasActiveSprint"
           >
-            <q-tooltip v-if="!hasActiveSprint">
-              No active sprint available
-            </q-tooltip>
+            <q-tooltip v-if="!hasActiveSprint"> No active sprint available </q-tooltip>
           </q-tab>
         </q-tabs>
 
@@ -395,8 +457,8 @@
                   <div class="text-h5 text-weight-bold">Backlog Analysis</div>
                   <div class="text-caption text-grey-7">
                     Optimize tasks not assigned to any sprint
-                          </div>
-                        </div>
+                  </div>
+                </div>
                 <div class="row q-gutter-sm">
                   <q-btn
                     color="secondary"
@@ -421,15 +483,13 @@
                     <q-tooltip>Specialized analysis for PERT duration and RACI workload</q-tooltip>
                   </q-btn>
                 </div>
-                      </div>
+              </div>
 
               <!-- Loading State -->
               <div v-if="requirementChangeStore.loading" class="text-center q-pa-xl">
                 <q-spinner-dots color="primary" size="48px" class="q-mb-md" />
                 <div class="text-h6 text-grey-7">Analyzing Project...</div>
-                <div class="text-body2 text-grey-6">
-                  Searching for optimization opportunities
-                </div>
+                <div class="text-body2 text-grey-6">Searching for optimization opportunities</div>
               </div>
 
               <OptimizationProposals
@@ -447,17 +507,17 @@
                 <div class="text-h6">All Good!</div>
                 <div class="text-body2 text-grey-7">
                   No optimization opportunities found. Your project is well-balanced.
-                    </div>
-                  </div>
+                </div>
+              </div>
 
               <div v-else-if="!requirementChangeStore.loading" class="text-center q-pa-xl">
                 <q-icon name="analytics" size="64px" color="grey-5" class="q-mb-md" />
                 <div class="text-h6 text-grey-6">Ready to Optimize</div>
                 <div class="text-body2 text-grey-7">
                   Click "Analyze & Optimize" to find all opportunities
-                          </div>
-                        </div>
-                      </div>
+                </div>
+              </div>
+            </div>
           </q-tab-panel>
 
           <!-- Planned Sprint Tab -->
@@ -505,8 +565,8 @@
                   Planned Sprint: "{{ plannedSprint?.name }}"
                 </div>
                 <div class="text-body2 q-mt-xs">
-                  This analysis helps you optimize the sprint before starting it. 
-                  Apply recommended changes, then start the sprint when ready.
+                  This analysis helps you optimize the sprint before starting it. Apply recommended
+                  changes, then start the sprint when ready.
                 </div>
               </q-banner>
 
@@ -514,9 +574,7 @@
               <div v-if="requirementChangeStore.loading" class="text-center q-pa-xl">
                 <q-spinner-dots color="primary" size="48px" class="q-mb-md" />
                 <div class="text-h6 text-grey-7">Analyzing Planned Sprint...</div>
-                <div class="text-body2 text-grey-6">
-                  Searching for optimization opportunities
-                </div>
+                <div class="text-body2 text-grey-6">Searching for optimization opportunities</div>
               </div>
 
               <OptimizationProposals
@@ -553,10 +611,8 @@
               <div class="row items-center justify-between q-mb-lg">
                 <div>
                   <div class="text-h5 text-weight-bold">Current Sprint Analysis</div>
-                  <div class="text-caption text-grey-7">
-                    Focus on active sprint optimization
-                          </div>
-                        </div>
+                  <div class="text-caption text-grey-7">Focus on active sprint optimization</div>
+                </div>
                 <div class="row q-gutter-sm">
                   <q-btn
                     color="secondary"
@@ -581,15 +637,13 @@
                     <q-tooltip>Specialized analysis for PERT duration and RACI workload</q-tooltip>
                   </q-btn>
                 </div>
-                      </div>
+              </div>
 
               <!-- Loading State -->
               <div v-if="requirementChangeStore.loading" class="text-center q-pa-xl">
                 <q-spinner-dots color="primary" size="48px" class="q-mb-md" />
                 <div class="text-h6 text-grey-7">Analyzing Sprint...</div>
-                <div class="text-body2 text-grey-6">
-                  Searching for optimization opportunities
-                </div>
+                <div class="text-body2 text-grey-6">Searching for optimization opportunities</div>
               </div>
 
               <OptimizationProposals
@@ -607,20 +661,20 @@
                 <div class="text-h6">Sprint is Optimized!</div>
                 <div class="text-body2 text-grey-7">
                   No optimization opportunities found in current sprint.
-                    </div>
-                  </div>
+                </div>
+              </div>
 
               <div v-else-if="!requirementChangeStore.loading" class="text-center q-pa-xl">
                 <q-icon name="analytics" size="64px" color="grey-5" class="q-mb-md" />
                 <div class="text-h6 text-grey-6">Ready to Optimize</div>
                 <div class="text-body2 text-grey-7">
                   Click "Analyze & Optimize" to find sprint opportunities
-                          </div>
-                        </div>
-                      </div>
+                </div>
+              </div>
+            </div>
           </q-tab-panel>
         </q-tab-panels>
-              </q-card>
+      </q-card>
 
       <!-- Apply Changes Sticky Footer -->
       <q-page-sticky v-if="hasSelectedProposals" position="bottom" :offset="[0, 18]">
@@ -631,11 +685,11 @@
                 <div class="text-h6 text-weight-bold">
                   <q-icon name="check_circle" size="24px" class="q-mr-sm" />
                   {{ selectedProposalCount }} Changes Ready
-        </div>
+                </div>
                 <div class="text-body2">Review and apply selected optimizations</div>
-      </div>
+              </div>
               <div class="col-auto">
-            <q-btn
+                <q-btn
                   color="white"
                   text-color="primary"
                   label="Apply Changes"
@@ -644,13 +698,13 @@
                   @click="showApplyDialog = true"
                   :loading="applyingChanges"
                   unelevated
-            />
-          </div>
-                </div>
+                />
+              </div>
+            </div>
           </q-card-section>
-              </q-card>
+        </q-card>
       </q-page-sticky>
-          </div>
+    </div>
 
     <!-- Apply Confirmation Dialog -->
     <q-dialog v-model="showApplyDialog" persistent>
@@ -695,9 +749,9 @@
 
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="Cancel" color="grey" @click="showApplyDialog = false" />
-            <q-btn
+          <q-btn
             label="Apply All Changes"
-              color="primary"
+            color="primary"
             @click="applyChanges"
             :loading="applyingChanges"
             unelevated
@@ -705,7 +759,6 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-
   </q-page>
 </template>
 
@@ -714,7 +767,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useProjectStore } from 'src/stores/project-store';
 import { useTeamStore } from 'src/stores/team-store';
-import { useRequirementChangeStore, type OptimizationScope } from 'src/stores/requirement-change-store';
+import {
+  useRequirementChangeStore,
+  type OptimizationScope,
+} from 'src/stores/requirement-change-store';
 import OptimizationProposals from 'src/components/OptimizationProposals.vue';
 import { useActivityLog } from 'src/composables/useActivityLog';
 
@@ -732,10 +788,7 @@ const selectedProjectId = ref<number | null>(null);
 
 onMounted(async () => {
   try {
-    await Promise.all([
-      projectStore.fetchProjects(true),
-      teamStore.fetchTeamMembers()
-    ]);
+    await Promise.all([projectStore.fetchProjects(true), teamStore.fetchTeamMembers()]);
 
     // Set default project if available (same as RACI, PERT, etc.)
     if (projectStore.projects.length > 0 && !selectedProjectId.value) {
@@ -796,11 +849,9 @@ const selectedProject = computed(() => {
 
 const hasAnalysis = computed(() => !!requirementChangeStore.analysisResult);
 const hasProposals = computed(
-  () => (requirementChangeStore.analysisResult?.proposals?.length ?? 0) > 0
+  () => (requirementChangeStore.analysisResult?.proposals?.length ?? 0) > 0,
 );
-const hasSelectedProposals = computed(
-  () => requirementChangeStore.selectedProposals.length > 0
-);
+const hasSelectedProposals = computed(() => requirementChangeStore.selectedProposals.length > 0);
 const selectedProposalCount = computed(() => requirementChangeStore.selectedProposals.length);
 
 const proposals = computed(() => requirementChangeStore.analysisResult?.proposals || []);
@@ -813,7 +864,7 @@ const currentState = computed(() => {
 
   // Calculate average workload from team members (from active sprints only)
   const members = teamStore.teamMembers.filter((member) =>
-    selectedProject.value?.teamMemberIds?.includes(member.id)
+    selectedProject.value?.teamMemberIds?.includes(member.id),
   );
 
   // Get active sprint
@@ -838,12 +889,15 @@ const currentState = computed(() => {
 
   // Calculate risk score (0-10 scale based on multiple factors)
   const risks = riskBreakdown.value;
-  const riskScore = Math.min(10, Math.round(
-    (risks.deadlineRisks * 0.3) +
-    (risks.overloadedMembers * 0.4) +
-    (risks.blockedTasks * 0.2) +
-    (risks.largeTasks * 0.1)
-  ));
+  const riskScore = Math.min(
+    10,
+    Math.round(
+      risks.deadlineRisks * 0.3 +
+        risks.overloadedMembers * 0.4 +
+        risks.blockedTasks * 0.2 +
+        risks.largeTasks * 0.1,
+    ),
+  );
 
   // Calculate balance score (0-100%, higher is better)
   const workloads = teamWorkloadDetails.value.map((m) => m.workload);
@@ -869,15 +923,23 @@ const currentState = computed(() => {
   // Calculate RACI Workload average across all projects
   let raciCrossProjectWorkload = 0;
   if (raciCrossProjectWorkloadDetails.value.length > 0) {
-    const totalWorkload = raciCrossProjectWorkloadDetails.value.reduce((sum, m) => sum + m.workload, 0);
-    raciCrossProjectWorkload = Math.round(totalWorkload / raciCrossProjectWorkloadDetails.value.length);
+    const totalWorkload = raciCrossProjectWorkloadDetails.value.reduce(
+      (sum, m) => sum + m.workload,
+      0,
+    );
+    raciCrossProjectWorkload = Math.round(
+      totalWorkload / raciCrossProjectWorkloadDetails.value.length,
+    );
   }
 
   return {
     workload,
     riskScore,
     balanceScore,
-    totalStoryPoints: (selectedProject.value.tasks || []).reduce((sum, t) => sum + (t.storyPoints || 0), 0),
+    totalStoryPoints: (selectedProject.value.tasks || []).reduce(
+      (sum, t) => sum + (t.storyPoints || 0),
+      0,
+    ),
     completedStoryPoints: (selectedProject.value.tasks || [])
       .filter((t) => t.status === 'Done')
       .reduce((sum, t) => sum + (t.storyPoints || 0), 0),
@@ -913,31 +975,34 @@ const teamWorkloadDetails = computed(() => {
   if (!selectedProject.value) return [];
 
   const members = teamStore.teamMembers.filter((member) =>
-    selectedProject.value?.teamMemberIds?.includes(member.id)
+    selectedProject.value?.teamMemberIds?.includes(member.id),
   );
 
   // Get active sprint
   const activeSprint = (selectedProject.value.sprints || []).find((s) => s.status === 'active');
 
-  return members.map((member) => {
-    const maxStoryPoints = member.maxStoryPoints || 20;
+  return members
+    .map((member) => {
+      const maxStoryPoints = member.maxStoryPoints || 20;
 
-    // Only count tasks from active sprint (including Done - Sprint Commitment)
-    const tasks = (selectedProject.value?.tasks || []).filter((task) => {
-      const isInSprint = activeSprint ? task.sprintId === activeSprint.id : false;
-      const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
-      return isInSprint && isAssigned;
-    });
+      // Only count tasks from active sprint (including Done - Sprint Commitment)
+      const tasks = (selectedProject.value?.tasks || []).filter((task) => {
+        const isInSprint = activeSprint ? task.sprintId === activeSprint.id : false;
+        const isAssigned = task.raci?.responsible && task.raci.responsible.includes(member.id);
+        return isInSprint && isAssigned;
+      });
 
-    const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
-    const workload = maxStoryPoints > 0 ? Math.round((memberStoryPoints / maxStoryPoints) * 100) : 0;
+      const memberStoryPoints = tasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
+      const workload =
+        maxStoryPoints > 0 ? Math.round((memberStoryPoints / maxStoryPoints) * 100) : 0;
 
-    return {
-      id: member.id,
-      name: member.name,
-      workload: workload,
-    };
-  }).sort((a, b) => b.workload - a.workload);
+      return {
+        id: member.id,
+        name: member.name,
+        workload: workload,
+      };
+    })
+    .sort((a, b) => b.workload - a.workload);
 });
 
 const crossProjectWorkload = computed(() => {
@@ -947,7 +1012,7 @@ const crossProjectWorkload = computed(() => {
 
   // Get members from current project
   const projectMembers = teamStore.teamMembers.filter((member) =>
-    selectedProject.value?.teamMemberIds?.includes(member.id)
+    selectedProject.value?.teamMemberIds?.includes(member.id),
   );
 
   // Calculate workload across all projects for these members
@@ -983,9 +1048,10 @@ const crossProjectWorkload = computed(() => {
     };
   });
 
-  const average = memberWorkloads.length > 0
-    ? Math.round(memberWorkloads.reduce((sum, m) => sum + m.workload, 0) / memberWorkloads.length)
-    : 0;
+  const average =
+    memberWorkloads.length > 0
+      ? Math.round(memberWorkloads.reduce((sum, m) => sum + m.workload, 0) / memberWorkloads.length)
+      : 0;
 
   return {
     average,
@@ -1006,60 +1072,63 @@ const raciProjectWorkloadDetails = computed(() => {
   if (!selectedProject.value) return [];
 
   const projectMembers = teamStore.teamMembers.filter((member) =>
-    selectedProject.value?.teamMemberIds?.includes(member.id)
+    selectedProject.value?.teamMemberIds?.includes(member.id),
   );
 
   // Get active sprint for current project
   const activeSprint = selectedProject.value.sprints?.find((s) => s.status === 'active');
 
-  return projectMembers.map((member) => {
-    const maxStoryPoints = member.maxStoryPoints || 20;
-    let weightedSP = 0;
+  return (
+    projectMembers
+      .map((member) => {
+        const maxStoryPoints = member.maxStoryPoints || 20;
+        let weightedSP = 0;
 
-    // Calculate RACI-weighted workload for CURRENT project only (if active sprint exists)
-    if (activeSprint) {
-      const sprintTasks = (selectedProject.value?.tasks || []).filter(
-        (task) => task.sprintId === activeSprint.id
-      );
+        // Calculate RACI-weighted workload for CURRENT project only (if active sprint exists)
+        if (activeSprint) {
+          const sprintTasks = (selectedProject.value?.tasks || []).filter(
+            (task) => task.sprintId === activeSprint.id,
+          );
 
-      sprintTasks.forEach((task) => {
-        const sp = task.storyPoints || 0;
-        if (sp === 0) return;
+          sprintTasks.forEach((task) => {
+            const sp = task.storyPoints || 0;
+            if (sp === 0) return;
 
-        // Responsible
-        if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
-          weightedSP += sp * RACI_WEIGHTS.responsible;
+            // Responsible
+            if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
+              weightedSP += sp * RACI_WEIGHTS.responsible;
+            }
+
+            // Accountable
+            if (task.raci?.accountable === member.id) {
+              weightedSP += sp * RACI_WEIGHTS.accountable;
+            }
+
+            // Consulted
+            if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
+              weightedSP += sp * RACI_WEIGHTS.consulted;
+            }
+
+            // Informed
+            if (task.raci?.informed && task.raci.informed.includes(member.id)) {
+              weightedSP += sp * RACI_WEIGHTS.informed;
+            }
+          });
         }
+        // If no active sprint, weightedSP stays 0 for all members
 
-        // Accountable
-        if (task.raci?.accountable === member.id) {
-          weightedSP += sp * RACI_WEIGHTS.accountable;
-        }
+        const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
 
-        // Consulted
-        if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
-          weightedSP += sp * RACI_WEIGHTS.consulted;
-        }
-
-        // Informed
-        if (task.raci?.informed && task.raci.informed.includes(member.id)) {
-          weightedSP += sp * RACI_WEIGHTS.informed;
-        }
-      });
-    }
-    // If no active sprint, weightedSP stays 0 for all members
-
-    const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
-
-    return {
-      id: member.id,
-      name: member.name,
-      workload: workload, // Already rounded to whole number
-      weightedSP: Math.round(weightedSP), // Round weighted SP to whole number
-    };
-  })
-  // Show all members, even with 0% workload (for consistency with non-RACI workload displays)
-  .sort((a, b) => b.workload - a.workload);
+        return {
+          id: member.id,
+          name: member.name,
+          workload: workload, // Already rounded to whole number
+          weightedSP: Math.round(weightedSP), // Round weighted SP to whole number
+        };
+      })
+      // Show all members, even with 0% workload (for consistency with non-RACI workload displays)
+      .sort((a, b) => b.workload - a.workload)
+  );
 });
 
 // RACI Workload across all projects (cross-project)
@@ -1068,59 +1137,64 @@ const raciCrossProjectWorkloadDetails = computed(() => {
 
   // Get members from current project only (but calculate cross-project workload for them)
   const projectMembers = teamStore.teamMembers.filter((member) =>
-    selectedProject.value?.teamMemberIds?.includes(member.id)
+    selectedProject.value?.teamMemberIds?.includes(member.id),
   );
 
-  return projectMembers.map((member) => {
-    const maxStoryPoints = member.maxStoryPoints || 20;
-    let weightedSP = 0;
+  return (
+    projectMembers
+      .map((member) => {
+        const maxStoryPoints = member.maxStoryPoints || 20;
+        let weightedSP = 0;
 
-    // Calculate RACI-weighted workload across ALL projects (each with its own active sprint)
-    projectStore.projects.forEach((project) => {
-      // FIX: Find active sprint for EACH project (not just selected project)
-      const projectActiveSprint = project.sprints?.find((s) => s.status === 'active');
+        // Calculate RACI-weighted workload across ALL projects (each with its own active sprint)
+        projectStore.projects.forEach((project) => {
+          // FIX: Find active sprint for EACH project (not just selected project)
+          const projectActiveSprint = project.sprints?.find((s) => s.status === 'active');
 
-      if (project.tasks && projectActiveSprint) {
-        const sprintTasks = project.tasks.filter((task) => task.sprintId === projectActiveSprint.id);
+          if (project.tasks && projectActiveSprint) {
+            const sprintTasks = project.tasks.filter(
+              (task) => task.sprintId === projectActiveSprint.id,
+            );
 
-        sprintTasks.forEach((task) => {
-          const sp = task.storyPoints || 0;
-          if (sp === 0) return;
+            sprintTasks.forEach((task) => {
+              const sp = task.storyPoints || 0;
+              if (sp === 0) return;
 
-          // Responsible
-          if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
-            weightedSP += sp * RACI_WEIGHTS.responsible;
-          }
+              // Responsible
+              if (task.raci?.responsible && task.raci.responsible.includes(member.id)) {
+                weightedSP += sp * RACI_WEIGHTS.responsible;
+              }
 
-          // Accountable
-          if (task.raci?.accountable === member.id) {
-            weightedSP += sp * RACI_WEIGHTS.accountable;
-          }
+              // Accountable
+              if (task.raci?.accountable === member.id) {
+                weightedSP += sp * RACI_WEIGHTS.accountable;
+              }
 
-          // Consulted
-          if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
-            weightedSP += sp * RACI_WEIGHTS.consulted;
-          }
+              // Consulted
+              if (task.raci?.consulted && task.raci.consulted.includes(member.id)) {
+                weightedSP += sp * RACI_WEIGHTS.consulted;
+              }
 
-          // Informed
-          if (task.raci?.informed && task.raci.informed.includes(member.id)) {
-            weightedSP += sp * RACI_WEIGHTS.informed;
+              // Informed
+              if (task.raci?.informed && task.raci.informed.includes(member.id)) {
+                weightedSP += sp * RACI_WEIGHTS.informed;
+              }
+            });
           }
         });
-      }
-    });
 
-    const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
+        const workload = maxStoryPoints > 0 ? Math.round((weightedSP / maxStoryPoints) * 100) : 0;
 
-    return {
-      id: member.id,
-      name: member.name,
-      workload: workload, // Already rounded to whole number
-      weightedSP: Math.round(weightedSP), // Round weighted SP to whole number
-    };
-  })
-  // Show all members, even with 0% workload (for consistency with non-RACI workload displays)
-  .sort((a, b) => b.workload - a.workload);
+        return {
+          id: member.id,
+          name: member.name,
+          workload: workload, // Already rounded to whole number
+          weightedSP: Math.round(weightedSP), // Round weighted SP to whole number
+        };
+      })
+      // Show all members, even with 0% workload (for consistency with non-RACI workload displays)
+      .sort((a, b) => b.workload - a.workload)
+  );
 });
 
 const riskBreakdown = computed(() => {
@@ -1187,19 +1261,16 @@ async function analyzeTab(scope: OptimizationScope) {
     details: { scope },
   });
 
-  const result = await requirementChangeStore.autoOptimizeProject(
-    selectedProjectId.value,
-    scope
-  );
+  const result = await requirementChangeStore.autoOptimizeProject(selectedProjectId.value, scope);
 
   if (result) {
-  $q.notify({
+    $q.notify({
       message: result.message || `Found ${result.totalProposals || 0} opportunities`,
-    color: 'positive',
-    icon: 'check_circle',
-    position: 'top',
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top',
       timeout: 3000,
-  });
+    });
   }
 }
 
@@ -1210,10 +1281,7 @@ async function analyzePertRaciTab(scope: OptimizationScope) {
     details: { scope },
   });
 
-  const result = await requirementChangeStore.analyzePertRaci(
-    selectedProjectId.value,
-    scope
-  );
+  const result = await requirementChangeStore.analyzePertRaci(selectedProjectId.value, scope);
 
   if (result) {
     $q.notify({
@@ -1228,12 +1296,12 @@ async function analyzePertRaciTab(scope: OptimizationScope) {
 
 function clearAnalysis() {
   requirementChangeStore.clearAnalysis();
-    $q.notify({
+  $q.notify({
     message: 'Analysis cleared',
     color: 'info',
     icon: 'refresh',
-      position: 'top',
-    });
+    position: 'top',
+  });
 }
 
 async function applyChanges() {
@@ -1249,7 +1317,7 @@ async function applyChanges() {
     const selectedProposals = requirementChangeStore.getSelectedProposals();
     const result = await requirementChangeStore.applyChanges(
       selectedProjectId.value,
-      selectedProposals
+      selectedProposals,
     );
 
     if (result.success) {
@@ -1323,11 +1391,9 @@ function getDurationOverheadColor(overhead: number): string {
   if (overhead >= 20) return 'text-orange';
   return 'text-green';
 }
-
 </script>
 
 <style scoped>
-
 .stat-card {
   text-align: center;
   padding: 16px;
@@ -1355,5 +1421,4 @@ function getDurationOverheadColor(overhead: number): string {
 .shadow-up-8 {
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.15);
 }
-
 </style>

@@ -258,18 +258,33 @@
       </div>
 
       <!-- Additional Context - Skill Match -->
-      <div v-if="proposal.impact?.currentMatch || proposal.impact?.newMatch || proposal.impact?.skillMatch" class="q-mt-sm">
+      <div
+        v-if="
+          proposal.impact?.currentMatch !== undefined ||
+          proposal.impact?.newMatch !== undefined ||
+          proposal.impact?.skillMatch !== undefined
+        "
+        class="q-mt-sm"
+      >
         <q-banner dense class="bg-blue-1 text-blue-9">
           <template v-slot:avatar>
             <q-icon name="psychology" color="blue" />
           </template>
           <div class="text-caption">
             <strong>Skill Match:</strong>
-            <span v-if="proposal.impact.currentMatch && proposal.impact.newMatch">
-            {{ proposal.impact.currentMatch }} → {{ proposal.impact.newMatch }}
+            <span
+              v-if="
+                proposal.impact?.currentMatch !== undefined &&
+                proposal.impact?.newMatch !== undefined
+              "
+            >
+              {{ proposal.impact.currentMatch }} → {{ proposal.impact.newMatch }}
             </span>
-            <span v-else-if="proposal.impact.skillMatch">
+            <span v-else-if="proposal.impact?.skillMatch !== undefined">
               {{ proposal.impact.skillMatch }}%
+            </span>
+            <span v-else-if="proposal.impact?.currentMatch !== undefined">
+              {{ proposal.impact.currentMatch }}
             </span>
           </div>
         </q-banner>

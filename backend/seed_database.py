@@ -18,6 +18,8 @@ from app.models.task_history import TaskHistory
 from datetime import datetime, timedelta
 import random
 
+from seed_epics import seed_epics_for_project
+
 
 # ====================================================================================
 # FOUNDATION
@@ -337,6 +339,36 @@ def seed_bootstrap_light():
     seed_users()
     seed_team_members()
     seed_inline_demo_project()
+    _seed_epics_for_all_projects()
+
+
+def _seed_epics_for_all_projects():
+    """Auto-seed epics for each seeded project (skip projects that already have epics)."""
+    projects = Project.query.all()
+    if not projects:
+        print("[SKIP] No projects found for epic seeding")
+        return
+
+    print("\nSeeding epics for projects...")
+    seeded = 0
+    skipped = 0
+
+    for project in projects:
+        result = seed_epics_for_project(
+            project.id,
+            replace_existing=False,
+            assign_tasks=False,
+            interactive=False,
+            use_app_context=False,
+            verbose=False,
+        )
+        if result.get('skipped'):
+            skipped += 1
+            continue
+        if result.get('ok'):
+            seeded += 1
+
+    print(f"[OK] Epic seed finished (created for {seeded} project(s), skipped {skipped})")
 
 
 def seed_all():
@@ -362,6 +394,8 @@ def seed_all():
         print(f"\nWARNING: Full project seed failed ({e!r}) — falling back to inline demo")
         db.session.rollback()
         seed_inline_demo_project()
+
+    _seed_epics_for_all_projects()
 
     print("\n" + "=" * 70)
     print("SEED COMPLETED")

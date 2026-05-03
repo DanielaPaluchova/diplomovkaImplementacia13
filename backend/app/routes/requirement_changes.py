@@ -643,7 +643,16 @@ def apply_requirement_changes(project_id):
                     applied_results.append({'type': 'increase_sp', 'taskId': action.get('taskId')})
                 elif proposal_type in ['bottleneck', 'priority_conflict', 'deadline_risk', 'skill_mismatch', 'raci_overload', 'duration_risk']:
                     # These are all reassignments, priority changes, or backlog moves
-                    if action.get('type') == 'reassign':
+                    if proposal_type == 'skill_mismatch' and action.get('type') == 'flag_skill_gap':
+                        # Informational recommendation only - requires manual action
+                        skipped += 1
+                        applied_results.append({
+                            'type': proposal_type,
+                            'action': 'flag_skill_gap',
+                            'taskId': task_id,
+                            'reason': 'Informational skill-gap warning (manual action required)'
+                        })
+                    elif action.get('type') == 'reassign':
                         # Check if this task was split (and thus deleted)
                         if task_id in split_created_tasks:
                             # Apply reassignment to all created subtasks instead

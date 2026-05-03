@@ -81,7 +81,7 @@
             <q-card class="text-center">
               <q-card-section class="q-pa-md">
                 <div class="text-h4 text-purple text-weight-bold">
-                  +{{ independentEpicsDuration.toFixed(1) }}
+                  {{ independentEpicsDuration.toFixed(1) }}
                 </div>
                 <div class="text-caption text-grey-7">Independent (days)</div>
               </q-card-section>
@@ -295,29 +295,11 @@
                 <q-card-section class="q-pa-md">
                   <div class="text-caption text-grey-7">Independent Epics (parallel)</div>
                   <div class="text-h5 text-purple text-weight-bold">
-                    +{{ independentEpicsDuration.toFixed(1) }} days
-                  </div>
-                </q-card-section>
-              </q-card>
-              <q-card flat bordered class="critical-path-kpi-card">
-                <q-card-section class="q-pa-md">
-                  <div class="text-caption text-grey-7">Total Estimated Duration</div>
-                  <div class="text-h5 text-primary text-weight-bold">
-                    {{ (criticalPathData.projectDuration + independentEpicsDuration).toFixed(1) }} days
+                    {{ independentEpicsDuration.toFixed(1) }} days
                   </div>
                 </q-card-section>
               </q-card>
             </div>
-
-            <q-banner v-if="independentEpics.length > 0" class="bg-purple-1 text-purple-9 q-mb-md" rounded>
-              <template v-slot:avatar>
-                <q-icon name="info" color="purple" />
-              </template>
-              <div class="text-body2">
-                <strong>Note:</strong> Independent epics ({{ independentEpics.length }}) can be worked on in parallel with the critical path, 
-                potentially reducing total project time if resources are available.
-              </div>
-            </q-banner>
 
             <!-- PERT Statistics for Critical Path -->
             <div v-if="criticalPathData" class="q-mb-lg">
@@ -406,7 +388,7 @@
             <div class="text-subtitle2 q-mb-sm">Critical Path Sequence:</div>
             <div class="critical-sequence-chips q-mb-lg">
               <q-chip
-                v-for="epicId in criticalPathData.criticalPath"
+                v-for="epicId in orderedCriticalPath"
                 :key="epicId"
                 color="red"
                 text-color="white"
@@ -739,6 +721,79 @@ const criticalPathTableData = computed(() => {
     if (!a.isCritical && b.isCritical) return 1;
     return a.earlyStart - b.earlyStart;
   });
+});
+
+const orderedCriticalPath = computed<number[]>(() => {
+  if (!criticalPathData.value) return [];
+
+  const criticalIds = [...criticalPathData.value.criticalPath];
+  if (criticalIds.length <= 1) return criticalIds;
+
+  const criticalSet = new Set(criticalIds);
+  const schedule = criticalPathData.value.epicSchedule;
+  const inDegree = new Map<number, number>();
+  const adjacency = new Map<number, number[]>();
+
+  const getScheduleEntry = (id: number) => {
+    return (
+      (schedule as Record<number, (typeof schedule)[number]>)[id] ??
+      (schedule as Record<string, (typeof schedule)[number]>)[String(id)]
+    );
+  };
+
+  const sortBySchedule = (a: number, b: number) => {
+    const aEntry = getScheduleEntry(a);
+    const bEntry = getScheduleEntry(b);
+    const aEarlyStart = aEntry?.earlyStart ?? Number.MAX_SAFE_INTEGER;
+    const bEarlyStart = bEntry?.earlyStart ?? Number.MAX_SAFE_INTEGER;
+    const aEarlyFinish = aEntry?.earlyFinish ?? Number.MAX_SAFE_INTEGER;
+    const bEarlyFinish = bEntry?.earlyFinish ?? Number.MAX_SAFE_INTEGER;
+
+    return aEarlyStart - bEarlyStart || aEarlyFinish - bEarlyFinish || a - b;
+  };
+
+  criticalIds.forEach((id) => {
+    inDegree.set(id, 0);
+    adjacency.set(id, []);
+  });
+
+  // Build dependency graph only within critical epics
+  criticalIds.forEach((id) => {
+    const epic = epics.value.find((e) => e.id === id);
+    (epic?.dependencies || []).forEach((depId) => {
+      if (!criticalSet.has(depId)) return;
+      adjacency.get(depId)?.push(id);
+      inDegree.set(id, (inDegree.get(id) || 0) + 1);
+    });
+  });
+
+  // Kahn topological sort with deterministic ordering
+  const queue = criticalIds
+    .filter((id) => (inDegree.get(id) || 0) === 0)
+    .sort(sortBySchedule);
+  const ordered: number[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    ordered.push(current);
+
+    (adjacency.get(current) || []).forEach((nextId) => {
+      const nextDegree = (inDegree.get(nextId) || 0) - 1;
+      inDegree.set(nextId, nextDegree);
+
+      if (nextDegree === 0) {
+        queue.push(nextId);
+        queue.sort(sortBySchedule);
+      }
+    });
+  }
+
+  // Fallback for unexpected cycles/data mismatch
+  if (ordered.length !== criticalIds.length) {
+    return criticalIds.sort(sortBySchedule);
+  }
+
+  return ordered;
 });
 
 // PERT statistics for critical path
@@ -1108,7 +1163,7 @@ onMounted(async () => {
 .critical-path-kpi-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .critical-path-kpi-card,

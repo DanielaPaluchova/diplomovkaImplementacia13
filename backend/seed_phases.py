@@ -8,6 +8,7 @@ from app.models.project import Project
 from app.models.team_member import TeamMember
 from app.models.user import User
 from seed_database import get_member_ids, seed_team_members, seed_users
+from seed_epics import seed_epics_for_project
 
 # Musí sedieť s názvami projektov v seed_projects.py
 STEP_SPECS: list[dict] = [
@@ -163,6 +164,16 @@ def run_seed_step(step: int) -> dict:
 
     fn = runners[step]
     fn(m)
+    project = Project.query.filter_by(name=pname).first()
+    if project:
+        seed_epics_for_project(
+            project.id,
+            replace_existing=False,
+            assign_tasks=False,
+            interactive=False,
+            use_app_context=False,
+            verbose=False,
+        )
 
     return {
         'ok': True,

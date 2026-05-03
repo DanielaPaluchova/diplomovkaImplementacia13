@@ -172,7 +172,7 @@
                 @click="navigateTo('/pert-analysis')"
               >
                 <div class="column items-center">
-                  <q-icon name="account_tree" color="purple" size="48px" class="q-mb-sm" />
+                  <q-icon name="calculate" color="purple" size="48px" class="q-mb-sm" />
                   <div class="text-weight-bold text-purple">PERT Analysis</div>
                   <div class="text-caption text-grey-7">Task estimation</div>
                 </div>
@@ -196,7 +196,12 @@
                 @click="navigateTo('/pert-raci-optimization')"
               >
                 <div class="column items-center">
-                  <q-icon name="auto_awesome" color="primary" size="48px" class="q-mb-sm" />
+                  <q-icon
+                    name="integration_instructions"
+                    color="primary"
+                    size="48px"
+                    class="q-mb-sm"
+                  />
                   <div class="text-weight-bold text-primary">PERT+RACI</div>
                   <div class="text-caption text-grey-7">Run optimization</div>
                 </div>

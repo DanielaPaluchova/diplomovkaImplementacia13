@@ -410,15 +410,41 @@ watch(
   { immediate: true }
 );
 
-// Load users on mount
-onMounted(async () => {
+async function loadUsers() {
   try {
-    const response = await api.get<UserOption[]>(`/projects/${props.projectId}/team-members`);
-    users.value = response;
+    if (!props.projectId) {
+      users.value = [];
+      return;
+    }
+
+    const projectMembers = await api.get<UserOption[]>(`/projects/${props.projectId}/team-members`);
+    users.value = projectMembers;
   } catch (error) {
-    console.error('Failed to load project team members:', error);
+    console.error('Failed to load team members for owner selection:', error);
+    users.value = [];
   }
-});
+}
+
+// Load users on mount and refresh when dialog opens
+onMounted(loadUsers);
+
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (isOpen) {
+      void loadUsers();
+    }
+  }
+);
+
+watch(
+  () => props.projectId,
+  () => {
+    if (props.modelValue) {
+      void loadUsers();
+    }
+  }
+);
 
 async function handleSubmit() {
   if (!formData.value.name) {

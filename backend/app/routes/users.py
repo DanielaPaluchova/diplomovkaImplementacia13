@@ -4,6 +4,7 @@ User API endpoints
 from flask import Blueprint, jsonify
 from app.models.user import User
 from app.models.team_member import TeamMember
+from app.models.project import Project
 from app.utils.auth import token_required
 
 users_bp = Blueprint('users', __name__)
@@ -36,14 +37,20 @@ def get_team_members():
 def get_project_team_members(project_id):
     """Get team members assigned to a specific project"""
     try:
-        from app.models.project_role import ProjectRole
-        
-        # Get all member IDs for this project
-        project_roles = ProjectRole.query.filter_by(project_id=project_id).all()
-        member_ids = [role.member_id for role in project_roles]
-        
-        # Get team members with those IDs
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Source of truth for project membership is project.team_member_ids.
+        member_ids = project.team_member_ids or []
+        if not member_ids:
+            return jsonify([]), 200
+
         members = TeamMember.query.filter(TeamMember.id.in_(member_ids)).all()
-        return jsonify([member.to_dict() for member in members]), 200
+        members_by_id = {member.id: member for member in members}
+
+        # Preserve member order from project.team_member_ids
+        ordered_members = [members_by_id[mid] for mid in member_ids if mid in members_by_id]
+        return jsonify([member.to_dict() for member in ordered_members]), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get project team members', 'message': str(e)}), 500
