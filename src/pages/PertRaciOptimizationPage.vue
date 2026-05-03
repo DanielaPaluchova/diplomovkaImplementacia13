@@ -1329,6 +1329,9 @@
                           </q-td>
                           <q-td>{{ props.row.name }}</q-td>
                           <q-td>{{ props.row.storyPoints }}</q-td>
+                          <q-td>{{ props.row.optimistic || 0 }}</q-td>
+                          <q-td>{{ props.row.mostLikely || 0 }}</q-td>
+                          <q-td>{{ props.row.pessimistic || 0 }}</q-td>
                           <q-td>
                             <div class="text-weight-medium">
                               {{ props.row.pertDuration.toFixed(2) }}d
